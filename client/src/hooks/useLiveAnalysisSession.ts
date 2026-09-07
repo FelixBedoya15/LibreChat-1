@@ -345,14 +345,11 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
     const handleMessage = useCallback(async (message: VoiceMessage) => {
         switch (message.type) {
             case 'audio':
-                if (statusRef.current === 'listening' || statusRef.current === 'thinking') {
-                    console.log('[LiveAnalysisSession] Discarding residual server audio packet during listening/thinking state');
-                    break;
-                }
                 if (message.data.audioData) {
-                    optionsRef.current.onAudioReceived?.(message.data.audioData);
+                    statusRef.current = 'speaking';
                     setStatus('speaking');
                     isMutedRef.current = true;
+                    optionsRef.current.onAudioReceived?.(message.data.audioData);
 
                     if (autoMuteTimeoutRef.current) {
                         clearTimeout(autoMuteTimeoutRef.current);

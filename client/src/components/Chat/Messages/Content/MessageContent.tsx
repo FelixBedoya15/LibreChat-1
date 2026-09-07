@@ -205,33 +205,33 @@ const DisplayMessage = ({ text, isCreatedByUser, message, showCursor }: TDisplay
     [showCursor, isSubmitting],
   );
 
-  const isHtmlReport = useMemo(() => {
-    if ((message as any)?.isHtmlReport === true) {
-      return true;
-    }
+  const isRawHtml = useMemo(() => {
     if (!text || typeof text !== 'string') {
       return false;
     }
     const trimmed = text.trim();
+    // Only treat as raw HTML if the content actually starts with HTML tags
+    const startsWithTag = trimmed.startsWith('<div') || trimmed.startsWith('<style') || trimmed.startsWith('<section');
     return (
-      trimmed.startsWith('<div class="report-container"') ||
-      trimmed.startsWith('<div id="wappy-kpi"') ||
-      trimmed.includes('id="wappy-kpi"') ||
-      trimmed.includes('class="report-container"') ||
-      (trimmed.startsWith('<div') && trimmed.includes('data-riesgo=')) ||
-      (trimmed.startsWith('<div') && (trimmed.includes('Informe') || trimmed.includes('INFORME')))
+      startsWithTag && (
+        trimmed.includes('class="report-container"') ||
+        trimmed.includes('id="wappy-kpi"') ||
+        trimmed.includes('data-riesgo=') ||
+        trimmed.includes('Informe') ||
+        trimmed.includes('INFORME')
+      )
     );
-  }, [message, text]);
+  }, [text]);
 
   const { cleanText, suggestions } = useMemo(() => {
-    if (isCreatedByUser || isHtmlReport || !text) {
+    if (isCreatedByUser || isRawHtml || !text) {
       return { cleanText: text, suggestions: [] as string[] };
     }
     return extractAllSuggestions(text);
-  }, [text, isCreatedByUser, isHtmlReport]);
+  }, [text, isCreatedByUser, isRawHtml]);
 
   const content = useMemo(() => {
-    if (isHtmlReport) {
+    if (isRawHtml) {
       return (
         <div className="w-full flex flex-col gap-2 my-2">
           <div 
@@ -248,7 +248,7 @@ const DisplayMessage = ({ text, isCreatedByUser, message, showCursor }: TDisplay
       return <MarkdownLite content={cleanText} />;
     }
     return <>{cleanText}</>;
-  }, [isCreatedByUser, enableUserMsgMarkdown, cleanText, isLatestMessage, isHtmlReport]);
+  }, [isCreatedByUser, enableUserMsgMarkdown, cleanText, isLatestMessage, isRawHtml]);
 
   const handleSuggestionClick = (suggestion: string) => {
     const textarea = document.getElementById('prompt-textarea') as HTMLTextAreaElement;
@@ -284,7 +284,7 @@ const DisplayMessage = ({ text, isCreatedByUser, message, showCursor }: TDisplay
     <Container message={message}>
       <div
         className={cn(
-          isHtmlReport ? '' : 'markdown prose message-content dark:prose-invert light w-full break-words',
+          isRawHtml ? '' : 'markdown prose message-content dark:prose-invert light w-full break-words',
           isSubmitting && 'submitting',
           showCursorState && text.length > 0 && 'result-streaming',
           isCreatedByUser && !enableUserMsgMarkdown && 'whitespace-pre-wrap',

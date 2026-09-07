@@ -439,10 +439,6 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         selectedModel,
         template: selectedTemplate || 'general',
         onAudioReceived: (audioData: string) => {
-            if (statusRef.current !== 'speaking') {
-                console.log('[LiveAnalysisModal] Discarding residual server audio packet because status is:', statusRef.current);
-                return;
-            }
             handleAudioReceived(audioData);
         },
         onTextReceived: (text: string) => {

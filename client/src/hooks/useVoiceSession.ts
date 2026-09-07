@@ -398,15 +398,12 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     const handleMessage = useCallback(async (message: VoiceMessage) => {
         switch (message.type) {
             case 'audio':
-                if (statusRef.current === 'listening' || statusRef.current === 'thinking') {
-                    console.log('[VoiceSession] Discarding residual server audio packet during listening/thinking state');
-                    break;
-                }
                 if (message.data.audioData) {
-                    optionsRef.current.onAudioReceived?.(message.data.audioData);
+                    statusRef.current = 'speaking';
                     setStatus('speaking');
                     isAutoMutedRef.current = true;
                     serverFinishedRef.current = false;
+                    optionsRef.current.onAudioReceived?.(message.data.audioData);
 
                     if (autoMuteTimeoutRef.current) {
                         clearTimeout(autoMuteTimeoutRef.current);

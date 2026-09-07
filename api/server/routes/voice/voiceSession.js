@@ -163,6 +163,27 @@ REGLAS DE INTERACCIÓN EN VIVO:
 2. **ACCIÓN INMEDIATA EN PANTALLA:** Si el usuario te pide navegar o realizar una acción (ej: "ve a perfiles de cargo", "activa la empresa X", "ayúdame a configurar un plan"), invoca inmediatamente la herramienta adecuada ('wappy_navegar', 'wappy_seleccionar_empresa', 'operar_interfaz_visual') para que la pantalla se mueva en vivo mientras le confirmas brevemente con tu voz lo que acabas de hacer.
 3. **RESPETO DE RESTRICCIONES:** Si el usuario te dice "no edites nada solo ayúdame a configurar...", respeta estrictamente su instrucción: navega y ayúdale a visualizar o estructurar el plan sin modificar datos preexistentes.
 4. **INTERRUPCIÓN:** Si el usuario empieza a hablarte mientras estás respondiendo, detente de inmediato y atiende su nueva indicación.`;
+        } else {
+            // Herramientas nativas para agentes SST y Fisioterapeuta Laboral
+            const reportTool = {
+                name: "generar_informe_tecnico",
+                description: "Genera inmediatamente el informe técnico ergonómico o de riesgos SST con las evidencias fotográficas y mediciones recopiladas en vivo. DEBES llamar obligatoriamente a esta función siempre que el usuario te pida directa o indirectamente hacer, compilar, crear, generar o entregar el informe, reporte o resumen técnico (ej: 'haz el informe', 'genera el informe', 'dame el reporte ergonómico', 'quiero el informe').",
+                parameters: {
+                    type: "object",
+                    properties: {
+                        motivo: {
+                            type: "string",
+                            description: "Método aplicado o resumen breve para el informe (ej: 'Método RULA', 'Método REBA', 'Evaluación de puesto de trabajo')"
+                        }
+                    }
+                }
+            };
+
+            this.liveConfig.tools = [
+                {
+                    functionDeclarations: [reportTool]
+                }
+            ];
         }
 
         // Setup client handlers once
@@ -326,6 +347,15 @@ REGLAS DE INTERACCIÓN EN VIVO:
 
             // Count audio chunks to know AI responded with voice
             this.aiAudioChunkCount++;
+
+            // Safety timeout: Reset isAiSpeaking to false if silence for 3.5 seconds
+            if (this.aiSpeakingTimeout) clearTimeout(this.aiSpeakingTimeout);
+            this.aiSpeakingTimeout = setTimeout(() => {
+                if (this.isAiSpeaking) {
+                    logger.info('[VoiceSession] Safety reset isAiSpeaking to false after silence');
+                    this.isAiSpeaking = false;
+                }
+            }, 3500);
         });
 
         // Listen for USER TRANSCRIPTION  
@@ -339,6 +369,30 @@ REGLAS DE INTERACCIÓN EN VIVO:
                 type: 'text',
                 data: { text, isUserTranscription: true }
             });
+
+            // Fast-track real-time voice report trigger
+            if (!this.isGeneratingReport) {
+                const userReportRegex = /(genera(r)?|haz|hacer|crea|crear|dame|darme|sacar|saca|compil(a|ar)|proces(a|ar)|puedes generar|quiero el|realiza(r)?|muestra|mu[eé]strame|prepara(r)?|vamos a hacer)\s*(el|un|mi)?\s*(informe|reporte|resumen|diagn[oó]stico|evaluaci[oó]n|documento)/i;
+                const phoneticApproxRegex = /general\s*(el|al)?\s*(mundo|informe|reporte)/i;
+                if (userReportRegex.test(this.userTranscriptionText) || phoneticApproxRegex.test(this.userTranscriptionText)) {
+                    logger.info(`[VoiceSession] Real-time voice trigger matched in user transcription: "${this.userTranscriptionText}"`);
+                    this.isGeneratingReport = true;
+                    this.sendToClient({
+                        type: 'status',
+                        data: { status: 'generating_report', message: 'Compilando informe técnico...' }
+                    });
+                    this.sendToClient({
+                        type: 'report',
+                        data: {
+                            html: '<p class="text-gray-500 italic animate-pulse">Generando informe técnico detallado...</p>',
+                            evaluatedFrames: this.frameBuffer || []
+                        }
+                    });
+                    this.generateReport(this.config.conversationContext).finally(() => {
+                        this.isGeneratingReport = false;
+                    });
+                }
+            }
         });
 
 
@@ -382,6 +436,32 @@ REGLAS DE INTERACCIÓN EN VIVO:
 
             if (toolCall.functionCalls) {
                 for (const fc of toolCall.functionCalls) {
+                    // Manejo directo de herramienta nativa de informe
+                    if (fc.name === 'generar_informe_tecnico' || fc.name === 'generar_informe_ergonomico') {
+                        logger.info(`[VoiceSession] Gemini invoked native tool "${fc.name}"! Triggering report generation...`);
+                        
+                        this.sendToClient({
+                            type: 'status',
+                            data: { status: 'generating_report', message: 'Compilando informe técnico...' }
+                        });
+
+                        if (this.geminiClient) {
+                            this.geminiClient.sendToolResponse([{
+                                id: fc.id,
+                                name: fc.name,
+                                response: { result: "Informe técnico compilado y mostrado en pantalla con éxito. Informa brevemente al usuario que su informe ergonómico está listo en pantalla." }
+                            }]);
+                        }
+
+                        if (!this.isGeneratingReport) {
+                            this.isGeneratingReport = true;
+                            this.generateReport(this.config.conversationContext).finally(() => {
+                                this.isGeneratingReport = false;
+                            });
+                        }
+                        continue;
+                    }
+
                     // Send action request to client
                     this.sendToClient({
                         type: 'wappy_action',
@@ -416,6 +496,10 @@ REGLAS DE INTERACCIÓN EN VIVO:
         this.geminiClient.on('turnComplete', async () => {
             logger.info('[VoiceSession] ========== TURN COMPLETE ==========');
             this.isAiSpeaking = false;
+            if (this.aiSpeakingTimeout) {
+                clearTimeout(this.aiSpeakingTimeout);
+                this.aiSpeakingTimeout = null;
+            }
             this.sendToClient({ type: 'status', data: { status: 'turn_complete' } });
             await this.saveCurrentTurn('TurnComplete');
             logger.info('[VoiceSession] ========== END TURN ==========');
@@ -425,6 +509,10 @@ REGLAS DE INTERACCIÓN EN VIVO:
         this.geminiClient.on('interrupted', () => {
             logger.info('[VoiceSession] ========== USER INTERRUPTED RESPONSE ==========');
             this.isAiSpeaking = false;
+            if (this.aiSpeakingTimeout) {
+                clearTimeout(this.aiSpeakingTimeout);
+                this.aiSpeakingTimeout = null;
+            }
             this.sendToClient({ type: 'status', data: { status: 'interrupted' } });
             this.sendToClient({ type: 'interrupted', data: {} });
             // Reset temporary AI response buffers for this turn
@@ -1478,6 +1566,11 @@ ${kpiDiv}
                     const convertHtmlToMarkdown = (html) => {
                         let md = html;
 
+                        // Strip out style blocks, svgs, and hidden tracking elements
+                        md = md.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+                        md = md.replace(/<svg[^>]*>[\s\S]*?<\/svg>/gi, '');
+                        md = md.replace(/<div id="wappy-kpi"[^>]*>[\s\S]*?<\/div>/gi, '');
+
                         // Handle tables FIRST (before stripping other tags)
                         // This creates proper Markdown tables
                         const tableRegex = /<table[^>]*>([\s\S]*?)<\/table>/gi;
@@ -1563,6 +1656,13 @@ ${kpiDiv}
                         return md.trim();
                     };
 
+                    const cleanMarkdown = convertHtmlToMarkdown(reportHtml);
+                    const reportTitle = this.isBiomechanics 
+                        ? 'Informe Técnico de Ergonomía y Biomecánica' 
+                        : 'Informe Técnico de Evaluación de Riesgos y Peligros';
+
+                    const chatMessageText = `${cleanMarkdown}\n\n:::canvas{title="${reportTitle}" fileType="html" identifier="informe-ergonomico-${radicadoId}"}\n${reportHtml}\n:::\n`;
+
                     const reportModelName = SGSST_FALLBACK_MODELS[0]; // Use same model name used for generation
                     const reportSender = this.agentObj?.name || (this.isBiomechanics ? 'Fisioterapeuta Laboral' : 'Assistant');
                     const reportIconURL = this.agentObj?.avatar?.filepath || this.agentObj?.avatar?.url || undefined;
@@ -1573,8 +1673,8 @@ ${kpiDiv}
                         sender: reportSender,
                         iconURL: reportIconURL,
                         user: this.userId,
-                        text: reportHtml, // Save HTML for Live editor & rich chat card
-                        content: [{ type: 'text', text: reportHtml }],
+                        text: chatMessageText, // Clean Markdown + Native Canvas Directive
+                        content: [{ type: 'text', text: chatMessageText }],
                         isCreatedByUser: false,
                         isHtmlReport: true, // Marker - this is an HTML report
                         error: false,
@@ -1993,7 +2093,7 @@ INTERPRETACIÓN DE TELEMETRÍA ARTICULAR EN VIVO (MEDIAPIPE):
 - Tronco (Flexión lumbar): Normal <10°, Alerta 10°-20°, Crítico >20° (riesgo discal y lumbalgia).
 - Brazos (Abducción/Elevación): Normal <20°, Alerta 20°-45°, Crítico >45° (fatiga deltoides y supraespinoso).
 - Codos y Rodillas: Rango neutro recomendado 90°-100°.
-- GENERACIÓN DEL INFORME TÉCNICO: ÚNICA Y EXCLUSIVAMENTE cuando el usuario te pida de forma directa y explícita generar el informe ("genera el informe", "haz el reporte", "dame el resumen técnico"), confirma brevemente: "Listo, procesando las evidencias bajo el método seleccionado para generar el informe técnico ergonómico." ESTÁ TERMINANTEMENTE PROHIBIDO decir esta frase por iniciativa propia si el usuario no te ha pedido generar el informe.`;
+- GENERACIÓN DEL INFORME TÉCNICO: Cuando el usuario te pida generar, hacer o sacar el informe, reporte o resumen técnico ("haz el informe", "genera el informe", "dame el reporte ergonómico", "quiero el informe"), DEBES INVOCAR INMEDIATAMENTE la función 'generar_informe_tecnico'. Mientras se procesa, confirma en una sola frase breve: "Listo, procesando las evidencias bajo el método seleccionado para generar el informe técnico ergonómico." ESTÁ TERMINANTEMENTE PROHIBIDO decir que estás generando el informe si el usuario no te lo ha pedido.`;
         } else if (agentObj && agentObj.instructions) {
             // Clean out written-chat questionnaires, HTML blocks, and markdown tables from agent prompt
             let cleaned = agentObj.instructions
@@ -2031,6 +2131,7 @@ ${domainKnowledge}
 3. **FLUIDEZ Y EXPLICACIÓN ORAL:** Brinda respuestas habladas claras, naturales, pedagógicas y completas (2 a 4 oraciones fluidas por intervención), explicando el qué, el porqué del peligro y la recomendación técnica.
 4. **CERO FORMULARIOS EN VOZ ALTA:** NUNCA hagas cuestionarios administrativos en voz alta (prohibido pedir en voz alta tamaño de empresa, número de trabajadores o clase de riesgo ARL a menos que el usuario lo consulte explícitamente).
 5. **FORMATO EXCLUSIVAMENTE HABLADO:** NUNCA utilices etiquetas HTML, tablas Markdown, asteriscos ni viñetas en tus respuestas de voz.
+6. **GENERACIÓN DE INFORMES:** Si el usuario te solicita generar, hacer, compilar o entregar el informe técnico ("haz el informe", "genera el informe", "dame el reporte", "quiero el informe"), invoca de inmediato la herramienta 'generar_informe_tecnico'.
 `.trim();
         
         // Pass the array of keys to VoiceSession
