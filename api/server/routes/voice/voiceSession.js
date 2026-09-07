@@ -90,6 +90,8 @@ class VoiceSession {
         this.aiAudioChunkCount = 0; // Count audio chunks to know if AI responded with voice
         this.lastMessageId = null; // Track last message ID for parent linking
         this.activeEvidenceMessageId = null; // Track current grouped evidence message ID
+        this.agentObj = null;
+        this.isBiomechanics = false;
 
         logger.info(`[VoiceSession] Created for user: ${userId}, conversationId: ${conversationId || 'NULL'}`);
 
@@ -979,7 +981,8 @@ REGLAS DE INTERACCIÓN EN VIVO:
                 text: text,
                 content: [{ type: 'text', text: text }],
                 user: this.userId,
-                sender: 'Assistant', // AI Sender
+                sender: this.agentObj?.name || (this.isBiomechanics ? 'Fisioterapeuta Laboral' : 'Assistant'),
+                iconURL: this.agentObj?.avatar?.filepath || this.agentObj?.avatar?.url || undefined,
                 isCreatedByUser: false,
                 endpoint: this.dbEndpoint,
                 model: this.dbModel,
@@ -1372,7 +1375,16 @@ REQUERIMIENTO ADICIONAL OBLIGATORIO:
             const radicadoId = `LA-${new Date().getFullYear()}-${String(Math.floor(Math.random()*9000)+1000)}`;
             const currentHour = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
-            const finalWrappedHtml = `${kpiDiv}
+            const finalWrappedHtml = `<div class="report-container">
+${kpiDiv}
+<style>
+.ai-report-content h2, .ai-report-content h3 { color: #0f766e; margin-top: 24px; margin-bottom: 12px; font-weight: 700; border-bottom: 1px solid #ccfbf1; padding-bottom: 6px; }
+.ai-report-content p, .ai-report-content li { color: #334155; margin-bottom: 10px; font-size: 0.95em; }
+.ai-report-content table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.88em; }
+.ai-report-content th { background-color: #0f766e; color: #ffffff; padding: 10px 8px; text-align: left; }
+.ai-report-content td { padding: 8px; border-bottom: 1px solid #e2e8f0; color: #1e293b; }
+.ai-report-content tr:nth-child(even) td { background-color: #f8fafc; }
+</style>
 <div style="font-family:'Segoe UI',Arial,sans-serif; max-width:900px; margin:0 auto; color:#111827; background-color:#f9fafb; border-radius:16px; overflow:hidden; border:1px solid #e5e7eb; box-shadow:0 10px 15px -3px rgba(0,0,0,0.05);">
   <!-- HEADER (WAPPY PREMIUM EMERALD-TEAL-CYAN DEGRADADO) -->
   <div style="background:linear-gradient(135deg,#064e3b 0%,#0f766e 60%,#0891b2 100%); padding:32px; position:relative; overflow:hidden; border-bottom:3px solid #14b8a6;">
@@ -1388,11 +1400,11 @@ REQUERIMIENTO ADICIONAL OBLIGATORIO:
           ✨ WAPPY IA • HSE Command Center
         </div>
         <h1 style="color:#ffffff; font-size:1.8em; font-weight:900; margin:0 0 6px; letter-spacing:-0.5px; text-shadow:0 2px 4px rgba(0,0,0,0.2);">
-          Informe de Análisis de Riesgos y Peligros
+          ${this.isBiomechanics ? 'Informe Técnico de Ergonomía y Biomecánica' : 'Informe de Análisis de Riesgos y Peligros'}
         </h1>
         <div style="color:#a7f3d0; font-size:0.85em; font-weight:500; display:flex; align-items:center; gap:6px;">
           <span style="display:inline-block; width:8px; height:8px; background-color:#34d399; border-radius:50%; box-shadow:0 0 8px #34d399;"></span>
-          Modalidad: Auditoría de Campo Asistida por IA (Predictiva)
+          Modalidad: Auditoría Asistida por IA (${this.isBiomechanics ? 'Visión Artificial en Vivo' : 'Predictiva'})
         </div>
       </div>
       <div>
@@ -1426,7 +1438,7 @@ REQUERIMIENTO ADICIONAL OBLIGATORIO:
       <span style="color:#14b8a6; font-size:1.2em;">⏱️</span> <strong>Hora:</strong> ${currentHour}
     </div>
     <div style="display:flex; align-items:center; gap:6px;">
-      <span style="color:#14b8a6; font-size:1.2em;">🛡️</span> <strong>Estándar:</strong> GTC 45 / ISO 45001
+      <span style="color:#14b8a6; font-size:1.2em;">🛡️</span> <strong>Estándar:</strong> ${this.isBiomechanics ? 'RULA / REBA / OWAS (GTC 45 / Res. 2400)' : 'GTC 45 / ISO 45001'}
     </div>
     <div style="display:flex; align-items:center; gap:6px; margin-left:auto;">
       <strong>Estado:</strong> 
@@ -1437,19 +1449,21 @@ REQUERIMIENTO ADICIONAL OBLIGATORIO:
   </div>
 
   <!-- BODY CONTENT -->
-  <div style="background:#ffffff; padding:40px 32px; min-height:400px; display:flex; flex-direction:column;">
+  <div style="background:#ffffff; padding:40px 32px; min-height:400px; display:flex; flex-direction:column; color:#1f2937;">
     
     ${evidenceHtml}
 
-    <div class="ai-report-content" style="line-height:1.7;">
-      <h2>Informe Técnico de Evaluación de Riesgos y Peligros</h2>
+    <div class="ai-report-content" style="line-height:1.7; color:#1f2937;">
+      <h2 style="color:#0f766e; font-size:1.4em; font-weight:800; border-bottom:2px solid #14b8a6; padding-bottom:8px; margin-bottom:20px;">${this.isBiomechanics ? 'Informe Técnico de Evaluación Postural y Ergonómica' : 'Informe Técnico de Evaluación de Riesgos y Peligros'}</h2>
       ${reportHtml}
     </div>
     
   </div>
+</div>
 </div>`;
 
-            reportHtml = finalWrappedHtml;
+            // Strip any 4+ space indentation so markdown engines never treat tags as code blocks
+            reportHtml = finalWrappedHtml.replace(/^[ \t]{4,}/gm, '');
             // ──────────────────────────────────────────────────────────────────
 
             logger.info(`[VoiceSession] Report generated successfully (${reportHtml.length} chars)`);
@@ -1549,17 +1563,17 @@ REQUERIMIENTO ADICIONAL OBLIGATORIO:
                         return md.trim();
                     };
 
-                    // NOTE: Save HTML directly for Live editor compatibility
-                    // MongoDB schema doesn't persist custom fields like originalHtml
-                    // The chat will show raw HTML but the Live editor will work correctly
                     const reportModelName = SGSST_FALLBACK_MODELS[0]; // Use same model name used for generation
+                    const reportSender = this.agentObj?.name || (this.isBiomechanics ? 'Fisioterapeuta Laboral' : 'Assistant');
+                    const reportIconURL = this.agentObj?.avatar?.filepath || this.agentObj?.avatar?.url || undefined;
                     const reportMessage = {
                         messageId,
                         conversationId: this.conversationId,
                         parentMessageId: this.lastMessageId,
-                        sender: 'Assistant',
+                        sender: reportSender,
+                        iconURL: reportIconURL,
                         user: this.userId,
-                        text: reportHtml, // Save HTML for Live editor
+                        text: reportHtml, // Save HTML for Live editor & rich chat card
                         content: [{ type: 'text', text: reportHtml }],
                         isCreatedByUser: false,
                         isHtmlReport: true, // Marker - this is an HTML report
@@ -1571,7 +1585,7 @@ REQUERIMIENTO ADICIONAL OBLIGATORIO:
 
                     await saveMessage({ user: { id: this.userId } }, reportMessage, { context: 'VoiceSession - Report' });
                     this.lastMessageId = messageId; // Update pointer
-                    logger.info(`[VoiceSession] Report saved to DB. MessageId: ${messageId}`);
+                    logger.info(`[VoiceSession] Report saved to DB with sender "${reportSender}". MessageId: ${messageId}`);
 
                     // Save conversation state so LibreChat updates the conversation list and timestamps
                     try {
@@ -1583,6 +1597,40 @@ REQUERIMIENTO ADICIONAL OBLIGATORIO:
                         }, { context: 'VoiceSession - Report' });
                     } catch (convoSaveError) {
                         logger.warn('[VoiceSession] Error updating conversation for report:', convoSaveError.message);
+                    }
+
+                    // Sync to LiveEditorSession & Canvas
+                    try {
+                        const LiveEditorSession = require('~/models/LiveEditorSession');
+                        const CompanyInfo = require('~/models/CompanyInfo');
+                        const { syncLiveEditorToCanvas } = require('../sgsst/syncBridge');
+
+                        let active = await CompanyInfo.findOne({ user: this.userId, isActive: true });
+                        if (!active) active = await CompanyInfo.findOne({ user: this.userId });
+                        const companyId = active ? active._id : null;
+
+                        const reportTitle = `Informe de Inspección - ${this.isBiomechanics ? 'BIOMECÁNICA (RULA/REBA)' : 'SST'}`;
+
+                        if (companyId) {
+                            await LiveEditorSession.findOneAndUpdate(
+                                { conversationId: this.conversationId, companyId },
+                                {
+                                    $set: {
+                                        content: reportHtml,
+                                        contentUpdatedAt: new Date(),
+                                        companyId,
+                                        fileName: reportTitle,
+                                    },
+                                    $setOnInsert: { user: this.userId },
+                                },
+                                { upsert: true, new: true }
+                            );
+                        }
+
+                        await syncLiveEditorToCanvas(this.conversationId, reportHtml, reportTitle, this.userId);
+                        logger.info('[VoiceSession] Report synced to LiveEditorSession and Canvas successfully');
+                    } catch (syncErr) {
+                        logger.warn('[VoiceSession] Error syncing report to LiveEditor/Canvas:', syncErr.message);
                     }
 
                     // CRITICAL: Notify client to invalidate queries so the report appears immediately in the chat!
@@ -1987,6 +2035,8 @@ ${domainKnowledge}
         
         // Pass the array of keys to VoiceSession
         const session = new VoiceSession(clientWs, userId, apiKeys, config, conversationId);
+        session.agentObj = agentObj;
+        session.isBiomechanics = isBiomechanics;
 
         // Start session
         const result = await session.start();

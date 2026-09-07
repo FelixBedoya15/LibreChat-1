@@ -18,6 +18,7 @@ export interface IMessage extends Document {
   text?: string;
   summary?: string;
   isCreatedByUser: boolean;
+  isHtmlReport?: boolean;
   unfinished?: boolean;
   error?: boolean;
   finish_reason?: string;

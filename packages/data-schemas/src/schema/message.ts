@@ -64,6 +64,10 @@ const messageSchema: Schema<IMessage> = new Schema(
       required: true,
       default: false,
     },
+    isHtmlReport: {
+      type: Boolean,
+      default: false,
+    },
     unfinished: {
       type: Boolean,
       default: false,

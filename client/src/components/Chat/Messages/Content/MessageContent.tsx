@@ -206,7 +206,21 @@ const DisplayMessage = ({ text, isCreatedByUser, message, showCursor }: TDisplay
   );
 
   const isHtmlReport = useMemo(() => {
-    return (message as any)?.isHtmlReport === true || (text && text.trim().startsWith('<div class="report-container"'));
+    if ((message as any)?.isHtmlReport === true) {
+      return true;
+    }
+    if (!text || typeof text !== 'string') {
+      return false;
+    }
+    const trimmed = text.trim();
+    return (
+      trimmed.startsWith('<div class="report-container"') ||
+      trimmed.startsWith('<div id="wappy-kpi"') ||
+      trimmed.includes('id="wappy-kpi"') ||
+      trimmed.includes('class="report-container"') ||
+      (trimmed.startsWith('<div') && trimmed.includes('data-riesgo=')) ||
+      (trimmed.startsWith('<div') && (trimmed.includes('Informe') || trimmed.includes('INFORME')))
+    );
   }, [message, text]);
 
   const { cleanText, suggestions } = useMemo(() => {
@@ -219,10 +233,12 @@ const DisplayMessage = ({ text, isCreatedByUser, message, showCursor }: TDisplay
   const content = useMemo(() => {
     if (isHtmlReport) {
       return (
-        <div 
-          className="w-full max-h-[650px] overflow-y-auto border border-white/10 rounded-2xl p-5 bg-black/45 backdrop-blur-md shadow-2xl prose dark:prose-invert"
-          dangerouslySetInnerHTML={{ __html: cleanText }}
-        />
+        <div className="w-full flex flex-col gap-2 my-2">
+          <div 
+            className="w-full max-w-none max-h-[750px] overflow-y-auto overflow-x-auto rounded-2xl border border-teal-500/20 bg-slate-950/30 p-2 sm:p-4 shadow-2xl"
+            dangerouslySetInnerHTML={{ __html: cleanText }}
+          />
+        </div>
       );
     }
     if (!isCreatedByUser) {

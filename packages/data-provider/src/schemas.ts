@@ -590,6 +590,7 @@ export const tMessageSchema = z.object({
   /** @deprecated */
   generation: z.string().nullable().optional(),
   isCreatedByUser: z.boolean(),
+  isHtmlReport: z.boolean().optional(),
   error: z.boolean().optional(),
   clientTimestamp: z.string().optional(),
   createdAt: z
