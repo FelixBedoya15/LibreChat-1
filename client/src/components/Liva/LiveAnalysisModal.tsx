@@ -70,6 +70,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
     const [voiceLiveAnalysis, setVoiceLiveAnalysis] = useRecoilState(store.voiceLiveAnalysis);
     const setShowModalState = useSetRecoilState(store.showLiveAnalysisModal);
+    const setIsCanvasActive = useSetRecoilState(store.isCanvasActive);
     const [selectedVoice, setSelectedVoice] = useState<string>((voiceLiveAnalysis as string) || '');
     const [isMuted, setIsMuted] = useState(false);
     const [isCameraOn, setIsCameraOn] = useState(true);
@@ -449,6 +450,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         },
         onReportReceived: (html: string, messageId?: string, evaluatedFrames?: string[]) => {
             setHasReceivedReport(true); // Toast is triggered by useEffect watching this
+            setIsCanvasActive(true);
 
             // REGLA DE ORO 1: Si el HTML ya viene completamente formateado del servidor con la plantilla premium esmeralda/teal,
             // no lo envolvemos doblemente. Lo pasamos tal cual al callback del editor principal.

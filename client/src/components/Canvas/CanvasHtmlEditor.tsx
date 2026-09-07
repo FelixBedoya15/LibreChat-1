@@ -54,7 +54,7 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
   const { user } = useAuthContext();
   const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
   const [code, setCode] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'split' | 'code' | 'preview'>(isMaximized ? 'split' : 'code');
+  const [activeTab, setActiveTab] = useState<'split' | 'code' | 'preview'>(isMaximized ? 'split' : 'preview');
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -94,12 +94,12 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
     }
   };
 
-  // Safely fallback activeTab to "code" if not maximized or on mobile screen and currently in "split"
+  // Safely fallback activeTab to "preview" if not maximized or on mobile screen and currently in "split"
   useEffect(() => {
     const handleResize = () => {
       const isMobile = window.innerWidth < 640;
       if ((!isMaximized || isMobile) && activeTab === 'split') {
-        setActiveTab('code');
+        setActiveTab('preview');
       }
     };
     handleResize();

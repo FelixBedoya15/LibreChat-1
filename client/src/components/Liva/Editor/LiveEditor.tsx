@@ -1593,7 +1593,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
           </div>
         )}
 
-        <div className={`relative flex flex-1 flex-col overflow-y-auto w-full min-w-0 transition-colors ${paperMode ? 'bg-slate-100/70 dark:bg-zinc-950/40 p-2 sm:p-5' : 'p-2'}`}>
+        <div className={`relative flex flex-1 flex-col overflow-y-auto overflow-x-auto w-full min-w-0 transition-colors ${paperMode ? 'bg-slate-100/70 dark:bg-zinc-950/40 p-2 sm:p-5' : 'p-2'}`}>
           <div
             ref={editorRef}
             className={`prose outline-none transition-all live-editor-content w-full min-w-0 ${!paperMode ? 'flex-1 p-3 sm:p-6 max-w-none dark:prose-invert' : 'paper-mode max-w-4xl mx-auto'} ${reportType === 'checklist' ? 'checklist-mode' : ''}`}
@@ -1627,28 +1627,43 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
                     margin-top: 10px;
                     margin-bottom: 4px;
                 }
+                .live-editor-content .table-responsive,
+                .live-editor-content .table-container {
+                    width: 100%;
+                    overflow-x: auto;
+                    -webkit-overflow-scrolling: touch;
+                    margin: 16px 0;
+                    border-radius: 10px;
+                    border: 1px solid #e2e8f0;
+                }
                 .live-editor-content table {
                     width: 100% !important;
-                    max-width: 100% !important;
+                    min-width: 720px;
                     border-collapse: separate;
                     border-spacing: 0;
                     margin: 12px 0;
                     font-size: 0.85em;
                     border-radius: 10px;
-                    overflow: hidden;
                     border: 1px solid #e2e8f0;
                     table-layout: auto;
-                    word-break: break-word;
+                    word-break: normal !important;
+                }
+                .live-editor-content .table-responsive table {
+                    margin: 0 !important;
+                    border: none !important;
+                    border-radius: 0 !important;
                 }
                 .live-editor-content table th {
                     background-color: #004d99;
                     color: white;
-                    padding: 8px 10px;
+                    padding: 9px 12px;
                     text-align: left;
                     font-weight: 600;
                     border-bottom: 1px solid #ddd;
                     border-right: 1px solid rgba(255,255,255,0.15);
-                    word-break: break-word;
+                    white-space: nowrap !important;
+                    word-break: normal !important;
+                    letter-spacing: 0.01em;
                 }
                 /* Specific column widths for SGSST Reports */
                 .checklist-mode table th:nth-child(1) { width: 38px; } /* # - Narrowest possible */
@@ -1661,12 +1676,22 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
                     border-right: none;
                 }
                 .live-editor-content table td {
-                    padding: 8px 10px;
+                    padding: 8px 12px;
                     border-bottom: 1px solid #e2e8f0;
                     border-right: 1px solid #f1f5f9;
                     vertical-align: top;
-                    word-wrap: break-word;
-                    overflow-wrap: break-word;
+                    word-wrap: normal !important;
+                    overflow-wrap: normal !important;
+                    word-break: normal !important;
+                    line-height: 1.45;
+                }
+                /* Center and prevent character-by-character wrap on indicator/badge/score cells */
+                .live-editor-content table td:first-child,
+                .live-editor-content table td[style*="text-align:center"],
+                .live-editor-content table td[style*="text-align: center"],
+                .live-editor-content table td[align="center"] {
+                    white-space: nowrap;
+                    text-align: center;
                 }
                 .live-editor-content table td:last-child {
                     border-right: none;
@@ -1744,6 +1769,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
                     width: 100% !important;
                     box-sizing: border-box !important;
                     margin: 0 auto;
+                    overflow-x: auto;
                 }
                 @media (max-width: 640px) {
                     .live-editor-content.paper-mode {

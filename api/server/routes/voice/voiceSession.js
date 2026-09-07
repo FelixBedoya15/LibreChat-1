@@ -1279,53 +1279,56 @@ REQUERIMIENTO ADICIONAL OBLIGATORIO:
 
             <h3>4. Matriz de Identificación de Peligros y Valoración de Riesgos (GTC 45)</h3>
             <p>La siguiente matriz ha sido construida con metodología GTC 45 (Guía Técnica Colombiana), evaluando cada peligro identificado durante la inspección en vivo. El nivel de riesgo se obtiene multiplicando Nivel de Deficiencia (ND) × Nivel de Exposición (NE) = Nivel de Probabilidad (NP), y luego NP × Nivel de Consecuencia (NC) = Nivel de Riesgo (NR).</p>
-            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; text-align: left; font-size: 0.88em;">
+            <div class="table-responsive" style="overflow-x: auto; width: 100%; margin: 16px 0; -webkit-overflow-scrolling: touch;">
+            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; min-width: 900px; text-align: left; font-size: 0.88em;">
               <thead style="background-color: #004d99; color: white;">
                 <tr>
-                    <th style="padding: 10px 8px;">#</th>
-                    <th style="padding: 10px 8px;">Proceso / Zona</th>
-                    <th style="padding: 10px 8px;">Peligro (Descripción Técnica)</th>
-                    <th style="padding: 10px 8px;">Clasificación GTC 45</th>
-                    <th style="padding: 10px 8px;">Efectos Posibles para la Salud</th>
-                    <th style="padding: 10px 8px;">ND</th>
-                    <th style="padding: 10px 8px;">NE</th>
-                    <th style="padding: 10px 8px;">NC</th>
-                    <th style="padding: 10px 8px;">NR</th>
-                    <th style="padding: 10px 8px;">Nivel de Riesgo</th>
-                    <th style="padding: 10px 8px;">Aceptabilidad</th>
+                    <th style="padding: 10px 10px; white-space: nowrap;">#</th>
+                    <th style="padding: 10px 10px; white-space: nowrap;">Proceso / Zona</th>
+                    <th style="padding: 10px 10px; white-space: nowrap;">Peligro (Descripción Técnica)</th>
+                    <th style="padding: 10px 10px; white-space: nowrap;">Clasificación GTC 45</th>
+                    <th style="padding: 10px 10px; white-space: nowrap;">Efectos Posibles para la Salud</th>
+                    <th style="padding: 10px 10px; text-align: center; white-space: nowrap;">ND</th>
+                    <th style="padding: 10px 10px; text-align: center; white-space: nowrap;">NE</th>
+                    <th style="padding: 10px 10px; text-align: center; white-space: nowrap;">NC</th>
+                    <th style="padding: 10px 10px; text-align: center; white-space: nowrap;">NR</th>
+                    <th style="padding: 10px 10px; white-space: nowrap;">Nivel de Riesgo</th>
+                    <th style="padding: 10px 10px; white-space: nowrap;">Aceptabilidad</th>
                 </tr>
               </thead>
               <tbody>
                 <!-- OBLIGATORIO: Genera al menos 5 filas. Máximo las que el entorno requiera. Para cada peligro: ND (1-10), NE (1-4), NC (10-100), NR = ND×NE×NC, Nivel: I(>600 Crítico), II(200-600 Alto), III(70-200 Medio), IV(<70 Bajo) -->
                 <tr style="background:#fff0f0;">
-                    <td style="padding: 8px; font-weight:bold;">1</td>
+                    <td style="padding: 8px; font-weight:bold; text-align: center; white-space: nowrap;">1</td>
                     <td style="padding: 8px;">[Zona/Proceso]</td>
                     <td style="padding: 8px;">[Descripción técnica del peligro 1]</td>
                     <td style="padding: 8px;">[Ej: Biomecánico / Físico / Psicosocial / Químico / Locativo / Eléctrico / Tránsito / Biológico]</td>
                     <td style="padding: 8px;">[Efectos en salud: enfermedades, lesiones posibles]</td>
-                    <td style="padding: 8px; text-align:center;">[ND]</td>
-                    <td style="padding: 8px; text-align:center;">[NE]</td>
-                    <td style="padding: 8px; text-align:center;">[NC]</td>
-                    <td style="padding: 8px; text-align:center; font-weight:bold;">[NR]</td>
-                    <td style="padding: 8px; font-weight:bold; color:red;">I - CRÍTICO</td>
-                    <td style="padding: 8px; color:red; font-weight:bold;">No aceptable</td>
+                    <td style="padding: 8px; text-align:center; white-space: nowrap;">[ND]</td>
+                    <td style="padding: 8px; text-align:center; white-space: nowrap;">[NE]</td>
+                    <td style="padding: 8px; text-align:center; white-space: nowrap;">[NC]</td>
+                    <td style="padding: 8px; text-align:center; font-weight:bold; white-space: nowrap;">[NR]</td>
+                    <td style="padding: 8px; font-weight:bold; color:red; white-space: nowrap;">I - CRÍTICO</td>
+                    <td style="padding: 8px; color:red; font-weight:bold; white-space: nowrap;">No aceptable</td>
                 </tr>
                 <!-- Agrega mínimo 4 filas más con el mismo formato -->
               </tbody>
             </table>
+            </div>
 
             <h3>5. Medidas de Intervención por Jerarquía de Controles (ISO 45001 / GTC 45)</h3>
             <p>Las medidas de control se proponen siguiendo estrictamente la Jerarquía de Controles establecida en la ISO 45001 y la GTC 45: Eliminación → Sustitución → Controles de Ingeniería → Controles Administrativos → Elementos de Protección Personal (EPP).</p>
-            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; text-align: left; font-size: 0.88em;">
+            <div class="table-responsive" style="overflow-x: auto; width: 100%; margin: 16px 0; -webkit-overflow-scrolling: touch;">
+            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; min-width: 760px; text-align: left; font-size: 0.88em;">
               <thead style="background-color: #004d99; color: white;">
                 <tr>
-                    <th style="padding: 10px 8px;">Peligro / Riesgo</th>
-                    <th style="padding: 10px 8px;">Eliminación / Sustitución</th>
-                    <th style="padding: 10px 8px;">Controles de Ingeniería</th>
-                    <th style="padding: 10px 8px;">Controles Administrativos</th>
-                    <th style="padding: 10px 8px;">EPP Requerido</th>
-                    <th style="padding: 10px 8px;">Responsable</th>
-                    <th style="padding: 10px 8px;">Plazo</th>
+                    <th style="padding: 10px 10px; white-space: nowrap;">Peligro / Riesgo</th>
+                    <th style="padding: 10px 10px; white-space: nowrap;">Eliminación / Sustitución</th>
+                    <th style="padding: 10px 10px; white-space: nowrap;">Controles de Ingeniería</th>
+                    <th style="padding: 10px 10px; white-space: nowrap;">Controles Administrativos</th>
+                    <th style="padding: 10px 10px; white-space: nowrap;">EPP Requerido</th>
+                    <th style="padding: 10px 10px; white-space: nowrap;">Responsable</th>
+                    <th style="padding: 10px 10px; white-space: nowrap;">Plazo</th>
                 </tr>
               </thead>
               <tbody>
@@ -1337,10 +1340,11 @@ REQUERIMIENTO ADICIONAL OBLIGATORIO:
                     <td style="padding: 8px;">[Procedimiento, capacitación, señalización]</td>
                     <td style="padding: 8px;">[EPP específico: tipo, norma técnica]</td>
                     <td style="padding: 8px;">[Área o cargo responsable]</td>
-                    <td style="padding: 8px;">[Inmediato / 8 días / 30 días]</td>
+                    <td style="padding: 8px; white-space: nowrap;">[Inmediato / 8 días / 30 días]</td>
                 </tr>
               </tbody>
             </table>
+            </div>
 
             <h3>6. Plan de Acción Inmediata (Riesgos Críticos y Altos)</h3>
             <p>[Lista las acciones que deben tomarse AHORA MISMO o en las próximas 24-48 horas para controlar los riesgos de Nivel I y II. Sé muy específico: qué hacer, quién debe hacerlo, y cómo verificar que se hizo.]</p>
@@ -1552,6 +1556,31 @@ ${kpiDiv}
 
             // Strip any 4+ space indentation so markdown engines never treat tags as code blocks
             reportHtml = finalWrappedHtml.replace(/^[ \t]{4,}/gm, '');
+
+            // Ensure every <table> is wrapped in a responsive overflow container and headers do not break letter-by-letter
+            if (reportHtml && typeof reportHtml === 'string') {
+                reportHtml = reportHtml.replace(/(?:<div[^>]*class=["'][^"']*table-responsive[^"']*["'][^>]*>\s*)?(<table[\s\S]*?<\/table>)(?:\s*<\/div>)?/gi, (match, tableContent) => {
+                    let cleanTable = tableContent;
+                    if (!cleanTable.includes('min-width')) {
+                        cleanTable = cleanTable.replace(/<table\b([^>]*)>/i, (m, attrs) => {
+                            if (/style=["']/.test(attrs)) {
+                                return `<table ${attrs.replace(/style=["']([^"']*)["']/, 'style="min-width: 760px; width: 100%; $1"')}>`;
+                            } else {
+                                return `<table style="min-width: 760px; width: 100%;" ${attrs}>`;
+                            }
+                        });
+                    }
+                    // Make sure th has white-space: nowrap
+                    cleanTable = cleanTable.replace(/<th\b([^>]*)>/gi, (m, attrs) => {
+                        if (/style=["']/.test(attrs)) {
+                            return `<th ${attrs.replace(/style=["']([^"']*)["']/, 'style="white-space: nowrap; word-break: normal; $1"')}>`;
+                        } else {
+                            return `<th style="white-space: nowrap; word-break: normal;" ${attrs}>`;
+                        }
+                    });
+                    return `<div class="table-responsive" style="overflow-x: auto; width: 100%; margin: 16px 0; -webkit-overflow-scrolling: touch;">${cleanTable}</div>`;
+                });
+            }
             // ──────────────────────────────────────────────────────────────────
 
             logger.info(`[VoiceSession] Report generated successfully (${reportHtml.length} chars)`);
@@ -1661,7 +1690,7 @@ ${kpiDiv}
                         ? 'Informe Técnico de Ergonomía y Biomecánica' 
                         : 'Informe Técnico de Evaluación de Riesgos y Peligros';
 
-                    const chatMessageText = `${cleanMarkdown}\n\n:::canvas{title="${reportTitle}" fileType="html" identifier="informe-ergonomico-${radicadoId}"}\n${reportHtml}\n:::\n`;
+                    const chatMessageText = `${cleanMarkdown}\n\n:::canvas{title="${reportTitle}" fileType="text" identifier="informe-ergonomico-${radicadoId}"}\n${reportHtml}\n:::\n`;
 
                     const reportModelName = SGSST_FALLBACK_MODELS[0]; // Use same model name used for generation
                     const reportSender = this.agentObj?.name || (this.isBiomechanics ? 'Fisioterapeuta Laboral' : 'Assistant');

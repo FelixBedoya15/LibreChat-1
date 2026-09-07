@@ -24,7 +24,7 @@ import {
   Heart,
   ShieldAlert,
 } from 'lucide-react';
-import { useRecoilState, useRecoilValue, useRecoilCallback } from 'recoil';
+import { useRecoilState, useRecoilValue, useRecoilCallback, useSetRecoilState } from 'recoil';
 import { ephemeralAgentByConvoId } from '~/store/agents';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
@@ -226,8 +226,26 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [upgradeModalTitle, setUpgradeModalTitle] = useState('');
   const [upgradeModalDesc, setUpgradeModalDesc] = useState('');
-  const { showToast } = useToastContext();
   const [isMaximized, setIsMaximized] = useRecoilState<boolean>(store.canvasMaximized);
+  const setIsCanvasActive = useSetRecoilState(store.isCanvasActive);
+  const setEphemeralAgent = useSetRecoilState(ephemeralAgentByConvoId(conversationId ?? 'new'));
+
+  const handleCloseCanvas = useCallback(() => {
+    setIsCanvasActive(false);
+    setIsMaximized(false);
+    setEphemeralAgent((prev: any) => {
+      if (!prev?.tools) return prev;
+      return {
+        ...prev,
+        tools: prev.tools.filter(
+          (t: string) =>
+            t !== 'canvas' &&
+            t !== 'consultar_analitica_psicosocial' &&
+            t !== 'consultar_analitica_actos_condiciones'
+        ),
+      };
+    });
+  }, [setIsCanvasActive, setIsMaximized, setEphemeralAgent]);
 
   // Ephemeral agent state to check which tools are active
   const isSubmitting = useRecoilValue(store.isSubmittingFamily(0));
@@ -1391,6 +1409,22 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
             <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
               <span className="text-sm font-bold tracking-wide">
                 {isMaximized ? 'Contraer' : 'Expandir'}
+              </span>
+            </div>
+          </button>
+
+          <button
+            onClick={handleCloseCanvas}
+            className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-3 text-text-primary shadow-sm outline-none transition-all duration-300 hover:scale-105 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30"
+            aria-label="Cerrar lienzo"
+            title="Cerrar lienzo"
+          >
+            <div className="relative flex flex-shrink-0 items-center justify-center">
+              <X className="h-4 w-4" />
+            </div>
+            <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+              <span className="text-sm font-bold tracking-wide">
+                Cerrar
               </span>
             </div>
           </button>

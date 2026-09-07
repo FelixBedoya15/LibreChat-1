@@ -111,11 +111,14 @@ function ChatView({ index = 0 }: { index?: number }) {
     return tools.includes('editor_rit');
   }, [ephemeralAgent]);
 
-  // ── CANVAS: open only when user explicitly toggles it ON ────────────────────
-  const isCanvasActive = React.useMemo(() => {
+  // ── CANVAS: open when user toggles it ON or when triggered by directives/reports ──
+  const [recoilCanvasActive, setRecoilCanvasActive] = useRecoilState(store.isCanvasActive);
+  const isAgentCanvasTool = React.useMemo(() => {
     const tools: string[] = (ephemeralAgent as any)?.tools ?? [];
     return tools.includes('canvas') || tools.includes('consultar_analitica_psicosocial') || tools.includes('consultar_analitica_actos_condiciones');
   }, [ephemeralAgent]);
+
+  const isCanvasActive = recoilCanvasActive || isAgentCanvasTool;
 
   // ── Effective conversationId: Recoil atom → fallback to URL param ─────────
   // conversation?.conversationId from Recoil is the most reactive source.
@@ -136,22 +139,26 @@ function ChatView({ index = 0 }: { index?: number }) {
   const setIsPESVActive = useSetRecoilState(store.isPESVActive);
   const setIsChemicalCompatibilityActive = useSetRecoilState(store.isChemicalCompatibilityActive);
   const setIsEditorLiveActive = useSetRecoilState(store.isEditorLiveActive);
-  const setIsCanvasActive = useSetRecoilState(store.isCanvasActive);
 
   useEffect(() => {
     setIsIPEVARActive(isIPEVARActive);
     setIsPESVActive(isPESVActive);
     setIsChemicalCompatibilityActive(isChemicalCompatibilityActive);
     setIsEditorLiveActive(isEditorLiveActive);
-    setIsCanvasActive(isCanvasActive);
+    if (isAgentCanvasTool && !recoilCanvasActive) {
+      setRecoilCanvasActive(true);
+    }
+  }, [isIPEVARActive, isPESVActive, isChemicalCompatibilityActive, isEditorLiveActive, isAgentCanvasTool, recoilCanvasActive, setIsIPEVARActive, setIsPESVActive, setIsChemicalCompatibilityActive, setIsEditorLiveActive, setRecoilCanvasActive]);
+
+  useEffect(() => {
     return () => {
       setIsIPEVARActive(false);
       setIsPESVActive(false);
       setIsChemicalCompatibilityActive(false);
       setIsEditorLiveActive(false);
-      setIsCanvasActive(false);
+      setRecoilCanvasActive(false);
     };
-  }, [isIPEVARActive, isPESVActive, isChemicalCompatibilityActive, isEditorLiveActive, isCanvasActive, conversationId, setIsIPEVARActive, setIsPESVActive, setIsChemicalCompatibilityActive, setIsEditorLiveActive, setIsCanvasActive]);
+  }, [conversationId, setIsIPEVARActive, setIsPESVActive, setIsChemicalCompatibilityActive, setIsEditorLiveActive, setRecoilCanvasActive]);
 
 
 

@@ -78,6 +78,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     const [isCameraOn, setIsCameraOn] = useState(true); // START ON by default
     const [isScreenSharing, setIsScreenSharing] = useState(false);
     const setShowModalState = useSetRecoilState(store.showVoiceModal);
+    const setIsCanvasActive = useSetRecoilState(store.isCanvasActive);
     const [showVoiceSelector, setShowVoiceSelector] = useState(false);
     const [audioAmplitude, setAudioAmplitude] = useState(0);
     const [statusText, setStatusText] = useState('');
@@ -324,6 +325,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             console.log('[VoiceModal] Report received successfully');
             setIsGeneratingReport(false);
             setReportSuccess(true);
+            setIsCanvasActive(true);
             setTimeout(() => setReportSuccess(false), 6000);
             if (onConversationUpdated) {
                 onConversationUpdated(conversationId);
