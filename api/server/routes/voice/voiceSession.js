@@ -1104,9 +1104,9 @@ REQUERIMIENTO ADICIONAL OBLIGATORIO:
             1. **IDIOMA:** OBLIGATORIAMENTE EN ESPAÑOL TÉCNICO Y FORMAL.
             2. **FECHA:** Usa esta fecha: ${currentDate}.
             3. **FORMATO:** Solo HTML limpio. CERO bloques de código markdown (\`\`\`html). 
-            4. **VERACIDAD VISUAL Y CONTEXTUAL:** Analiza PROFUNDAMENTE las imágenes fotográficas incluidas en este prompt y lee la conversación transcrita. El informe debe basarse en lo que VES en las imágenes y escuchas en la conversación. NO asumas que es una bodega de carga o planta industrial si las imágenes revelan una oficina (o unas gafas, por ejemplo). Adapta tu análisis a la evidencia real proporcionada.
-            5. **EXTENSIÓN:** El informe debe ser EXTREMADAMENTE EXTENSO Y DETALLADO. Mínimo 3.000 palabras en español. Cada sección debe desarrollarse con profundidad técnica experta. Usa párrafos exhaustivamente justificados.
-            6. **MATRIZ DE RIESGOS:** Mantén OBLIGATORIAMENTE un mínimo de 5 peligros. Deduce 5 riesgos especializados basados directamente en LAS IMÁGENES adjuntas y el tema de la conversación. JAMÁS inventes peligros genéricos "de almacén" si no encajan con la evidencia fotográfica enviada.
+            4. **VERACIDAD VISUAL Y CONTEXTUAL:** Analiza PROFUNDAMENTE las imágenes fotográficas incluidas en este prompt y lee la conversación transcrita. El informe debe basarse en lo que VES en las imágenes y escuchas en la conversación. NO asumas que es una bodega de carga o planta industrial si las imágenes revelan una oficina o un entorno doméstico. Adapta tu análisis a la evidencia real proporcionada.
+            5. **EXTENSIÓN Y PRECISIÓN:** El informe debe ser riguroso, formal y técnico, de extensión óptima (aproximadamente 1.000 a 1.500 palabras en español). Desarrolla cada sección con terminología técnica experta, matrices concisas y recomendaciones accionables sin redundancias ni demora.
+            6. **MATRIZ DE RIESGOS:** Mantén OBLIGATORIAMENTE un mínimo de 5 peligros. Deduce 5 riesgos especializados basados directamente en LAS IMÁGENES adjuntas y el tema de la conversación. JAMÁS inventes peligros genéricos si no encajan con la evidencia fotográfica enviada.
                - OBLIGATORIAMENTE DEBES INCLUIR en la matriz y en las medidas de control:
                  1. **Riesgo Biomecánico / Ergonómico:** Analizando la postura del trabajador, silla, escritorio o movimientos repetitivos observados en la imagen (e.g. postura sentada prolongada frente a la pantalla, flexión de cuello, etc.).
                  2. **Uso de Elementos de Protección Personal (EPP):** Analizando si el trabajador usa o no EPP adecuado según el entorno observado en las imágenes (e.g., gafas de seguridad, protección auditiva, respiratoria, o EPP específico para oficina/computadores como lentes con filtro de luz azul o soporte ergonómico).
@@ -1514,6 +1514,7 @@ REQUERIMIENTO ADICIONAL OBLIGATORIO:
                         conversationId: this.conversationId,
                         parentMessageId: this.lastMessageId,
                         sender: 'Assistant',
+                        user: this.userId,
                         text: reportHtml, // Save HTML for Live editor
                         content: [{ type: 'text', text: reportHtml }],
                         isCreatedByUser: false,
@@ -1527,6 +1528,24 @@ REQUERIMIENTO ADICIONAL OBLIGATORIO:
                     await saveMessage({ user: { id: this.userId } }, reportMessage, { context: 'VoiceSession - Report' });
                     this.lastMessageId = messageId; // Update pointer
                     logger.info(`[VoiceSession] Report saved to DB. MessageId: ${messageId}`);
+
+                    // Save conversation state so LibreChat updates the conversation list and timestamps
+                    try {
+                        await saveConvo({ user: { id: this.userId } }, {
+                            conversationId: this.conversationId,
+                            endpoint: this.dbEndpoint,
+                            model: this.dbModel,
+                            ...(this.config.mode === 'live_analysis' ? { tags: ['sgsst-live-analysis'] } : {})
+                        }, { context: 'VoiceSession - Report' });
+                    } catch (convoSaveError) {
+                        logger.warn('[VoiceSession] Error updating conversation for report:', convoSaveError.message);
+                    }
+
+                    // CRITICAL: Notify client to invalidate queries so the report appears immediately in the chat!
+                    this.sendToClient({
+                        type: 'conversationUpdated',
+                        data: { conversationId: this.conversationId }
+                    });
 
                     // INTERACTIVITY: Instruct Gemini Live (First Brain) to announce the report
                     if (this.geminiClient && this.isActive) {
@@ -1652,6 +1671,11 @@ REQUERIMIENTO ADICIONAL OBLIGATORIO:
                         html: '<p class="text-gray-500 italic animate-pulse">Generando informe técnico detallado...</p>',
                         evaluatedFrames: evalFrames
                     }
+                });
+
+                this.sendToClient({
+                    type: 'status',
+                    data: { status: 'generating_report', message: 'Generando informe técnico...' }
                 });
 
                 this.isGeneratingReport = true;
@@ -1863,7 +1887,7 @@ INTERPRETACIÓN DE TELEMETRÍA ARTICULAR EN VIVO (MEDIAPIPE):
 - Tronco (Flexión lumbar): Normal <10°, Alerta 10°-20°, Crítico >20° (riesgo discal y lumbalgia).
 - Brazos (Abducción/Elevación): Normal <20°, Alerta 20°-45°, Crítico >45° (fatiga deltoides y supraespinoso).
 - Codos y Rodillas: Rango neutro recomendado 90°-100°.
-- Si el usuario te pide generar el informe técnico, confirma brevemente: "Listo, procesando las evidencias bajo el método seleccionado para generar el informe técnico ergonómico."`;
+- GENERACIÓN DEL INFORME TÉCNICO: ÚNICA Y EXCLUSIVAMENTE cuando el usuario te pida de forma directa y explícita generar el informe ("genera el informe", "haz el reporte", "dame el resumen técnico"), confirma brevemente: "Listo, procesando las evidencias bajo el método seleccionado para generar el informe técnico ergonómico." ESTÁ TERMINANTEMENTE PROHIBIDO decir esta frase por iniciativa propia si el usuario no te ha pedido generar el informe.`;
         } else if (agentObj && agentObj.instructions) {
             // Clean out written-chat questionnaires, HTML blocks, and markdown tables from agent prompt
             let cleaned = agentObj.instructions

@@ -112,6 +112,8 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     const [isMediaPipeLoaded, setIsMediaPipeLoaded] = useState(false);
     const [isPoseActive, setIsPoseActive] = useState(false);
     const [manualCapturedPhotos, setManualCapturedPhotos] = useState<string[]>([]);
+    const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+    const [reportSuccess, setReportSuccess] = useState(false);
 
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const poseRef = useRef<any>(null);
@@ -318,9 +320,21 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             // AI text responses are intentionally not displayed (audio-only UI)
         },
 
+        onReportReceived: (html: string, messageId?: string, evaluatedFrames?: string[]) => {
+            console.log('[VoiceModal] Report received successfully');
+            setIsGeneratingReport(false);
+            setReportSuccess(true);
+            setTimeout(() => setReportSuccess(false), 6000);
+            if (onConversationUpdated) {
+                onConversationUpdated(conversationId);
+            }
+        },
+
         onStatusChange: (newStatus: string) => {
             console.log('[VoiceModal] Status changed:', newStatus);
-            if (newStatus === 'listening') {
+            if (newStatus === 'generating_report') {
+                setIsGeneratingReport(true);
+            } else if (newStatus === 'listening') {
                 if (transcriptTimeoutRef.current) clearTimeout(transcriptTimeoutRef.current);
                 transcriptTimeoutRef.current = setTimeout(() => {
                     setLastUserTranscript('');
@@ -332,6 +346,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         },
         onError: (error: string) => {
             console.error('[VoiceModal] Error:', error);
+            setIsGeneratingReport(false);
             setStatusText(`Error: ${error}`);
         },
     }), [conversationId, onConversationIdUpdate, onConversationUpdated, voiceChatGeneral, model, endpoint, isBiomechanicsAgent, agentId]);
@@ -1244,7 +1259,27 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                     </div>
                 )}
 
-                {/* ── Technical Loading Overlay Removed ── */}
+                {/* Report Generation Progress Toast */}
+                {isGeneratingReport && (
+                    <div className="absolute top-24 left-1/2 transform -translate-x-1/2 z-50 bg-black/85 backdrop-blur-xl border border-cyan-500/50 px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="w-4 h-4 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin flex-shrink-0"></div>
+                        <div className="flex flex-col">
+                            <span className="text-xs font-semibold text-cyan-200">Compilando informe técnico ergonómico...</span>
+                            <span className="text-[10px] text-cyan-400/80">Estará disponible en tu chat en unos segundos</span>
+                        </div>
+                    </div>
+                )}
+
+                {/* Report Success Toast */}
+                {reportSuccess && (
+                    <div className="absolute top-24 left-1/2 transform -translate-x-1/2 z-50 bg-emerald-950/90 backdrop-blur-xl border border-emerald-500/50 px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in zoom-in-95 duration-200">
+                        <span className="text-emerald-400 text-base">✅</span>
+                        <div className="flex flex-col">
+                            <span className="text-xs font-semibold text-emerald-200">¡Informe técnico generado exitosamente!</span>
+                            <span className="text-[10px] text-emerald-400/80">Guardado y disponible en tu conversación de chat</span>
+                        </div>
+                    </div>
+                )}
 
                 {/* Simplified Biomechanical Telemetry HUD (Glassmorphism) */}
                 {isBiomechanicsAgent && isReady && (
