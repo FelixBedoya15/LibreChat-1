@@ -1252,6 +1252,9 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                         <div className="flex items-center gap-2">
                             <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 animate-pulse"></span>
                             <span className="text-[10px] md:text-xs font-mono font-bold uppercase tracking-wider text-cyan-400">Visión IA Biomecánica</span>
+                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 font-mono font-semibold">
+                                {kneeAngle !== null && kneeAngle > 25 ? 'Método: REBA (Cuerpo Entero)' : 'Método: RULA (Miembros Sup.)'}
+                            </span>
                         </div>
                         <div className="flex flex-wrap gap-2 md:gap-3 items-center">
                             {/* Neck Angle */}

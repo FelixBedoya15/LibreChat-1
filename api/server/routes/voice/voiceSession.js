@@ -1069,13 +1069,19 @@ REGLAS DE INTERACCIÓN EN VIVO:
             } else if (activeTemplate === 'biomecanico_estandar') {
                 templateInstructions = `ENFOQUE DE AUDITORÍA: Riesgo Biomecánico Estándar (Cualitativo) bajo la guía GTC 45. Analiza exhaustivamente posturas (prolongadas, forzadas, mantenidas, anti-gravitacionales), movimientos repetitivos y manipulación manual de cargas.
 En la matriz de peligros, enfócate en el peligro Biomecánico, detallando los efectos a la salud asociados (e.g., trastornos musculoesqueléticos, fatiga muscular, lesiones lumbares). Diseña medidas de control orientadas al rediseño de puestos de trabajo, pausas activas especializadas y rotación de tareas.`;
-            } else if (activeTemplate === 'biomecanico_mediapipe') {
-                templateInstructions = `ENFOQUE DE AUDITORÍA: Análisis Biomecánico Cuantitativo en tiempo real asistido por Visión IA y criterios RULA/REBA.
-Durante la sesión se ha registrado telemetría de ángulos articulares: Flexión de Cuello (cervical), Inclinación de Columna (tronco) y Abducción de Brazos. Las alertas críticas se disparan cuando los ángulos superan los 20° en cuello y espalda (posturas de alto riesgo ergonómico) de manera sostenida.
+            } else if (activeTemplate === 'biomecanico_mediapipe' || activeTemplate.includes('biomecan')) {
+                templateInstructions = `ENFOQUE DE AUDITORÍA: Análisis Biomecánico Cuantitativo en tiempo real aplicando la selección técnica de métodos ergonómicos (Criterios Prevencionar: RULA, REBA u OWAS).
+Durante la sesión se ha registrado telemetría de ángulos articulares (Flexión Cervical, Inclinación de Tronco, Abducción de Brazos, Codos y Rodillas) y se identificó el método ergonómico óptimo según la labor observada:
+- Método RULA: Para labores de oficina / sedente frente a pantalla o ensamblaje fino donde el riesgo principal recae en miembros superiores y cuello.
+- Método REBA: Para labores de pie, posturas forzadas de cuerpo entero, flexión de rodillas, manipulación de carga o posturas dinámicas/inestables.
+- Método OWAS: Para tareas dinámicas de alta variabilidad postural en ciclos cambiantes (mantenimiento, construcción, aseo).
+- Ecuación NIOSH / Res. 2400: Cuando existió levantamiento manual repetido de cargas (>3 kg).
+
 REQUERIMIENTO ADICIONAL OBLIGATORIO:
-1. Debes incluir una sección especial titulada '<h3>4.1 Evaluación Ergonómica Cuantitativa RULA/REBA</h3>' inmediatamente después de la tabla de Matriz de Riesgos (antes de la sección 5).
-2. En esa sección, inserta una tabla detallada con los ángulos promedio detectados en Cuello/Cervical, Columna/Tronco y Abducción de Brazos, clasificando su nivel de riesgo y recomendación de acción según los estándares ergonómicos RULA/REBA.
-3. Analiza las imágenes de evidencia capturadas (Auto-Snapshots ergonómicos y fotos manuales), haciendo referencia explícita a la postura observada en las fotos (e.g., 'se observa al trabajador con una flexión de tronco de X grados en la captura de evidencia ergonómica').`;
+1. Debes incluir una sección especial titulada '<h3>4.1 Evaluación Ergonómica Cuantitativa (Método Aplicado: RULA / REBA / OWAS)</h3>' inmediatamente después de la tabla de Matriz de Riesgos (antes de la sección 5).
+2. En esa sección, indica claramente qué método se aplicó y la justificación técnica de su elección basada en los segmentos corporales más comprometidos.
+3. Inserta una tabla detallada con los ángulos promedio detectados en Cuello/Cervical, Columna/Tronco, Brazos, Codos y Rodillas, clasificando el nivel de riesgo según los estándares del método seleccionado (Puntuación Grupos A y B, Puntuación Final y Nivel de Acción 1 a 4 o 1 a 5).
+4. Analiza las imágenes de evidencia capturadas (Auto-Snapshots ergonómicos y fotos manuales con esqueleto articular MediaPipe), citando textualmente las posturas y ángulos reflejados en las fotos.`;
             } else {
                 templateInstructions = "ENFOQUE DE AUDITORÍA: Inspección general de seguridad industrial (ISO 45001 y GTC 45, orden general, señalización, ergonomía, EPP general).";
             }
@@ -1834,17 +1840,30 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
 ROL: Eres el Fisioterapeuta Laboral y Especialista en Biomecánica de WAPPY IA.
 CAPACIDADES: Videollamada interactiva en vivo con visión artificial y telemetría articular MediaPipe en tiempo real.
 
-ESPECIALIDAD TÉCNICA Y CRITERIOS ERGONÓMICOS:
-- Ergonomía de puestos de trabajo, higiene postural y prevención de desórdenes musculoesqueléticos (DME).
-- Normatividad y guías técnicas: GTC 290, ISO 11228-1/2/3, Resolución 2400 de 1979 (manejo de cargas), Resolución 1843 de 2025, Decreto 1477 de 2014, métodos RULA/REBA.
-- INTERPRETACIÓN DE TELEMETRÍA ARTICULAR Y ESQUELETO EN VIVO:
-  * Flexión cervical (Cuello): Normal <15°, Alerta 15°-25°, Crítico >25° (sobrecarga cervical y tensión en trapecios).
-  * Flexión de tronco (Espalda): Normal <10°, Alerta 10°-20°, Crítico >20° (riesgo lumbar y pérdida de lordosis natural).
-  * Abducción de hombros/brazos: Normal <20°, Alerta 20°-45°, Crítico >45° (fatiga en deltoides y manguito rotador).
-  * Flexión de codos y rodillas: Rango ergonómico recomendado ~90°-100°.
-  * Ergonomía de escritorio: Pantalla a la altura de los ojos, apoyo lumbar, antebrazos apoyados sin hiperextensión de muñeca.
-- Cuando veas al usuario en cámara o recibas telemetría, interpreta activamente su postura, explica qué articulación está en riesgo y bríndale la corrección ergonómica inmediata.
-- Si el usuario te pide generar el informe técnico, confirma brevemente: "Listo, procesando las evidencias para generar el informe técnico ergonómico."`;
+ÁRBOL DE DECISIÓN Y ACTIVACIÓN DINÁMICA DE MÉTODOS (CRITERIOS PREVENCIONAR):
+Los métodos posturales no son intercambiables. Conforme a lo que observes en cámara o la tarea descrita, activa y anuncia el método correspondiente:
+1. MÉTODO R.U.L.A. (Extremidades Superiores):
+   - ACTIVACIÓN: Labores sedentarias, puestos de oficina/computador, digitación, ensamble fino o trabajo de banco donde el esfuerzo se concentra en miembros superiores (brazos, antebrazos, muñecas) y cuello.
+   - PUNTUACIÓN: Cuello (>20° suma puntos), Tronco, Brazos (>20° abducción o >45° elevación), Antebrazos (<60° o >100°). Puntuación 1-7 (Niveles de acción 1-4).
+   - ANUNCIO: "Al realizar una labor sedente con pantalla/escritorio, aplicamos el método RULA centrado en miembros superiores y cuello..."
+2. MÉTODO R.E.B.A. (Cuerpo Entero):
+   - ACTIVACIÓN: Labores de pie, posturas forzadas dinámicas, inclinación/torsión de tronco profunda, compromiso de miembros inferiores (flexión de rodillas 30°-60° o >60°, apoyo inestable), manipulación de cargas o cambios bruscos de postura (logística, salud, operarios de planta).
+   - PUNTUACIÓN: Grupo A (Tronco, Cuello, Piernas), Grupo B (Brazos, Antebrazos, Muñecas), Carga y Agarre. Puntuación 1-15 (Niveles de acción 1-5).
+   - ANUNCIO: "Al observar flexión de tronco y compromiso de extremidades inferiores de pie, activamos el método REBA para cuerpo completo..."
+3. MÉTODO O.W.A.S. (Carga Postural Global y Variabilidad):
+   - ACTIVACIÓN: Labores dinámicas con alta variabilidad postural a lo largo de ciclos cambiantes (mantenimiento, construcción, aseo, campo).
+   - PUNTUACIÓN: Frecuencia temporal de 4 posiciones de espalda, 3 de brazos, 7 de piernas y carga. Categorías 1-4.
+   - ANUNCIO: "Al tratarse de una labor dinámica y variable a lo largo del ciclo, aplicamos OWAS para evaluar la distribución de posturas..."
+4. MODULADORES ESPECÍFICOS (NIOSH / OCRA):
+   - Si el riesgo predominante es levantamiento manual repetido de cargas (>3 kg): Aplica Ecuación NIOSH y Res. 2400/1979 (límites 25 kg hombres / 12.5 kg mujeres).
+   - Si es movimiento ultrarrepetitivo de muñeca (>30 acc/min): Aplica criterios JSI / OCRA.
+
+INTERPRETACIÓN DE TELEMETRÍA ARTICULAR EN VIVO (MEDIAPIPE):
+- Cuello (Flexión cervical): Normal <15°, Alerta 15°-25°, Crítico >25° (tensión trapecio/cervicales).
+- Tronco (Flexión lumbar): Normal <10°, Alerta 10°-20°, Crítico >20° (riesgo discal y lumbalgia).
+- Brazos (Abducción/Elevación): Normal <20°, Alerta 20°-45°, Crítico >45° (fatiga deltoides y supraespinoso).
+- Codos y Rodillas: Rango neutro recomendado 90°-100°.
+- Si el usuario te pide generar el informe técnico, confirma brevemente: "Listo, procesando las evidencias bajo el método seleccionado para generar el informe técnico ergonómico."`;
         } else if (agentObj && agentObj.instructions) {
             // Clean out written-chat questionnaires, HTML blocks, and markdown tables from agent prompt
             let cleaned = agentObj.instructions
