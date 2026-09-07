@@ -616,6 +616,17 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         }));
     }, []);
 
+    /**
+     * Trigger Report Generation manually via WebSocket
+     */
+    const triggerReport = useCallback(() => {
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+        console.log('[VoiceSession] Manually requesting report generation via WS');
+        wsRef.current.send(JSON.stringify({
+            type: 'trigger_report',
+        }));
+    }, []);
+
     return {
         isConnected,
         isConnecting,
@@ -631,5 +642,6 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         setIsPlayingAudio,
         sendInterrupt,
         sendWappyActionResult,
+        triggerReport,
     };
 };

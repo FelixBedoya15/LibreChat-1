@@ -655,6 +655,50 @@ REGLAS DE INTERACCIÓN EN VIVO:
                 }
                 break;
 
+            case 'trigger_report':
+            case 'generate_report':
+                logger.info('[VoiceSession] Manual report generation requested by client via WS.');
+                if (this.isGeneratingReport) {
+                    logger.info('[VoiceSession] Report generation already in progress. Skipping duplicate request.');
+                    break;
+                }
+
+                let manualFrames = [];
+                if (this.manualEvidences && this.manualEvidences.length > 0) {
+                    manualFrames = [...this.manualEvidences];
+                } else if (this.frameBuffer && this.frameBuffer.length > 0) {
+                    manualFrames = [...this.frameBuffer];
+                } else if (this.latestFrame) {
+                    manualFrames = [this.latestFrame];
+                }
+
+                this.sendToClient({
+                    type: 'status',
+                    data: { status: 'generating_report', message: 'Compilando informe técnico...' }
+                });
+
+                this.sendToClient({
+                    type: 'report',
+                    data: {
+                        html: '<p class="text-gray-500 italic animate-pulse">Compilando informe técnico detallado...</p>',
+                        evaluatedFrames: manualFrames
+                    }
+                });
+
+                if (this.geminiClient && this.isActive) {
+                    try {
+                        this.geminiClient.sendText('INSTRUCCIÓN DE SISTEMA: El usuario presionó el botón de generar informe técnico. Confírmale verbalmente en 1 sola frase breve: "Entendido, estoy compilando tu informe técnico ergonómico con las evidencias recopiladas."');
+                    } catch (speakErr) {
+                        logger.warn('[VoiceSession] Error sending spoken confirmation for manual report trigger:', speakErr.message);
+                    }
+                }
+
+                this.isGeneratingReport = true;
+                this.generateReport(this.config.conversationContext).finally(() => {
+                    this.isGeneratingReport = false;
+                });
+                break;
+
             case 'config':
                 // Update session configuration
                 if (data.voice) {
@@ -1649,14 +1693,28 @@ REQUERIMIENTO ADICIONAL OBLIGATORIO:
             logger.info('[VoiceSession] Report generation already in progress. Skipping trigger.');
             this.aiTranscriptionBuffer = '';
         } else {
-            const triggerRegex = /(generar( el| un)? (informe|reporte)|procesando( lo que vimos| la informaci[oó]n)|informe t[eé]cnico detallado|informe.*generado|reporte.*generado|generando.*(informe|reporte)|(informe|reporte).*creado)/i;
-            const shouldGenerateReport = triggerRegex.test(currentAiText) || triggerRegex.test(this.aiTranscriptionBuffer);
+            // Check BOTH user voice request (including common phonetic STT variations) AND AI keywords
+            const userReportRegex = /(genera(r)?|haz|crea|dame|sacar|compil(a|ar)|proces(a|ar)|puedes generar|quiero el|realiza(r)?)\s*(el|un|mi)?\s*(informe|reporte|resumen|diagn[oó]stico|evaluaci[oó]n|documento)/i;
+            const phoneticApproxRegex = /general\s*(el|al)?\s*(mundo|informe|reporte)/i;
+            const aiReportRegex = /(generar( el| un)? (informe|reporte)|procesando( lo que vimos| la informaci[oó]n| las evidencias)|informe t[eé]cnico detallado|informe.*generado|reporte.*generado|generando.*(informe|reporte)|(informe|reporte).*creado)/i;
 
-            logger.info(`[VoiceSession] Report trigger check. aiText: "${currentAiText.substring(0, 80)}", trigger: ${shouldGenerateReport}`);
+            const userRequested = userReportRegex.test(currentUserText) || phoneticApproxRegex.test(currentUserText);
+            const aiConfirmed = aiReportRegex.test(currentAiText) || aiReportRegex.test(this.aiTranscriptionBuffer);
+            const shouldGenerateReport = userRequested || aiConfirmed;
+
+            logger.info(`[VoiceSession] Report trigger check. userRequested: ${userRequested} ("${currentUserText}"), aiConfirmed: ${aiConfirmed}, trigger: ${shouldGenerateReport}`);
             this.aiTranscriptionBuffer = ''; // Reset for next turn
 
             if (shouldGenerateReport) {
-                logger.info('[VoiceSession] Report generation triggered by AI response keywords.');
+                logger.info('[VoiceSession] Report generation triggered by user or AI keywords.');
+
+                if (userRequested && this.geminiClient && this.isActive) {
+                    try {
+                        this.geminiClient.sendText('INSTRUCCIÓN DE SISTEMA: El usuario ha solicitado generar el informe técnico. Responde en 1 sola frase corta: "Entendido, estoy compilando tu informe técnico ergonómico con las evidencias recopiladas."');
+                    } catch (speakErr) {
+                        logger.warn('[VoiceSession] Could not send spoken confirmation:', speakErr.message);
+                    }
+                }
                 
                 let evalFrames = [];
                 if (this.frameBuffer && this.frameBuffer.length > 0) {

@@ -58,6 +58,7 @@ interface PerfilCargoData {
     nombreCargo: string;
     area: string;
     nivelCargo: string;
+    sectorOrganizacion?: string;
     tipoContrato: string;
     jornada: string;
     jefeInmediato: string;
@@ -92,14 +93,94 @@ const NIVEL_CARGO_OPTIONS = [
     'Auxiliar / Asistencial',
 ];
 
-const TIPO_CONTRATO_OPTIONS = [
-    'Término indefinido',
-    'Término fijo',
-    'Prestación de servicios',
-    'Obra o labor',
-    'Temporal/ETT',
-    'Aprendizaje (SENA)',
+const SECTOR_ORGANIZACION_OPTIONS = [
+    'Sector privado',
+    'Sector público',
+    'Mixto',
 ];
+
+const VINCULACION_PRIVADO_OPTIONS = [
+    'Contrato laboral a término indefinido',
+    'Contrato laboral a término fijo',
+    'Contrato laboral por obra o labor',
+    'Trabajo ocasional, accidental o transitorio',
+    'Trabajador en misión — Empresa de Servicios Temporales',
+    'Contrato de aprendizaje',
+    'Práctica, pasantía o judicatura',
+    'Prestación de servicios — persona natural',
+];
+
+const VINCULACION_PUBLICO_OPTIONS = [
+    'Empleado público de carrera administrativa',
+    'Empleado público con nombramiento provisional',
+    'Empleado público de libre nombramiento y remoción',
+    'Empleado público de periodo fijo',
+    'Empleado público en planta temporal',
+    'Trabajador oficial',
+    'Miembro de corporación pública o de elección popular',
+    'Supernumerario',
+    'Contratista de prestación de servicios — persona natural',
+    'Práctica, pasantía o judicatura en entidad pública',
+];
+
+const VINCULACION_OTRAS_OPTIONS = [
+    'Trabajador independiente',
+    'Trabajador cooperado',
+    'Voluntario',
+    'Otro tipo de vinculación',
+    'No informa',
+];
+
+const normalizeVinculacion = (val: string): string => {
+    const map: Record<string, string> = {
+        'Término indefinido': 'Contrato laboral a término indefinido',
+        'Indefinido': 'Contrato laboral a término indefinido',
+        'Término fijo': 'Contrato laboral a término fijo',
+        'Fijo': 'Contrato laboral a término fijo',
+        'Obra o labor': 'Contrato laboral por obra o labor',
+        'Prestación de servicios': 'Prestación de servicios — persona natural',
+        'Aprendizaje (SENA)': 'Contrato de aprendizaje',
+        'Aprendizaje': 'Contrato de aprendizaje',
+        'Temporal/ETT': 'Trabajador en misión — Empresa de Servicios Temporales',
+        'Temporal': 'Trabajador en misión — Empresa de Servicios Temporales',
+    };
+    return map[val] || val;
+};
+
+const getVinculacionOptionsForSector = (sector?: string, currentValue?: string) => {
+    let list: (string | { label: string; value: string; isHeader?: boolean })[] = [];
+    if (sector === 'Sector público') {
+        list = [
+            { label: '🏛️ SECTOR PÚBLICO', value: '', isHeader: true },
+            ...VINCULACION_PUBLICO_OPTIONS,
+            { label: '🤝 OTRAS VINCULACIONES', value: '', isHeader: true },
+            ...VINCULACION_OTRAS_OPTIONS,
+        ];
+    } else if (sector === 'Mixto') {
+        list = [
+            { label: '🏢 SECTOR PRIVADO', value: '', isHeader: true },
+            ...VINCULACION_PRIVADO_OPTIONS,
+            { label: '🏛️ SECTOR PÚBLICO', value: '', isHeader: true },
+            ...VINCULACION_PUBLICO_OPTIONS,
+            { label: '🤝 OTRAS VINCULACIONES', value: '', isHeader: true },
+            ...VINCULACION_OTRAS_OPTIONS,
+        ];
+    } else {
+        // Sector privado por defecto
+        list = [
+            { label: '🏢 SECTOR PRIVADO', value: '', isHeader: true },
+            ...VINCULACION_PRIVADO_OPTIONS,
+            { label: '🤝 OTRAS VINCULACIONES', value: '', isHeader: true },
+            ...VINCULACION_OTRAS_OPTIONS,
+        ];
+    }
+
+    if (currentValue && !list.some(item => typeof item === 'string' ? item === currentValue : item.value === currentValue)) {
+        list.push(currentValue);
+    }
+
+    return list;
+};
 
 const JORNADA_OPTIONS = [
     'Tiempo completo (8 horas/día)',
@@ -181,7 +262,8 @@ const createInitialPerfil = (): PerfilCargoData => ({
     nombreCargo: '',
     area: '',
     nivelCargo: 'Operativo',
-    tipoContrato: 'Término indefinido',
+    sectorOrganizacion: 'Sector privado',
+    tipoContrato: 'Contrato laboral a término indefinido',
     jornada: 'Tiempo completo (8 horas/día)',
     jefeInmediato: '',
     escalasSalarial: '',
@@ -218,7 +300,8 @@ const FIELD_SECTIONS = [
         icon: <UserCheck className="h-4 w-4 text-teal-600" />,
         fields: [
             { key: 'nivelCargo', label: 'Nivel del Cargo', type: 'select', options: NIVEL_CARGO_OPTIONS },
-            { key: 'tipoContrato', label: 'Tipo de Contrato', type: 'select', options: TIPO_CONTRATO_OPTIONS },
+            { key: 'sectorOrganizacion', label: 'Sector de la Organización', type: 'select', options: SECTOR_ORGANIZACION_OPTIONS },
+            { key: 'tipoContrato', label: 'Tipo de Vinculación', type: 'select', options: [] },
             { key: 'jornada', label: 'Jornada Laboral', type: 'select', options: JORNADA_OPTIONS },
             { key: 'escalasSalarial', label: 'Escala Salarial', placeholder: '1.8 SMMLV - 2.5 SMMLV', type: 'text' },
         ]
@@ -813,7 +896,8 @@ const PerfilesCargo = () => {
                     k.includes('epp') || 
                     k.includes('entrenamiento') || 
                     k.includes('area') ||
-                    k.includes('contrato')
+                    k.includes('contrato') ||
+                    k.includes('vinculacion')
                 );
 
                 if (isStandard) {
@@ -835,12 +919,22 @@ const PerfilesCargo = () => {
                             row.contextoAdicional || 
                             '';
 
+                        const rawVinculacion = 
+                            row['Tipo de Vinculación'] || 
+                            row['Tipo de vinculación'] || 
+                            row['Vinculación'] || 
+                            row['Tipo de Contrato'] || 
+                            row['Tipo de contrato'] || 
+                            row.tipoContrato || 
+                            'Contrato laboral a término indefinido';
+
                         return {
                             id: crypto.randomUUID(),
                             nombreCargo: row['Nombre del Cargo'] || row['Nombre de Cargo'] || row['Cargo'] || row.nombreCargo || '',
                             area: row['Área'] || row['Area'] || row.area || '',
                             nivelCargo: row['Nivel del Cargo'] || row['Nivel de Cargo'] || row.nivelCargo || 'Operativo',
-                            tipoContrato: row['Tipo de Contrato'] || row['Tipo de contrato'] || row.tipoContrato || 'Término indefinido',
+                            sectorOrganizacion: row['Sector Organización'] || row['Sector de la Organización'] || row['Sector'] || row.sectorOrganizacion || 'Sector privado',
+                            tipoContrato: normalizeVinculacion(rawVinculacion),
                             jornada: row['Jornada'] || row.jornada || 'Tiempo completo (8 horas/día)',
                             jefeInmediato: row['Jefe Inmediato'] || row['Jefe inmediato'] || row.jefeInmediato || '',
                             escalasSalarial: row['Escala Salarial'] || row['Escala salarial'] || row.escalasSalarial || '',
@@ -1103,11 +1197,36 @@ const PerfilesCargo = () => {
         const baseClass =
             'w-full min-h-[48px] rounded-2xl border border-border-medium/60 px-4 py-2.5 text-sm bg-surface-primary/70 text-text-primary focus:outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 focus:shadow-[0_0_15px_rgba(20,184,166,0.15)] transition-all duration-300 hover:border-teal-500/80 hover:shadow-[0_0_15px_rgba(20,184,166,0.08)] shadow-sm font-medium';
         if (field.type === 'select') {
+            let selectOptions = field.options;
+            let currentVal = (formData as any)[field.key] || '';
+
+            if (field.key === 'sectorOrganizacion') {
+                currentVal = formData.sectorOrganizacion || 'Sector privado';
+            } else if (field.key === 'tipoContrato') {
+                currentVal = normalizeVinculacion(formData.tipoContrato || 'Contrato laboral a término indefinido');
+                selectOptions = getVinculacionOptionsForSector(formData.sectorOrganizacion || 'Sector privado', currentVal);
+            }
+
             return (
                 <SingleSelect
-                    value={(formData as any)[field.key] || ''}
-                    onChange={val => handleInput(field.key as keyof PerfilCargoData, val)}
-                    options={field.options}
+                    value={currentVal}
+                    onChange={val => {
+                        handleInput(field.key as keyof PerfilCargoData, val);
+                        if (field.key === 'sectorOrganizacion') {
+                            if (val === 'Sector público') {
+                                const isPublic = VINCULACION_PUBLICO_OPTIONS.includes(formData.tipoContrato) || VINCULACION_OTRAS_OPTIONS.includes(formData.tipoContrato);
+                                if (!isPublic) {
+                                    handleInput('tipoContrato', 'Empleado público de carrera administrativa');
+                                }
+                            } else if (val === 'Sector privado') {
+                                const isPrivate = VINCULACION_PRIVADO_OPTIONS.includes(formData.tipoContrato) || VINCULACION_OTRAS_OPTIONS.includes(formData.tipoContrato);
+                                if (!isPrivate) {
+                                    handleInput('tipoContrato', 'Contrato laboral a término indefinido');
+                                }
+                            }
+                        }
+                    }}
+                    options={selectOptions}
                     className="w-full min-h-[48px] rounded-2xl border border-border-medium/60 px-4 py-2.5 text-sm bg-surface-primary/70 text-text-primary transition-all duration-300 hover:border-teal-500/80 hover:shadow-[0_0_15px_rgba(20,184,166,0.08)] shadow-sm font-medium"
                 />
             );
@@ -1115,7 +1234,7 @@ const PerfilesCargo = () => {
         return (
             <input
                 type={field.type || 'text'}
-                value={(formData as any)[field.key]}
+                value={(formData as any)[field.key] || ''}
                 onChange={e => handleInput(field.key as keyof PerfilCargoData, e.target.value)}
                 placeholder={field.placeholder}
                 className={baseClass}
@@ -1294,7 +1413,7 @@ const PerfilesCargo = () => {
                                 <div className="p-2.5 bg-gradient-to-br from-teal-500/15 to-cyan-500/15 dark:from-teal-400/15 dark:to-cyan-400/15 border border-teal-500/20 dark:border-teal-400/20 rounded-2xl shrink-0 shadow-sm">{section.icon}</div>
                                 <h4 className="font-extrabold text-sm bg-gradient-to-r from-teal-600 via-teal-700 to-cyan-600 dark:from-teal-300 dark:to-cyan-300 bg-clip-text text-transparent uppercase tracking-wider">{section.title}</h4>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                            <div className={cn("grid gap-5", section.fields.length >= 5 ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-4")}>
                                 {section.fields.map(field => (
                                     <div key={field.key} className="flex flex-col justify-end h-full space-y-2">
                                         <label className="text-[11px] font-extrabold text-text-secondary uppercase tracking-wider">
@@ -1615,9 +1734,9 @@ const PerfilesCargo = () => {
                                                     <span className="text-xs font-bold text-text-primary block truncate">{summaryPerfil.jornada || 'No especificada'}</span>
                                                 </div>
                                                 <div className="p-2 rounded-lg bg-surface-secondary border border-border-light">
-                                                    <span className="text-[8px] font-black uppercase text-text-tertiary block">Vacantes / Contrato</span>
+                                                    <span className="text-[8px] font-black uppercase text-text-tertiary block">Vacantes / Vinculación</span>
                                                     <span className="text-xs font-bold text-text-primary block truncate">
-                                                        {summaryPerfil.nivelCargo || 'Nivel N/A'}
+                                                        {summaryPerfil.tipoContrato || summaryPerfil.nivelCargo || 'Nivel N/A'}
                                                         {summaryPerfil.numVacantes ? ` (${summaryPerfil.numVacantes} Vac)` : ''}
                                                     </span>
                                                 </div>

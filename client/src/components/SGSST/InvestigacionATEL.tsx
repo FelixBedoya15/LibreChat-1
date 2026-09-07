@@ -130,6 +130,52 @@ const SectionHeader = ({ icon, title, subtitle }: { icon: React.ReactNode; title
     </div>
 );
 
+// ─── Catalogo Tipo de Vinculacion (SGSST) ──────────────────────────────────
+const VINCULACION_OPTIONS_ATEL = [
+    { label: '🏢 SECTOR PRIVADO', value: '', isHeader: true },
+    'Contrato laboral a término indefinido',
+    'Contrato laboral a término fijo',
+    'Contrato laboral por obra o labor',
+    'Trabajo ocasional, accidental o transitorio',
+    'Trabajador en misión — Empresa de Servicios Temporales',
+    'Contrato de aprendizaje',
+    'Práctica, pasantía o judicatura',
+    'Prestación de servicios — persona natural',
+    { label: '🏛️ SECTOR PÚBLICO', value: '', isHeader: true },
+    'Empleado público de carrera administrativa',
+    'Empleado público con nombramiento provisional',
+    'Empleado público de libre nombramiento y remoción',
+    'Empleado público de periodo fijo',
+    'Empleado público en planta temporal',
+    'Trabajador oficial',
+    'Miembro de corporación pública o de elección popular',
+    'Supernumerario',
+    'Contratista de prestación de servicios — persona natural',
+    'Práctica, pasantía o judicatura en entidad pública',
+    { label: '🤝 OTRAS VINCULACIONES', value: '', isHeader: true },
+    'Trabajador independiente',
+    'Trabajador cooperado',
+    'Voluntario',
+    'Otro tipo de vinculación',
+    'No informa',
+];
+
+const normalizeVinculacionAtel = (val: string): string => {
+    const map: Record<string, string> = {
+        'Indefinido': 'Contrato laboral a término indefinido',
+        'Término indefinido': 'Contrato laboral a término indefinido',
+        'Fijo': 'Contrato laboral a término fijo',
+        'Término fijo': 'Contrato laboral a término fijo',
+        'Obra o labor': 'Contrato laboral por obra o labor',
+        'Prestación de servicios': 'Prestación de servicios — persona natural',
+        'Aprendizaje': 'Contrato de aprendizaje',
+        'Aprendizaje (SENA)': 'Contrato de aprendizaje',
+        'Temporal': 'Trabajador en misión — Empresa de Servicios Temporales',
+        'Temporal/ETT': 'Trabajador en misión — Empresa de Servicios Temporales',
+    };
+    return map[val] || val;
+};
+
 // ─── Main Component ────────────────────────────────────────────────────────────
 const InvestigacionATEL = () => {
     const { t } = useTranslation();
@@ -156,7 +202,7 @@ const InvestigacionATEL = () => {
         afectadoCargo: '',
         afectadoEps: '',
         afectadoArl: '',
-        tipoContrato: 'Indefinido',
+        tipoContrato: 'Contrato laboral a término indefinido',
         jornadaLaboral: 'Diurna',
         experienciaLaboral: '',
         tiempoEnCargo: '',
@@ -1179,8 +1225,8 @@ const InvestigacionATEL = () => {
                                     <input type="text" value={formData.afectadoArl} onChange={e => handleInputChange('afectadoArl', e.target.value)} placeholder="ARL afiliada" className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-sm font-medium">Tipo de contrato</label>
-                                    <SingleSelect value={formData.tipoContrato} onChange={val => handleInputChange('tipoContrato', val)} placeholder="Seleccione..." options={['Indefinido', 'Fijo', 'Obra o labor', 'Aprendizaje', 'Prestación de servicios', 'Temporal']} />
+                                    <label className="text-sm font-medium">Tipo de vinculación</label>
+                                    <SingleSelect value={normalizeVinculacionAtel(formData.tipoContrato)} onChange={val => handleInputChange('tipoContrato', val)} placeholder="Seleccione..." options={VINCULACION_OPTIONS_ATEL} />
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium">Jornada laboral</label>

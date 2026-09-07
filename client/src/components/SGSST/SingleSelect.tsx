@@ -18,7 +18,7 @@ const SingleSelect = ({
     compact = false,
     className = ''
 }: {
-    options: (string | { label: string; value: string })[];
+    options: (string | { label: string; value: string; isHeader?: boolean })[];
     value: string;
     onChange: (val: string) => void;
     placeholder?: string;
@@ -35,7 +35,7 @@ const SingleSelect = ({
     const DROPDOWN_MAX_H = 256; // max-h-64 in px
     const MARGIN = 6;
 
-    const currentOptionObj = options.find(o => typeof o === 'string' ? o === value : o.value === value);
+    const currentOptionObj = options.find(o => typeof o === 'string' ? o === value : (!o.isHeader && o.value === value));
     const displayValue = currentOptionObj ? (typeof currentOptionObj === 'string' ? currentOptionObj : currentOptionObj.label) : (allowCustomInput ? value : '');
 
     const calcStyle = () => {
@@ -92,6 +92,16 @@ const SingleSelect = ({
         >
             <div className="p-1">
                 {options.map((option, idx) => {
+                    if (typeof option !== 'string' && option.isHeader) {
+                        return (
+                            <div
+                                key={idx}
+                                className="px-3 py-1.5 mt-1.5 first:mt-0 mb-0.5 text-[10px] font-black uppercase tracking-wider text-teal-700 dark:text-teal-300 bg-teal-500/10 rounded-lg select-none flex items-center gap-1.5 border border-teal-500/20"
+                            >
+                                <span>{option.label}</span>
+                            </div>
+                        );
+                    }
                     const optLabel = typeof option === 'string' ? option : option.label;
                     const optVal = typeof option === 'string' ? option : option.value;
                     return (

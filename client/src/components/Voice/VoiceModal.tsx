@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, type FC } from 'react';
 import { useRecoilState, useSetRecoilState } from 'recoil';
-import { Mic, MicOff, Video, VideoOff, RefreshCcw, Monitor, MonitorOff, PhoneOff, Smartphone, Camera, AlertCircle } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, RefreshCcw, Monitor, MonitorOff, PhoneOff, Smartphone, Camera, AlertCircle, FileText } from 'lucide-react';
 import { TooltipAnchor } from '@librechat/client';
 import store from '~/store';
 import VoiceOrb from './VoiceOrb';
@@ -365,7 +365,15 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         sendTextMessage,
         setIsPlayingAudio,
         sendInterrupt,
+        triggerReport,
     } = useVoiceSession(sessionOptions);
+
+    const handleManualReportClick = useCallback(() => {
+        if (isGeneratingReport) return;
+        console.log('[VoiceModal] User clicked Generate Report button');
+        setIsGeneratingReport(true);
+        triggerReport();
+    }, [isGeneratingReport, triggerReport]);
 
     const hasInitiatedConnectionRef = useRef(false);
 
@@ -1522,6 +1530,24 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                                 }
                             />
                         )}
+
+                        {/* Generate Report Button */}
+                        <TooltipAnchor
+                            description={isGeneratingReport ? 'Compilando informe...' : 'Generar Informe Técnico Ergonómico'}
+                            render={
+                                <button
+                                    onClick={handleManualReportClick}
+                                    disabled={isGeneratingReport}
+                                    className={`p-2.5 sm:p-4 rounded-full transition-all duration-300 transform active:scale-95 flex items-center justify-center ${
+                                        isGeneratingReport
+                                            ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 animate-pulse cursor-not-allowed'
+                                            : 'bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-white shadow-lg shadow-teal-500/20 border border-teal-300/30'
+                                    }`}
+                                >
+                                    <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
+                                </button>
+                            }
+                        />
 
                         {/* End Call */}
                         <TooltipAnchor

@@ -5,6 +5,7 @@ export interface ExportPerfilCargoData {
   nombreCargo?: string;
   area?: string;
   nivelCargo?: string;
+  sectorOrganizacion?: string;
   tipoContrato?: string;
   jornada?: string;
   jefeInmediato?: string;
@@ -40,7 +41,8 @@ export const exportPerfilesCargoToExcel = async (
     { header: 'Nombre del Cargo', key: 'nombreCargo', width: 28 },
     { header: 'Área', key: 'area', width: 22 },
     { header: 'Nivel del Cargo', key: 'nivelCargo', width: 20 },
-    { header: 'Tipo de Contrato', key: 'tipoContrato', width: 20 },
+    { header: 'Sector Organización', key: 'sectorOrganizacion', width: 20 },
+    { header: 'Tipo de Vinculación', key: 'tipoContrato', width: 28 },
     { header: 'Jornada', key: 'jornada', width: 22 },
     { header: 'Jefe Inmediato', key: 'jefeInmediato', width: 22 },
     { header: 'Escala Salarial', key: 'escalasSalarial', width: 18 },
@@ -82,6 +84,7 @@ export const exportPerfilesCargoToExcel = async (
       nombreCargo: p.nombreCargo || '',
       area: p.area || '',
       nivelCargo: p.nivelCargo || '',
+      sectorOrganizacion: p.sectorOrganizacion || 'Sector privado',
       tipoContrato: p.tipoContrato || '',
       jornada: p.jornada || '',
       jefeInmediato: p.jefeInmediato || '',
@@ -111,7 +114,7 @@ export const exportPerfilesCargoToExcel = async (
         right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
       };
 
-      if ([3, 4, 5, 8, 9, 10, 11].includes(colNumber)) {
+      if ([3, 4, 5, 6, 9, 10, 11, 12].includes(colNumber)) {
         cell.alignment = { vertical: 'middle', horizontal: 'center' };
       } else {
         cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
