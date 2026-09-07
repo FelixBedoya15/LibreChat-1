@@ -45,6 +45,65 @@ export const exportEppToExcel = async (
   wb.modified = new Date();
 
   // ============================================================================
+  // HOJA 3: LISTAS DE OPCIONES (CATÁLOGOS EPP Y ALTURAS)
+  // ============================================================================
+  const wsOptions = wb.addWorksheet('Listas de Opciones', {
+    views: [{ showGridLines: true }]
+  });
+
+  const listTipoEpp = ['Regular', 'Alturas'];
+  const listEstadoEntrega = ['Entregado', 'Vencido', 'Inspección Requerida', 'Fuera de Servicio'];
+  const listResultadoInspeccion = ['Aprobado', 'Rechazado', 'N/A'];
+
+  const optionsHeaders = [
+    { header: 'Tipo de EPP', key: 'tipoEpp', width: 22, data: listTipoEpp },
+    { header: 'Estado del Elemento', key: 'estadoElemento', width: 26, data: listEstadoEntrega },
+    { header: 'Resultado Inspección', key: 'resultadoInspeccion', width: 24, data: listResultadoInspeccion }
+  ];
+
+  wsOptions.columns = optionsHeaders.map(col => ({
+    header: col.header,
+    key: col.key,
+    width: col.width
+  }));
+
+  const optHeaderRow = wsOptions.getRow(1);
+  optHeaderRow.height = 30;
+  optHeaderRow.eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10, name: 'Segoe UI' };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F766E' } };
+    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FF042F2E' } },
+      left: { style: 'thin', color: { argb: 'FF042F2E' } },
+      bottom: { style: 'medium', color: { argb: 'FF042F2E' } },
+      right: { style: 'thin', color: { argb: 'FF042F2E' } }
+    };
+  });
+
+  const maxOptionItems = Math.max(...optionsHeaders.map(h => h.data.length));
+  for (let r = 0; r < maxOptionItems; r++) {
+    const rowValues: Record<string, string> = {};
+    optionsHeaders.forEach(col => {
+      rowValues[col.key] = col.data[r] || '';
+    });
+    const addedRow = wsOptions.addRow(rowValues);
+    addedRow.height = 20;
+    const isEven = (r + 2) % 2 === 0;
+    addedRow.eachCell({ includeEmpty: true }, (cell) => {
+      cell.font = { name: 'Segoe UI', size: 9, color: { argb: 'FF334155' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isEven ? 'FFFFFFFF' : 'FFF8FAFC' } };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+      };
+      cell.alignment = { vertical: 'middle', horizontal: 'left' };
+    });
+  }
+
+  // ============================================================================
   // HOJA 1: RESUMEN DE TRABAJADORES
   // ============================================================================
   const wsSummary = wb.addWorksheet('Resumen de Trabajadores', {
@@ -215,14 +274,14 @@ export const exportEppToExcel = async (
   });
 
   // Llenar Datos
-  let hasData = false;
+  let totalEntregasCount = 0;
   eppDocs.forEach((doc) => {
     const workerName = doc.nombreTrabajador;
     const workerDoc = doc.documento;
     const workerCargo = doc.cargo;
 
     doc.entregas.forEach((ent) => {
-      hasData = true;
+      totalEntregasCount++;
       const dataRow = wsHistorial.addRow([
         workerName,
         workerDoc,
@@ -280,13 +339,37 @@ export const exportEppToExcel = async (
   });
 
   // Si no hay datos detallados, agregar fila informativa
-  if (!hasData) {
+  if (totalEntregasCount === 0) {
     const emptyRow = wsHistorial.addRow(['No se han registrado entregas de EPP aún']);
-    wsHistorial.mergeCells(`A4:Q4`);
+    wsHistorial.mergeCells(`A5:Q5`);
     emptyRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
     emptyRow.getCell(1).font = { italic: true, size: 10, name: 'Segoe UI' };
     emptyRow.height = 30;
   }
+
+  // Validaciones en Hoja 2 (Historial Detallado)
+  const applyHistoryValidation = (colLetter: string, optionsRange: string, promptTitle: string, prompt: string) => {
+    const totalRows = Math.max(totalEntregasCount + 50, 500);
+    for (let r = 5; r <= totalRows; r++) {
+      const cell = wsHistorial.getCell(`${colLetter}${r}`);
+      cell.dataValidation = {
+        type: 'list',
+        allowBlank: true,
+        formulae: [optionsRange],
+        showErrorMessage: true,
+        errorStyle: 'stop',
+        errorTitle: 'Valor no válido',
+        error: 'Por favor seleccione una de las opciones desplegables autorizadas.',
+        showInputMessage: false,
+        promptTitle,
+        prompt
+      };
+    }
+  };
+
+  applyHistoryValidation('E', `'Listas de Opciones'!$A$2:$A$${listTipoEpp.length + 1}`, 'Tipo de EPP', 'Seleccione el tipo de EPP');
+  applyHistoryValidation('I', `'Listas de Opciones'!$B$2:$B$${listEstadoEntrega.length + 1}`, 'Estado del EPP', 'Seleccione el estado de entrega');
+  applyHistoryValidation('P', `'Listas de Opciones'!$C$2:$C$${listResultadoInspeccion.length + 1}`, 'Resultado Inspección', 'Aprobado, Rechazado o N/A');
 
   // Ajustar anchos
   wsHistorial.columns.forEach((col) => {

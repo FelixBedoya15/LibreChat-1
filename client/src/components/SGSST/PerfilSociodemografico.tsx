@@ -42,9 +42,38 @@ import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar, { ToolbarButton } from './SGSSTToolbar';
 import cn from '~/utils/cn';
-import { exportPerfilSociodemograficoToExcel } from './exportPerfilSociodemografico';
+import { exportPerfilSociodemograficoToExcel, type LicenciaConduccionItem } from './exportPerfilSociodemografico';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import { smartMapExcelToWorkers } from './excelWorkerMapper';
+
+const CATEGORIAS_LICENCIA = [
+    'A1',
+    'A2',
+    'B1',
+    'B2',
+    'B3',
+    'C1',
+    'C2',
+    'C3',
+    'Especial / Maquinaria',
+];
+
+const getLicenseBadge = (fecha?: string) => {
+    if (!fecha) return { label: 'Sin fecha', color: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' };
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const expDate = new Date(fecha + 'T12:00:00');
+    if (isNaN(expDate.getTime())) return { label: 'Inválida', color: 'bg-gray-100 text-gray-600' };
+
+    const diffDays = Math.ceil((expDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) {
+        return { label: `Vencida (${Math.abs(diffDays)}d)`, color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' };
+    }
+    if (diffDays <= 30) {
+        return { label: `Por Vencer (${diffDays}d)`, color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' };
+    }
+    return { label: 'Vigente', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' };
+};
 
 // ─── Types ────────────────────────────────────────────────────────────
 interface WorkerEntry {
@@ -89,6 +118,7 @@ interface WorkerEntry {
     tecnicomecanicaVencimiento: string;
     licenciaConduccion: string;
     licenciaConduccionVencimiento: string;
+    licenciasConduccion?: LicenciaConduccionItem[];
 
     // New Conditional Fields (SGSST)
     licenciaSST: string;
@@ -134,6 +164,7 @@ const EMPTY_WORKER: Omit<WorkerEntry, 'id'> = {
     fuma: '', alcohol: '', terapiaPsicologica: '', personasCargo: '',
     estrato: '', vivienda: '', soatVencimiento: '', tecnicomecanicaVencimiento: '',
     licenciaConduccion: '', licenciaConduccionVencimiento: '',
+    licenciasConduccion: [],
     licenciaSST: '', licenciaVencimiento: '', curso50h: '', curso20h: '',
     esCopasst: 'No', esComiteConvivencia: 'No', esBrigadista: 'No', esComiteSeguridadVial: 'No',
     formacion: [],
@@ -312,10 +343,34 @@ const PerfilSociodemografico = () => {
     const [isAiImportLoading, setIsAiImportLoading] = useState(false);
     const [pendingFileData, setPendingFileData] = useState<{ dataUrl: string; name: string; type: string } | null>(null);
 
+    const handleUpdateWorkerLicenses = (workerId: string, updatedLicenses: LicenciaConduccionItem[]) => {
+        const summaryStr = updatedLicenses
+            .map(l => `${l.categoria}${l.numero ? ` (N° ${l.numero})` : ''}`)
+            .filter(Boolean)
+            .join(', ');
+
+        const validDates = updatedLicenses.map(l => l.fechaVencimiento).filter(Boolean).sort();
+        const nearestExpiry = validDates.length > 0 ? validDates[0] : '';
+
+        setTrabajadores(prev => prev.map(worker => {
+            if (worker.id !== workerId) return worker;
+            return {
+                ...worker,
+                licenciasConduccion: updatedLicenses,
+                licenciaConduccion: summaryStr,
+                licenciaConduccionVencimiento: nearestExpiry
+            };
+        }));
+    };
+
     const handleExportExcel = async () => {
         try {
-            await exportPerfilSociodemograficoToExcel(trabajadores);
-            showToast({ message: 'Archivo Excel exportado exitosamente', status: 'success', severity: 'success' });
+            await exportPerfilSociodemograficoToExcel(
+                trabajadores,
+                'Perfil_Sociodemografico.xlsx',
+                cargosDisponibles.map(c => c.nombreCargo)
+            );
+            showToast({ message: 'Archivo Excel exportado exitosamente con pestañas de respuestas', status: 'success', severity: 'success' });
         } catch (error: any) {
             console.error('Error exportando Excel:', error);
             showToast({ message: `Error al exportar Excel: ${error?.message || error}`, status: 'error', severity: 'error' });
@@ -1225,30 +1280,175 @@ const PerfilSociodemografico = () => {
                                                         </div>
                                                     </div>
 
-                                                    {/* Conductor Conditional */}
-                                                    {w.cargo && w.cargo.toLowerCase().includes('conductor') && (
-                                                        <div className="p-4 border border-blue-200 bg-blue-50/30 dark:bg-blue-900/20 rounded-xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                                            <h4 className="md:col-span-2 lg:col-span-4 text-blue-700 dark:text-blue-400 font-bold text-sm uppercase">Requisitos de Conductor</h4>
-                                                            <div className="space-y-1 lg:col-span-2">
-                                                                <label className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">Vencimiento SOAT</label>
-                                                                <input type="date" value={w.soatVencimiento} onChange={e => updateWorkerField(w.id, 'soatVencimiento', e.target.value)}
-                                                                    className="w-full text-sm p-2 rounded-xl border border-blue-200 bg-white dark:bg-gray-800 text-text-primary" />
+                                                    {/* Conductor y Licencias de Conducción Múltiples */}
+                                                    {((w.cargo && w.cargo.toLowerCase().includes('conductor')) || (w.licenciasConduccion && w.licenciasConduccion.length > 0) || !!w.licenciaConduccion || !!w.soatVencimiento) ? (
+                                                        <div className="p-4 border border-blue-200 bg-blue-50/30 dark:bg-blue-900/20 rounded-xl space-y-4">
+                                                            <div className="flex items-center justify-between flex-wrap gap-2">
+                                                                <h4 className="text-blue-700 dark:text-blue-400 font-bold text-sm uppercase flex items-center gap-2">
+                                                                    <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                                                    Requisitos de Conductor & Licencias de Conducción
+                                                                </h4>
+                                                                <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/40 px-2.5 py-0.5 rounded-full">
+                                                                    {(w.licenciasConduccion?.length || (w.licenciaConduccion ? 1 : 0))} Licencia(s) Registrada(s)
+                                                                </span>
                                                             </div>
-                                                            <div className="space-y-1 lg:col-span-2">
-                                                                <label className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">Vencimiento Tecnicomecánica</label>
-                                                                <input type="date" value={w.tecnicomecanicaVencimiento} onChange={e => updateWorkerField(w.id, 'tecnicomecanicaVencimiento', e.target.value)}
-                                                                    className="w-full text-sm p-2 rounded-xl border border-blue-200 bg-white dark:bg-gray-800 text-text-primary" />
+
+                                                            {/* Fechas de SOAT y Tecnicomecánica del vehículo asignado */}
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                <div className="space-y-1">
+                                                                    <label className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">Vencimiento SOAT</label>
+                                                                    <input type="date" value={w.soatVencimiento} onChange={e => updateWorkerField(w.id, 'soatVencimiento', e.target.value)}
+                                                                        className="w-full text-sm p-2 rounded-xl border border-blue-200 bg-white dark:bg-gray-800 text-text-primary" />
+                                                                </div>
+                                                                <div className="space-y-1">
+                                                                    <label className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">Vencimiento Tecnicomecánica</label>
+                                                                    <input type="date" value={w.tecnicomecanicaVencimiento} onChange={e => updateWorkerField(w.id, 'tecnicomecanicaVencimiento', e.target.value)}
+                                                                        className="w-full text-sm p-2 rounded-xl border border-blue-200 bg-white dark:bg-gray-800 text-text-primary" />
+                                                                </div>
                                                             </div>
-                                                            <div className="space-y-1 lg:col-span-2">
-                                                                <label className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">Licencia de Conducción</label>
-                                                                <input type="text" value={w.licenciaConduccion} onChange={e => updateWorkerField(w.id, 'licenciaConduccion', e.target.value)} placeholder="Número de Licencia"
-                                                                    className="w-full text-sm p-2 rounded-xl border border-blue-200 bg-white dark:bg-gray-800 text-text-primary" />
+
+                                                            {/* Gestor Dinámico de Licencias (Múltiples Categorías y Vigencias) */}
+                                                            <div className="pt-2 border-t border-blue-200/60 dark:border-blue-800/40 space-y-3">
+                                                                <div className="flex items-center justify-between">
+                                                                    <label className="text-xs font-black text-blue-800 dark:text-blue-300 uppercase tracking-wide">
+                                                                        Licencias / Categorías con Fechas de Vigencia Independientes
+                                                                    </label>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            e.preventDefault();
+                                                                            const currentList: LicenciaConduccionItem[] = (w.licenciasConduccion && w.licenciasConduccion.length > 0)
+                                                                                ? [...w.licenciasConduccion]
+                                                                                : (w.licenciaConduccion || w.licenciaConduccionVencimiento)
+                                                                                    ? [{ id: crypto.randomUUID(), categoria: 'C1', numero: w.licenciaConduccion || '', fechaVencimiento: w.licenciaConduccionVencimiento || '' }]
+                                                                                    : [];
+                                                                            const newList = [
+                                                                                ...currentList,
+                                                                                { id: crypto.randomUUID(), categoria: 'B1', numero: w.identificacion || '', fechaVencimiento: '' }
+                                                                            ];
+                                                                            handleUpdateWorkerLicenses(w.id, newList);
+                                                                        }}
+                                                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-100 hover:bg-blue-200 dark:bg-blue-800/50 dark:hover:bg-blue-800 rounded-lg transition-colors"
+                                                                    >
+                                                                        <Plus className="w-3.5 h-3.5" />
+                                                                        Agregar Licencia / Categoría
+                                                                    </button>
+                                                                </div>
+
+                                                                {/* Listado de Licencias */}
+                                                                {(() => {
+                                                                    const currentList: LicenciaConduccionItem[] = (w.licenciasConduccion && w.licenciasConduccion.length > 0)
+                                                                        ? w.licenciasConduccion
+                                                                        : (w.licenciaConduccion || w.licenciaConduccionVencimiento)
+                                                                            ? [{ id: 'leg-1', categoria: 'C1', numero: w.licenciaConduccion || '', fechaVencimiento: w.licenciaConduccionVencimiento || '' }]
+                                                                            : [];
+
+                                                                    if (currentList.length === 0) {
+                                                                        return (
+                                                                            <div className="p-3 bg-white/70 dark:bg-gray-800/50 border border-dashed border-blue-200 dark:border-blue-900 rounded-xl text-center">
+                                                                                <p className="text-xs text-text-secondary">No hay licencias registradas para este trabajador.</p>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={(e) => {
+                                                                                        e.preventDefault();
+                                                                                        handleUpdateWorkerLicenses(w.id, [
+                                                                                            { id: crypto.randomUUID(), categoria: 'C1', numero: w.identificacion || '', fechaVencimiento: '' }
+                                                                                        ]);
+                                                                                    }}
+                                                                                    className="mt-1.5 text-xs font-bold text-blue-600 hover:underline"
+                                                                                >
+                                                                                    + Registrar primera licencia
+                                                                                </button>
+                                                                            </div>
+                                                                        );
+                                                                    }
+
+                                                                    return (
+                                                                        <div className="space-y-2">
+                                                                            {currentList.map((lic, licIdx) => {
+                                                                                const status = getLicenseBadge(lic.fechaVencimiento);
+                                                                                return (
+                                                                                    <div key={lic.id || `lic-${licIdx}`} className="p-3 bg-white dark:bg-gray-800 border border-blue-100 dark:border-blue-900/60 rounded-xl flex flex-col md:flex-row items-start md:items-center gap-3 shadow-sm">
+                                                                                        <div className="w-full md:w-48 shrink-0">
+                                                                                            <label className="text-[10px] font-bold text-text-secondary uppercase block mb-1">Categoría</label>
+                                                                                            <SingleSelect
+                                                                                                value={lic.categoria || 'B1'}
+                                                                                                onChange={(val) => {
+                                                                                                    const updated = currentList.map((item, idx) => idx === licIdx ? { ...item, categoria: val } : item);
+                                                                                                    handleUpdateWorkerLicenses(w.id, updated);
+                                                                                                }}
+                                                                                                placeholder="Categoría..."
+                                                                                                options={CATEGORIAS_LICENCIA}
+                                                                                            />
+                                                                                        </div>
+                                                                                        <div className="w-full md:flex-1">
+                                                                                            <label className="text-[10px] font-bold text-text-secondary uppercase block mb-1">N° Licencia / CC</label>
+                                                                                            <input
+                                                                                                type="text"
+                                                                                                value={lic.numero || ''}
+                                                                                                onChange={(e) => {
+                                                                                                    const updated = currentList.map((item, idx) => idx === licIdx ? { ...item, numero: e.target.value } : item);
+                                                                                                    handleUpdateWorkerLicenses(w.id, updated);
+                                                                                                }}
+                                                                                                placeholder="Ej: 79845123"
+                                                                                                className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary"
+                                                                                            />
+                                                                                        </div>
+                                                                                        <div className="w-full md:w-52 shrink-0">
+                                                                                            <div className="flex items-center justify-between mb-1">
+                                                                                                <label className="text-[10px] font-bold text-text-secondary uppercase block">Vencimiento</label>
+                                                                                                <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full", status.color)}>
+                                                                                                    {status.label}
+                                                                                                </span>
+                                                                                            </div>
+                                                                                            <input
+                                                                                                type="date"
+                                                                                                value={lic.fechaVencimiento || ''}
+                                                                                                onChange={(e) => {
+                                                                                                    const updated = currentList.map((item, idx) => idx === licIdx ? { ...item, fechaVencimiento: e.target.value } : item);
+                                                                                                    handleUpdateWorkerLicenses(w.id, updated);
+                                                                                                }}
+                                                                                                className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary"
+                                                                                            />
+                                                                                        </div>
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            onClick={(e) => {
+                                                                                                e.preventDefault();
+                                                                                                const updated = currentList.filter((_, idx) => idx !== licIdx);
+                                                                                                handleUpdateWorkerLicenses(w.id, updated);
+                                                                                            }}
+                                                                                            className="self-end md:self-center p-2 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-colors mt-2 md:mt-4"
+                                                                                            title="Eliminar esta licencia"
+                                                                                        >
+                                                                                            <Trash2 className="w-4 h-4" />
+                                                                                        </button>
+                                                                                    </div>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    );
+                                                                })()}
                                                             </div>
-                                                            <div className="space-y-1 lg:col-span-2">
-                                                                <label className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">Vencimiento Licencia</label>
-                                                                <input type="date" value={w.licenciaConduccionVencimiento} onChange={e => updateWorkerField(w.id, 'licenciaConduccionVencimiento', e.target.value)}
-                                                                    className="w-full text-sm p-2 rounded-xl border border-blue-200 bg-white dark:bg-gray-800 text-text-primary" />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="p-3 border border-dashed border-border-medium rounded-xl bg-surface-secondary/30 flex items-center justify-between flex-wrap gap-2">
+                                                            <div className="flex items-center gap-2 text-xs text-text-secondary">
+                                                                <Briefcase className="w-4 h-4 text-blue-500 shrink-0" />
+                                                                <span>¿Este trabajador conduce vehículos o requiere registrar licencias de conducción?</span>
                                                             </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.preventDefault();
+                                                                    handleUpdateWorkerLicenses(w.id, [
+                                                                        { id: crypto.randomUUID(), categoria: 'B1', numero: w.identificacion || '', fechaVencimiento: '' }
+                                                                    ]);
+                                                                }}
+                                                                className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline px-2 py-1 rounded"
+                                                            >
+                                                                + Registrar Licencias de Conducción
+                                                            </button>
                                                         </div>
                                                     )}
 

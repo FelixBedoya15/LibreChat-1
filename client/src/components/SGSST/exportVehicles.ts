@@ -39,6 +39,79 @@ export const exportVehiclesToExcel = async (vehiclesList: VehicleDoc[]) => {
   wb.modified = new Date();
 
   // ============================================================================
+  // HOJA 3: LISTAS DE OPCIONES (PESV - RESOLUCIÓN 20223040040595)
+  // ============================================================================
+  const wsOptions = wb.addWorksheet('Listas de Opciones', {
+    views: [{ showGridLines: true }]
+  });
+
+  const listTiposVehiculo = [
+    'Automóvil',
+    'Camioneta',
+    'Camión',
+    'Motocicleta',
+    'Furgón',
+    'Bus / Microbús',
+    'Maquinaria Amarilla',
+    'Remolque / Semirremolque',
+    'Otro'
+  ];
+  const listEstadoGeneral = ['Conforme', 'Alerta / No Conforme'];
+  const listEstadoComponente = ['Bueno', 'Malo'];
+  const listResultadoInspeccion = ['Aprobado', 'Rechazado'];
+  const listSiNo = ['Sí', 'No'];
+
+  const optionsHeaders = [
+    { header: 'Tipo de Vehículo', key: 'tipoVehiculo', width: 26, data: listTiposVehiculo },
+    { header: 'Estado General Flota', key: 'estadoGeneral', width: 24, data: listEstadoGeneral },
+    { header: 'Estado Componente', key: 'estadoComponente', width: 22, data: listEstadoComponente },
+    { header: 'Resultado Inspección', key: 'resultadoInspeccion', width: 24, data: listResultadoInspeccion },
+    { header: 'Opciones Sí / No', key: 'sino', width: 18, data: listSiNo }
+  ];
+
+  wsOptions.columns = optionsHeaders.map(col => ({
+    header: col.header,
+    key: col.key,
+    width: col.width
+  }));
+
+  const optHeaderRow = wsOptions.getRow(1);
+  optHeaderRow.height = 30;
+  optHeaderRow.eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10, name: 'Segoe UI' };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F766E' } };
+    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FF042F2E' } },
+      left: { style: 'thin', color: { argb: 'FF042F2E' } },
+      bottom: { style: 'medium', color: { argb: 'FF042F2E' } },
+      right: { style: 'thin', color: { argb: 'FF042F2E' } }
+    };
+  });
+
+  const maxOptionItems = Math.max(...optionsHeaders.map(h => h.data.length));
+  for (let r = 0; r < maxOptionItems; r++) {
+    const rowValues: Record<string, string> = {};
+    optionsHeaders.forEach(col => {
+      rowValues[col.key] = col.data[r] || '';
+    });
+    const addedRow = wsOptions.addRow(rowValues);
+    addedRow.height = 20;
+    const isEven = (r + 2) % 2 === 0;
+    addedRow.eachCell({ includeEmpty: true }, (cell) => {
+      cell.font = { name: 'Segoe UI', size: 9, color: { argb: 'FF334155' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isEven ? 'FFFFFFFF' : 'FFF8FAFC' } };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+      };
+      cell.alignment = { vertical: 'middle', horizontal: 'left' };
+    });
+  }
+
+  // ============================================================================
   // HOJA 1: RESUMEN DE FLOTA
   // ============================================================================
   const wsFleet = wb.addWorksheet('Resumen de Flota', {
@@ -157,7 +230,30 @@ export const exportVehiclesToExcel = async (vehiclesList: VehicleDoc[]) => {
     });
   });
 
-  // Ajustar anchos
+  // Validaciones en Hoja 1
+  const applyFleetValidation = (colLetter: string, optionsRange: string, promptTitle: string, prompt: string) => {
+    const totalRows = Math.max(vehiclesList.length + 50, 500);
+    for (let r = 5; r <= totalRows; r++) {
+      const cell = wsFleet.getCell(`${colLetter}${r}`);
+      cell.dataValidation = {
+        type: 'list',
+        allowBlank: true,
+        formulae: [optionsRange],
+        showErrorMessage: true,
+        errorStyle: 'stop',
+        errorTitle: 'Valor no válido',
+        error: 'Por favor seleccione una de las opciones desplegables autorizadas.',
+        showInputMessage: false,
+        promptTitle,
+        prompt
+      };
+    }
+  };
+
+  applyFleetValidation('B', `'Listas de Opciones'!$A$2:$A$${listTiposVehiculo.length + 1}`, 'Tipo de Vehículo', 'Seleccione el tipo de vehículo');
+  applyFleetValidation('L', `'Listas de Opciones'!$B$2:$B$${listEstadoGeneral.length + 1}`, 'Estado Flota', 'Seleccione el estado de conformidad');
+
+  // Ajustar anchos Hoja 1
   wsFleet.columns.forEach((col) => {
     let maxLen = 0;
     col.eachCell!({ includeEmpty: true }, (cell) => {
@@ -212,10 +308,10 @@ export const exportVehiclesToExcel = async (vehiclesList: VehicleDoc[]) => {
     };
   });
 
-  let hasInsp = false;
+  let totalInspCount = 0;
   vehiclesList.forEach((veh) => {
     (veh.inspecciones || []).forEach((insp) => {
-      hasInsp = true;
+      totalInspCount++;
       const dataRow = wsInspecciones.addRow([
         veh.placa,
         veh.conductorNombre,
@@ -250,7 +346,7 @@ export const exportVehiclesToExcel = async (vehiclesList: VehicleDoc[]) => {
 
         // Resaltado de fallos
         if (['luces', 'frenos', 'llantas', 'direccion', 'cinturones'].includes(inspHeaders[colNum-1].toLowerCase()) && cell.value === 'Malo') {
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FEE2E2FF' } };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
           cell.font = { bold: true, color: { argb: 'FF991B1B' } };
         }
 
@@ -267,12 +363,40 @@ export const exportVehiclesToExcel = async (vehiclesList: VehicleDoc[]) => {
     });
   });
 
-  if (!hasInsp) {
+  if (totalInspCount === 0) {
     wsInspecciones.addRow(['No se han registrado inspecciones pre-operacionales aún']);
     wsInspecciones.mergeCells('A4:L4');
     wsInspecciones.getCell('A4').alignment = { horizontal: 'center', vertical: 'middle' };
     wsInspecciones.getCell('A4').font = { italic: true, name: 'Segoe UI', size: 10 };
   }
+
+  // Validaciones en Hoja 2
+  const applyInspValidation = (colLetter: string, optionsRange: string, promptTitle: string, prompt: string) => {
+    const totalRows = Math.max(totalInspCount + 50, 500);
+    for (let r = 4; r <= totalRows; r++) {
+      const cell = wsInspecciones.getCell(`${colLetter}${r}`);
+      cell.dataValidation = {
+        type: 'list',
+        allowBlank: true,
+        formulae: [optionsRange],
+        showErrorMessage: true,
+        errorStyle: 'stop',
+        errorTitle: 'Valor no válido',
+        error: 'Por favor seleccione una de las opciones desplegables autorizadas.',
+        showInputMessage: false,
+        promptTitle,
+        prompt
+      };
+    }
+  };
+
+  applyInspValidation('E', `'Listas de Opciones'!$C$2:$C$${listEstadoComponente.length + 1}`, 'Luces', 'Bueno o Malo');
+  applyInspValidation('F', `'Listas de Opciones'!$C$2:$C$${listEstadoComponente.length + 1}`, 'Frenos', 'Bueno o Malo');
+  applyInspValidation('G', `'Listas de Opciones'!$C$2:$C$${listEstadoComponente.length + 1}`, 'Llantas', 'Bueno o Malo');
+  applyInspValidation('H', `'Listas de Opciones'!$C$2:$C$${listEstadoComponente.length + 1}`, 'Dirección', 'Bueno o Malo');
+  applyInspValidation('I', `'Listas de Opciones'!$C$2:$C$${listEstadoComponente.length + 1}`, 'Cinturones', 'Bueno o Malo');
+  applyInspValidation('J', `'Listas de Opciones'!$D$2:$D$${listResultadoInspeccion.length + 1}`, 'Resultado', 'Aprobado o Rechazado');
+  applyInspValidation('K', `'Listas de Opciones'!$E$2:$E$${listSiNo.length + 1}`, '¿Firmado?', 'Sí o No');
 
   wsInspecciones.columns.forEach((col) => {
     let maxLen = 0;

@@ -44,7 +44,7 @@ import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar, { ToolbarButton } from './SGSSTToolbar';
 import cn from '~/utils/cn';
-import { exportPerfilSociodemograficoToExcel } from './exportPerfilSociodemografico';
+import { exportPerfilSociodemograficoToExcel, type LicenciaConduccionItem } from './exportPerfilSociodemografico';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import BioFitAuditModal from './BioFitAuditModal';
 import { smartMapExcelToWorkers } from './excelWorkerMapper';
@@ -92,6 +92,7 @@ interface WorkerEntry {
     tecnicomecanicaVencimiento: string;
     licenciaConduccion: string;
     licenciaConduccionVencimiento: string;
+    licenciasConduccion?: LicenciaConduccionItem[];
 
     // New Conditional Fields (SGSST)
     licenciaSST: string;
@@ -132,6 +133,7 @@ const EMPTY_WORKER: Omit<WorkerEntry, 'id'> = {
     fuma: '', alcohol: '', terapiaPsicologica: '', personasCargo: '',
     estrato: '', vivienda: '', soatVencimiento: '', tecnicomecanicaVencimiento: '',
     licenciaConduccion: '', licenciaConduccionVencimiento: '',
+    licenciasConduccion: [],
     licenciaSST: '', licenciaVencimiento: '', curso50h: '', curso20h: '',
     esCopasst: 'No', esComiteConvivencia: 'No', esBrigadista: 'No', esComiteSeguridadVial: 'No',
     formacion: [],
@@ -318,8 +320,12 @@ const CondicionesSalud = () => {
 
     const handleExportExcel = async () => {
         try {
-            await exportPerfilSociodemograficoToExcel(trabajadores);
-            showToast({ message: 'Archivo Excel exportado exitosamente', severity: NotificationSeverity.SUCCESS });
+            await exportPerfilSociodemograficoToExcel(
+                trabajadores,
+                'Perfil_Sociodemografico.xlsx',
+                cargosDisponibles.map(c => c.nombreCargo)
+            );
+            showToast({ message: 'Archivo Excel exportado exitosamente con pestañas de respuestas', severity: NotificationSeverity.SUCCESS });
         } catch (error: any) {
             console.error('Error exportando Excel:', error);
             showToast({ message: `Error al exportar Excel: ${error?.message || error}`, severity: NotificationSeverity.ERROR });

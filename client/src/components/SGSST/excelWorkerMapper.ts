@@ -273,6 +273,64 @@ export function smartMapExcelToWorkers(importedRows: RawRow[], emptyWorkerTempla
     const limitacionesBiomecanicas = findRowValue(row, ['limitacionesbiomecanicas', 'limitacionfisica']);
     const tipoSangre = findRowValue(row, ['tipodesangre', 'gruposanguineo', 'rh', 'sangre']);
 
+    // 11. Conducción y Licencias
+    const rawLicencia = row['Licencia(s) Conducción'] || row['Licencia Conducción'] || row['Licencia de Conducción'] || row.licenciaConduccion || findRowValue(row, ['licenciaconduccion', 'licencia']) || '';
+    const rawVencLicencia = row['Vencimiento(s) Licencia'] || row['Vencimiento Licencia Cond'] || row['Vencimiento Licencia'] || row.licenciaConduccionVencimiento || findRowValue(row, ['vencimientolicenciacond', 'vencimientolicencia']) || '';
+    const soatVencimiento = excelSerialToDate(row['Vencimiento SOAT'] || row.soatVencimiento || findRowValue(row, ['vencimientosoat', 'soat']));
+    const tecnicomecanicaVencimiento = excelSerialToDate(row['Vencimiento Tecnicomecánica'] || row.tecnicomecanicaVencimiento || findRowValue(row, ['vencimientotecnicomecanica', 'tecnomecanica', 'rtm']));
+    
+    // Parsear licencias múltiples si vienen delimitadas por coma o barra vertical
+    const parsedLicencias: Array<{ id?: string; categoria: string; numero?: string; fechaVencimiento: string }> = [];
+    if (rawLicencia || rawVencLicencia) {
+      if (rawVencLicencia.includes('|')) {
+        const parts = rawVencLicencia.split('|').map((p: string) => p.trim());
+        parts.forEach((p: string, idx: number) => {
+          const [cat, dateVal] = p.split(':').map((s: string) => s.trim());
+          if (cat) {
+            parsedLicencias.push({
+              id: crypto.randomUUID(),
+              categoria: cat,
+              numero: identificacion || '',
+              fechaVencimiento: excelSerialToDate(dateVal || '')
+            });
+          }
+        });
+      } else if (rawLicencia.includes(',')) {
+        const cats = rawLicencia.split(',').map((s: string) => s.trim());
+        cats.forEach((c: string) => {
+          parsedLicencias.push({
+            id: crypto.randomUUID(),
+            categoria: c.replace(/\(.*\)/, '').trim() || 'B1',
+            numero: identificacion || '',
+            fechaVencimiento: excelSerialToDate(rawVencLicencia)
+          });
+        });
+      } else {
+        parsedLicencias.push({
+          id: crypto.randomUUID(),
+          categoria: rawLicencia.replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase() || 'C1',
+          numero: rawLicencia || identificacion || '',
+          fechaVencimiento: excelSerialToDate(rawVencLicencia)
+        });
+      }
+    }
+
+    const licenciaConduccion = rawLicencia;
+    const licenciaConduccionVencimiento = excelSerialToDate(rawVencLicencia);
+
+    // 12. SST, Alturas y Comités
+    const licenciaSST = row['N° Licencia SGSST'] || row.licenciaSST || findRowValue(row, ['licenciasst', 'licenciasgsst']) || '';
+    const licenciaVencimiento = excelSerialToDate(row['Venc. Licencia SGSST'] || row.licenciaVencimiento || findRowValue(row, ['venclicenciasst', 'vencimientolicenciasst']));
+    const curso50h = excelSerialToDate(row['Curso 50h'] || row.curso50h || findRowValue(row, ['curso50h', 'curso50horas']));
+    const curso20h = excelSerialToDate(row['Curso 20h'] || row.curso20h || findRowValue(row, ['curso20h', 'curso20horas']));
+    const fechaCursoAlturasAutorizado = excelSerialToDate(row['Curso Alturas Autorizado'] || row.fechaCursoAlturasAutorizado || findRowValue(row, ['cursoalturasautorizado', 'alturasautorizado']));
+    const fechaCursoAlturasCoordinador = excelSerialToDate(row['Curso Alturas Coordinador'] || row.fechaCursoAlturasCoordinador || findRowValue(row, ['cursoalturascoordinador', 'alturascoordinador']));
+    const esCopasst = row['COPASST'] || row.esCopasst || findRowValue(row, ['copasst']) || 'No';
+    const esComiteConvivencia = row['Comité Convivencia'] || row.esComiteConvivencia || findRowValue(row, ['comiteconvivencia', 'convivencia']) || 'No';
+    const esBrigadista = row['Brigadista'] || row.esBrigadista || findRowValue(row, ['brigadista', 'brigada']) || 'No';
+    const esComiteSeguridadVial = row['Comité Seg. Vial'] || row.esComiteSeguridadVial || findRowValue(row, ['comiteseguridadvial', 'comitesegvial', 'pesv']) || 'No';
+    const consentimientoFirmaDigital = row['Consentimiento Firma'] || row.consentimientoFirmaDigital || findRowValue(row, ['consentimientofirma', 'firmadigital']) || 'No';
+
     return {
       ...emptyWorkerTemplate,
       id: crypto.randomUUID(),
@@ -308,6 +366,22 @@ export function smartMapExcelToWorkers(importedRows: RawRow[], emptyWorkerTempla
       recomendacionesMedicas: recomendacionesMedicas || row['Recomendaciones Medicas'] || row.recomendacionesMedicas || '',
       limitacionesBiomecanicas: limitacionesBiomecanicas || row['Limitaciones Biomecánicas'] || row.limitacionesBiomecanicas || '',
       tipoSangre: tipoSangre || row['Tipo de Sangre'] || row.tipoSangre || '',
+      soatVencimiento: soatVencimiento || '',
+      tecnicomecanicaVencimiento: tecnicomecanicaVencimiento || '',
+      licenciaConduccion: licenciaConduccion || '',
+      licenciaConduccionVencimiento: licenciaConduccionVencimiento || '',
+      licenciasConduccion: parsedLicencias,
+      licenciaSST: licenciaSST || '',
+      licenciaVencimiento: licenciaVencimiento || '',
+      curso50h: curso50h || '',
+      curso20h: curso20h || '',
+      fechaCursoAlturasAutorizado: fechaCursoAlturasAutorizado || '',
+      fechaCursoAlturasCoordinador: fechaCursoAlturasCoordinador || '',
+      esCopasst: esCopasst || 'No',
+      esComiteConvivencia: esComiteConvivencia || 'No',
+      esBrigadista: esBrigadista || 'No',
+      esComiteSeguridadVial: esComiteSeguridadVial || 'No',
+      consentimientoFirmaDigital: consentimientoFirmaDigital || 'No',
       completedByAI: false,
     };
   });

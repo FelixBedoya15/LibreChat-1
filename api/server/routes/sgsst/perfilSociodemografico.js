@@ -86,6 +86,7 @@ const WorkerEntrySchema = new mongoose.Schema({
   // Conducción
   licenciaConduccion: { type: String, default: '' },
   licenciaConduccionVencimiento: { type: String, default: '' },
+  licenciasConduccion: { type: Array, default: [] },
 
   // Comités SG-SST
   esCopasst: { type: String, default: 'No' },
@@ -1326,6 +1327,7 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
               tecnicomecanicaVencimiento: { type: 'string' },
               licenciaConduccion: { type: 'string' },
               licenciaConduccionVencimiento: { type: 'string' },
+              licenciasConduccion: { type: 'array' },
               licenciaSST: { type: 'string' },
               licenciaVencimiento: { type: 'string' },
               curso50h: { type: 'string' },

@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import {
     Stethoscope, Shield, AlertTriangle, CheckCircle, User, Phone, Droplet,
-    Activity, Heart, Car, Briefcase, Home, Users, Loader2, Send, Key
+    Activity, Heart, Car, Briefcase, Home, Users, Loader2, Send, Key, Plus, Trash2
 } from 'lucide-react';
 import axios from 'axios';
 import SingleSelect from './SingleSelect';
+import type { LicenciaConduccionItem } from './exportPerfilSociodemografico';
 
 // ─── Types ────────────────────────────────────────────────────────────
 interface WorkerData {
@@ -20,7 +21,7 @@ interface WorkerData {
     
     // New fields
     fechaNacimiento?: string; lugarNacimiento?: string; barrio?: string; municipioDomicilio?: string; correoElectronico?: string;
-    licenciaConduccion?: string; licenciaConduccionVencimiento?: string;
+    licenciaConduccion?: string; licenciaConduccionVencimiento?: string; licenciasConduccion?: LicenciaConduccionItem[];
     esCopasst?: string; esComiteConvivencia?: string; esBrigadista?: string; esComiteSeguridadVial?: string;
     deporte?: string; alimentacion?: string;
     peso?: string; talla?: string; imc?: string; presionArterial?: string; frecuenciaCardiaca?: string;
@@ -144,6 +145,7 @@ export default function PublicPerfilUpdate() {
                 fechaNacimiento: w.fechaNacimiento, lugarNacimiento: w.lugarNacimiento, barrio: w.barrio, 
                 municipioDomicilio: w.municipioDomicilio, correoElectronico: w.correoElectronico,
                 licenciaConduccion: w.licenciaConduccion, licenciaConduccionVencimiento: w.licenciaConduccionVencimiento,
+                licenciasConduccion: w.licenciasConduccion || [],
                 esCopasst: w.esCopasst, esComiteConvivencia: w.esComiteConvivencia, esBrigadista: w.esBrigadista, esComiteSeguridadVial: w.esComiteSeguridadVial,
                 deporte: w.deporte, alimentacion: w.alimentacion,
                 peso: w.peso, talla: w.talla, imc: initialImc, presionArterial: w.presionArterial, frecuenciaCardiaca: w.frecuenciaCardiaca,
@@ -485,15 +487,100 @@ export default function PublicPerfilUpdate() {
                             {/* Driver section */}
                             {isDriver(workerData.cargo) && (
                                 <>
-                                    <SectionTitle icon={Briefcase} label="Conductor — Documentos" />
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <Field label="N° Licencia de Conducción">
-                                            <Input value={formData.licenciaConduccion || ''} onChange={e => upd('licenciaConduccion', e.target.value)} placeholder="Ej: 1234567" />
-                                        </Field>
-                                        <Field label="Venc. Licencia Conducción">
-                                            <Input type="date" value={formData.licenciaConduccionVencimiento || ''} onChange={e => upd('licenciaConduccionVencimiento', e.target.value)} />
-                                        </Field>
+                                    <SectionTitle icon={Briefcase} label="Conductor — Documentos y Licencias" />
+                                    
+                                    <div className="space-y-3 mb-3 p-3 bg-gray-50 dark:bg-gray-800/40 rounded-xl border border-gray-200 dark:border-gray-700">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Licencias de Conducción</label>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const cur = formData.licenciasConduccion && formData.licenciasConduccion.length > 0
+                                                        ? [...formData.licenciasConduccion]
+                                                        : (formData.licenciaConduccion || formData.licenciaConduccionVencimiento)
+                                                            ? [{ id: crypto.randomUUID(), categoria: 'C1', numero: formData.licenciaConduccion || '', fechaVencimiento: formData.licenciaConduccionVencimiento || '' }]
+                                                            : [];
+                                                    const updated = [...cur, { id: crypto.randomUUID(), categoria: 'B1', numero: formData.identificacion || '', fechaVencimiento: '' }];
+                                                    const summary = updated.map(l => `${l.categoria}${l.numero ? ` (N° ${l.numero})` : ''}`).join(', ');
+                                                    const dates = updated.map(l => l.fechaVencimiento).filter(Boolean).sort();
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        licenciasConduccion: updated,
+                                                        licenciaConduccion: summary,
+                                                        licenciaConduccionVencimiento: dates[0] || ''
+                                                    }));
+                                                }}
+                                                className="text-xs font-bold text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1"
+                                            >
+                                                <Plus className="w-3.5 h-3.5" /> + Agregar Licencia
+                                            </button>
+                                        </div>
+
+                                        {(() => {
+                                            const list = formData.licenciasConduccion && formData.licenciasConduccion.length > 0
+                                                ? formData.licenciasConduccion
+                                                : [{ id: 'init-1', categoria: 'C1', numero: formData.licenciaConduccion || '', fechaVencimiento: formData.licenciaConduccionVencimiento || '' }];
+                                            
+                                            return list.map((lic, idx) => (
+                                                <div key={lic.id || idx} className="grid grid-cols-1 md:grid-cols-3 gap-2 p-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 relative">
+                                                    <div>
+                                                        <label className="text-[10px] font-bold text-gray-500 uppercase block">Categoría</label>
+                                                        <SingleSelect
+                                                            value={lic.categoria || 'C1'}
+                                                            onChange={(val) => {
+                                                                const updated = list.map((item, i) => i === idx ? { ...item, categoria: val } : item);
+                                                                const summary = updated.map(l => `${l.categoria}${l.numero ? ` (N° ${l.numero})` : ''}`).join(', ');
+                                                                const dates = updated.map(l => l.fechaVencimiento).filter(Boolean).sort();
+                                                                setFormData(prev => ({ ...prev, licenciasConduccion: updated, licenciaConduccion: summary, licenciaConduccionVencimiento: dates[0] || '' }));
+                                                            }}
+                                                            options={['A1', 'A2', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3']}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[10px] font-bold text-gray-500 uppercase block">N° Licencia</label>
+                                                        <Input
+                                                            value={lic.numero || ''}
+                                                            onChange={(e) => {
+                                                                const updated = list.map((item, i) => i === idx ? { ...item, numero: e.target.value } : item);
+                                                                const summary = updated.map(l => `${l.categoria}${l.numero ? ` (N° ${l.numero})` : ''}`).join(', ');
+                                                                setFormData(prev => ({ ...prev, licenciasConduccion: updated, licenciaConduccion: summary }));
+                                                            }}
+                                                            placeholder="Ej: 1234567"
+                                                        />
+                                                    </div>
+                                                    <div className="flex items-end gap-1">
+                                                        <div className="flex-1">
+                                                            <label className="text-[10px] font-bold text-gray-500 uppercase block">Vencimiento</label>
+                                                            <Input
+                                                                type="date"
+                                                                value={lic.fechaVencimiento || ''}
+                                                                onChange={(e) => {
+                                                                    const updated = list.map((item, i) => i === idx ? { ...item, fechaVencimiento: e.target.value } : item);
+                                                                    const dates = updated.map(l => l.fechaVencimiento).filter(Boolean).sort();
+                                                                    setFormData(prev => ({ ...prev, licenciasConduccion: updated, licenciaConduccionVencimiento: dates[0] || '' }));
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        {list.length > 1 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const updated = list.filter((_, i) => i !== idx);
+                                                                    const summary = updated.map(l => `${l.categoria}${l.numero ? ` (N° ${l.numero})` : ''}`).join(', ');
+                                                                    const dates = updated.map(l => l.fechaVencimiento).filter(Boolean).sort();
+                                                                    setFormData(prev => ({ ...prev, licenciasConduccion: updated, licenciaConduccion: summary, licenciaConduccionVencimiento: dates[0] || '' }));
+                                                                }}
+                                                                className="p-2 text-red-500 hover:text-red-700 rounded-lg"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ));
+                                        })()}
                                     </div>
+
                                     <div className="grid grid-cols-2 gap-3">
                                         <Field label="Venc. SOAT">
                                             <Input type="date" value={formData.soatVencimiento || ''} onChange={e => upd('soatVencimiento', e.target.value)} />

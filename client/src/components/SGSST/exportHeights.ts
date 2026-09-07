@@ -33,6 +33,63 @@ export const exportHeightsToExcel = async (heightsList: WorkerHeightsDoc[]) => {
   wb.modified = new Date();
 
   // ============================================================================
+  // HOJA 3: LISTAS DE OPCIONES (EQUIPOS DE PROTECCIÓN CONTRA CAÍDAS - RES. 4272)
+  // ============================================================================
+  const wsOptions = wb.addWorksheet('Listas de Opciones', {
+    views: [{ showGridLines: true }]
+  });
+
+  const listResultadoInspeccion = ['Aprobado', 'Rechazado', 'N/A'];
+  const listEstadoEquipo = ['Vigente', 'Vencido', 'Requiere Inspección', 'Retirado'];
+
+  const optionsHeaders = [
+    { header: 'Resultado Inspección', key: 'resultadoInspeccion', width: 24, data: listResultadoInspeccion },
+    { header: 'Estado del Equipo', key: 'estadoEquipo', width: 26, data: listEstadoEquipo }
+  ];
+
+  wsOptions.columns = optionsHeaders.map(col => ({
+    header: col.header,
+    key: col.key,
+    width: col.width
+  }));
+
+  const optHeaderRow = wsOptions.getRow(1);
+  optHeaderRow.height = 30;
+  optHeaderRow.eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10, name: 'Segoe UI' };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F766E' } };
+    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FF042F2E' } },
+      left: { style: 'thin', color: { argb: 'FF042F2E' } },
+      bottom: { style: 'medium', color: { argb: 'FF042F2E' } },
+      right: { style: 'thin', color: { argb: 'FF042F2E' } }
+    };
+  });
+
+  const maxOptionItems = Math.max(...optionsHeaders.map(h => h.data.length));
+  for (let r = 0; r < maxOptionItems; r++) {
+    const rowValues: Record<string, string> = {};
+    optionsHeaders.forEach(col => {
+      rowValues[col.key] = col.data[r] || '';
+    });
+    const addedRow = wsOptions.addRow(rowValues);
+    addedRow.height = 20;
+    const isEven = (r + 2) % 2 === 0;
+    addedRow.eachCell({ includeEmpty: true }, (cell) => {
+      cell.font = { name: 'Segoe UI', size: 9, color: { argb: 'FF334155' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isEven ? 'FFFFFFFF' : 'FFF8FAFC' } };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+      };
+      cell.alignment = { vertical: 'middle', horizontal: 'left' };
+    });
+  }
+
+  // ============================================================================
   // HOJA 1: RESUMEN POR TRABAJADOR
   // ============================================================================
   const wsSummary = wb.addWorksheet('Resumen de Asignaciones', {
@@ -62,7 +119,7 @@ export const exportHeightsToExcel = async (heightsList: WorkerHeightsDoc[]) => {
   headerRow1.height = 25;
   headerRow1.eachCell((cell) => {
     cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11, name: 'Segoe UI' };
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF115E59' } }; // Teal Oscuro
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF115E59' } };
     cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
     cell.border = {
       top: { style: 'thin', color: { argb: 'FF042F2E' } },
@@ -72,21 +129,21 @@ export const exportHeightsToExcel = async (heightsList: WorkerHeightsDoc[]) => {
     };
   });
 
-  // Llenar datos
-  heightsList.forEach((doc) => {
-    const total = doc.equipos.length;
-    const vigentes = doc.equipos.filter(e => e.estado === 'Vigente').length;
-    const vencidos = doc.equipos.filter(e => e.estado === 'Vencido').length;
-    const reqInspeccion = doc.equipos.filter(e => e.estado === 'Requiere Inspección').length;
-    const retirados = doc.equipos.filter(e => e.estado === 'Retirado').length;
+  // Llenar Datos Hoja 1
+  heightsList.forEach((workerDoc) => {
+    const total = workerDoc.equipos.length;
+    const vigentes = workerDoc.equipos.filter(e => e.estado === 'Vigente').length;
+    const vencidos = workerDoc.equipos.filter(e => e.estado === 'Vencido').length;
+    const pendientes = workerDoc.equipos.filter(e => e.estado === 'Requiere Inspección').length;
+    const retirados = workerDoc.equipos.filter(e => e.estado === 'Retirado').length;
 
     const dataRow = wsSummary.addRow([
-      doc.nombreTrabajador,
-      doc.cargo || 'Sin registrar',
+      workerDoc.nombreTrabajador,
+      workerDoc.cargo || 'Sin registrar',
       total,
       vigentes,
       vencidos,
-      reqInspeccion,
+      pendientes,
       retirados
     ]);
 
@@ -107,16 +164,13 @@ export const exportHeightsToExcel = async (heightsList: WorkerHeightsDoc[]) => {
         right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
       };
 
-      // Color coding alerts
+      // Alertas
       if (colNum === 5 && vencidos > 0) {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
         cell.font = { bold: true, color: { argb: 'FF991B1B' } };
-      } else if (colNum === 6 && reqInspeccion > 0) {
+      } else if (colNum === 6 && pendientes > 0) {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FEF08A10' } };
         cell.font = { bold: true, color: { argb: 'FF854D0E' } };
-      } else if (colNum === 4 && vigentes > 0) {
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FDF4' } };
-        cell.font = { color: { argb: 'FF166534' } };
       }
     });
   });
@@ -131,16 +185,16 @@ export const exportHeightsToExcel = async (heightsList: WorkerHeightsDoc[]) => {
   });
 
   // ============================================================================
-  // HOJA 2: DETALLE HISTÓRICO DE EQUIPOS
+  // HOJA 2: DETALLE COMPLETO DE EQUIPOS
   // ============================================================================
-  const wsDetail = wb.addWorksheet('Inventario Detallado', {
+  const wsDetail = wb.addWorksheet('Detalle de Equipos', {
     views: [{ showGridLines: true }]
   });
 
   // Título
   wsDetail.mergeCells('A1:N2');
   const titleCell2 = wsDetail.getCell('A1');
-  titleCell2.value = '📋 INVENTARIO COMPLETO E INSPECCIÓN ANUAL DE ALTURAS';
+  titleCell2.value = '📋 HOJAS DE VIDA Y TRAZABILIDAD INDIVIDUAL DE EQUIPOS DE ALTURAS';
   titleCell2.font = { size: 14, bold: true, color: { argb: 'FFFFFFFF' }, name: 'Segoe UI' };
   titleCell2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F766E' } };
   titleCell2.alignment = { vertical: 'middle', horizontal: 'center' };
@@ -177,10 +231,10 @@ export const exportHeightsToExcel = async (heightsList: WorkerHeightsDoc[]) => {
     };
   });
 
-  let hasDetail = false;
+  let totalEquiposCount = 0;
   heightsList.forEach((doc) => {
     doc.equipos.forEach((eq) => {
-      hasDetail = true;
+      totalEquiposCount++;
       const dataRow = wsDetail.addRow([
         doc.nombreTrabajador,
         doc.cargo || 'Sin registrar',
@@ -232,12 +286,35 @@ export const exportHeightsToExcel = async (heightsList: WorkerHeightsDoc[]) => {
     });
   });
 
-  if (!hasDetail) {
+  if (totalEquiposCount === 0) {
     wsDetail.addRow(['No se han registrado equipos de alturas en el inventario aún']);
     wsDetail.mergeCells('A4:N4');
     wsDetail.getCell('A4').alignment = { horizontal: 'center', vertical: 'middle' };
     wsDetail.getCell('A4').font = { italic: true, name: 'Segoe UI', size: 10 };
   }
+
+  // Validaciones en Hoja 2 (Detalle de Equipos)
+  const applyDetailValidation = (colLetter: string, optionsRange: string, promptTitle: string, prompt: string) => {
+    const totalRows = Math.max(totalEquiposCount + 50, 500);
+    for (let r = 4; r <= totalRows; r++) {
+      const cell = wsDetail.getCell(`${colLetter}${r}`);
+      cell.dataValidation = {
+        type: 'list',
+        allowBlank: true,
+        formulae: [optionsRange],
+        showErrorMessage: true,
+        errorStyle: 'stop',
+        errorTitle: 'Valor no válido',
+        error: 'Por favor seleccione una de las opciones desplegables autorizadas.',
+        showInputMessage: false,
+        promptTitle,
+        prompt
+      };
+    }
+  };
+
+  applyDetailValidation('L', `'Listas de Opciones'!$A$2:$A$${listResultadoInspeccion.length + 1}`, 'Resultado Inspección', 'Aprobado, Rechazado o N/A');
+  applyDetailValidation('M', `'Listas de Opciones'!$B$2:$B$${listEstadoEquipo.length + 1}`, 'Estado del Equipo', 'Vigente, Vencido, Requiere Inspección o Retirado');
 
   wsDetail.columns.forEach((col) => {
     let maxLen = 0;

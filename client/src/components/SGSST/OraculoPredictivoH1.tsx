@@ -648,27 +648,35 @@ export default function OraculoPredictivoH1() {
                                                     setHistoryWorkerId(worker.id);
                                                     setIsHistoryOpen(true);
                                                 }}
-                                                className="group flex items-center justify-center h-10 px-3 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border rounded-xl bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400 border-border-medium"
+                                                aria-label="Historial de Dictámenes"
+                                                className="group flex items-center justify-center h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] px-2 sm:px-2.5 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border rounded-xl bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400 border-border-medium sm:hover:-rotate-3 sm:hover:scale-105"
                                                 title="Historial de Dictámenes"
                                             >
-                                                <History className="h-4 w-4 shrink-0" />
-                                                <span className="hidden sm:inline-block ml-2 text-xs font-bold tracking-wide">Historial</span>
+                                                <History className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                                                <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                                                    <span className="text-sm font-bold tracking-wide">Historial</span>
+                                                </div>
                                             </button>
                                             <button
                                                 onClick={() => handleConsultOracle(worker, profile, fit)}
                                                 disabled={generatingId === worker.id}
-                                                className="group flex items-center justify-center h-10 px-4 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs disabled:opacity-50"
+                                                aria-label="Generar Dictamen con IA"
+                                                className="group flex items-center justify-center h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] px-2 sm:px-2.5 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border border-teal-600 hover:border-teal-700 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs disabled:opacity-50 sm:hover:-rotate-3 sm:hover:scale-105"
                                                 title="Generar Dictamen con IA"
                                             >
                                                 {generatingId === worker.id ? (
                                                     <>
-                                                        <Loader2 className="h-4 w-4 shrink-0 animate-spin mr-2" />
-                                                        <span>Generando...</span>
+                                                        <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 animate-spin" />
+                                                        <div className="flex items-center max-w-[200px] opacity-100 ml-2 whitespace-nowrap">
+                                                            <span className="text-sm font-bold tracking-wide">Generando...</span>
+                                                        </div>
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <Sparkles className="h-4 w-4 shrink-0 mr-2" />
-                                                        <span>Generar Dictamen IA</span>
+                                                        <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                                                        <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                                                            <span className="text-sm font-bold tracking-wide">Generar Dictamen IA</span>
+                                                        </div>
                                                     </>
                                                 )}
                                             </button>
