@@ -59,6 +59,21 @@ async function getFullSSTContext(userId, companyId) {
         const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
         
         let workersList = [];
+        const getPerfilCargoDataModel = () => {
+            if (!mongoose.models.PerfilCargoData) {
+                try { require('./perfilesCargo'); } catch (e) {}
+            }
+            return mongoose.models.PerfilCargoData;
+        };
+        const PerfilCargoDataModel = getPerfilCargoDataModel();
+        const cargoProfileDoc = PerfilCargoDataModel ? await PerfilCargoDataModel.findOne({ user: userId, ...(companyId ? { companyId } : {}) }).lean() : null;
+        const cargoLookupMap = {};
+        if (cargoProfileDoc?.perfilesList) {
+            cargoProfileDoc.perfilesList.forEach(p => {
+                if (p.id) cargoLookupMap[p.id] = p.nombreCargo || 'Operativo';
+            });
+        }
+
         if (SgsstWorker) {
             workersList = await SgsstWorker.find({ user: userId, ...(companyId ? { companyId } : {}) }).lean();
         }
@@ -67,11 +82,12 @@ async function getFullSSTContext(userId, companyId) {
         if (workersList.length > 0) {
             fullContext += `Total de Bio-Individuos censados: ${workersList.length}\n`;
             workersList.forEach(w => {
+                const cargoDisplay = cargoLookupMap[w.perfilId] || w.cargo || (w.perfilId && !w.perfilId.includes('-') ? w.perfilId : 'Operativo');
                 const dominiosCriticos = (w.riesgosBioIndividual || [])
                     .filter(r => r.clasificacion_bio === 'Crítico' || r.clasificacion_bio === 'Alto')
                     .map(r => `${r.dominio_bio || 'General'}: ${r.dimension_bio || r.peligro_cargo || ''}`)
                     .slice(0, 3);
-                fullContext += `  • Trabajador: ${w.nombre || 'N/A'} (Doc: ${w.documento || 'S/D'}) | Cargo: ${w.perfilId || 'Operativo'} | FIT Score: ${w.fitScore ?? 0}% | Percepción Riesgo: ${w.percepcionRiesgoScore ?? 0} pts | Salud/Patología: ${w.condicionesSalud || 'Apto / Sin restricciones'} | Dominios Críticos: [${dominiosCriticos.join(', ') || 'Bajo control'}]\n`;
+                fullContext += `  • Trabajador: ${w.nombre || 'N/A'} (Doc: ${w.documento || 'S/D'}) | Cargo: ${cargoDisplay} | FIT Score: ${w.fitScore ?? 0}% | Percepción Riesgo: ${w.percepcionRiesgoScore ?? 0} pts | Salud/Patología: ${w.condicionesSalud || 'Apto / Sin restricciones'} | Dominios Críticos: [${dominiosCriticos.join(', ') || 'Bajo control'}]\n`;
             });
         } else if (PerfilSociodemograficoData) {
             const psd = await PerfilSociodemograficoData.findOne({ user: userId, companyId }).lean();
@@ -242,6 +258,21 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
         let specificMiedoFeedback = [];
 
         try {
+            const getPerfilCargoDataModel = () => {
+                if (!mongoose.models.PerfilCargoData) {
+                    try { require('./perfilesCargo'); } catch (e) {}
+                }
+                return mongoose.models.PerfilCargoData;
+            };
+            const PerfilCargoDataModel = getPerfilCargoDataModel();
+            const cargoProfileDoc = PerfilCargoDataModel ? await PerfilCargoDataModel.findOne({ user: userId, ...(companyId ? { companyId } : {}) }).lean() : null;
+            const cargoLookupMap = {};
+            if (cargoProfileDoc?.perfilesList) {
+                cargoProfileDoc.perfilesList.forEach(p => {
+                    if (p.id) cargoLookupMap[p.id] = p.nombreCargo || 'Operativo';
+                });
+            }
+
             // Hito 1: Trabajadores SgsstWorker & Perfil Sociodemográfico
             const SgsstWorker = mongoose.models.SgsstWorker;
 
@@ -250,13 +281,14 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
                 if (workers?.length) {
                     totalWorkers = workers.length;
                     workers.forEach(w => {
+                        const cargoDisplay = cargoLookupMap[w.perfilId] || w.cargo || (w.perfilId && !w.perfilId.includes('-') ? w.perfilId : 'Operativo');
                         const hasHealthIssue = (w.condicionesSalud && w.condicionesSalud !== 'Apto / Sin restricciones' && w.condicionesSalud !== 'Apto');
                         if (w.fitScore < 60 || hasHealthIssue) {
                             sickWorkers++;
-                            if (w.perfilId) criticalAreasMap[w.perfilId] = (criticalAreasMap[w.perfilId] || 0) + 1.5;
+                            if (cargoDisplay) criticalAreasMap[cargoDisplay] = (criticalAreasMap[cargoDisplay] || 0) + 1.5;
                             specificWorkerAlerts.push({
                                 nombre: w.nombre || 'Colaborador',
-                                cargo: w.perfilId || 'Operativo',
+                                cargo: cargoDisplay,
                                 condicionesSalud: w.condicionesSalud || 'Bajo FIT Score',
                                 fitScore: w.fitScore ?? 0
                             });
@@ -438,6 +470,11 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
         let maxCount = 0;
         for (const [area, count] of Object.entries(criticalAreasMap)) {
             if (count > maxCount) { maxCount = count; criticalArea = area; }
+        }
+
+        // Si criticalArea es un UUID o contiene formato de ID, resolverlo a texto legible
+        if (!criticalArea || /^[0-9a-f-]{20,}$/i.test(criticalArea)) {
+            criticalArea = cargoLookupMap[criticalArea] || "OPERACIONES GENERALES";
         }
 
         // Identificar el Dominio Bioindividual más amenazado

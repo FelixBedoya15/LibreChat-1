@@ -82,10 +82,14 @@ function cleanAgentInstructions(instructions) {
         .replace(/<[^>]*>/g, '')
         .replace(/\|[^\n]+\|/g, '')
         .replace(/Información inicial que siempre pedirás[\s\S]*?(?=🔹|---|##|$)/gi, '')
-        .replace(/Preguntas clave \(tamaño de empresa[\s\S]*?\)/gi, '')
+        .replace(/Preguntas clave\s*\([^)]*\)/gi, '')
         .replace(/Tamaño de la empresa[\s\S]*?actividad económica\./gi, '')
         .replace(/Clase de riesgo ARL[\s\S]*?\./gi, '')
         .replace(/Estado actual de implementación[\s\S]*?\./gi, '')
+        .replace(/Rol del usuario dentro del sistema[\s\S]*?\./gi, '')
+        .replace(/🔹\s*6\.\s*Información inicial[\s\S]*?(?=🔹|---|##|$)/gi, '')
+        .replace(/🔹\s*4\.\s*Estructura recomendada[\s\S]*?(?=🔹|---|##|$)/gi, '')
+        .replace(/🔹\s*10\.\s*Ejemplos de inicio[\s\S]*?(?=🔹|---|##|$)/gi, '')
         .replace(/🔹 11\. Reglas de Formato Visual[\s\S]*?(?=🔹|---|##|$)/gi, '')
         .replace(/⚠️ REGLA DE ORO DE TARJETAS[\s\S]*?(?=⚠️|🔹|---|##|$)/gi, '')
         .replace(/⚠️ REGLA DE ORO DE AUTOMATIZACIONES[\s\S]*?(?=⚠️|🔹|---|##|$)/gi, '')
@@ -2166,31 +2170,60 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
             try {
                 const { getAgent } = require('~/models/Agent');
                 agentObj = await getAgent({ id: agentId });
+                if (!agentObj) {
+                    const { Agent } = require('~/db/models');
+                    agentObj = await Agent.findOne({ $or: [{ id: agentId }, { _id: agentId }] }).lean();
+                }
             } catch (agentError) {
                 logger.error('[VoiceSession] Error loading agent details:', agentError);
             }
         }
 
-        if (!agentObj && (config.template || config.mode === 'live_analysis')) {
+        if (!agentObj) {
             try {
                 const { Agent } = require('~/db/models');
-                const searchName = config.mode === 'live_analysis' || config.template === 'biomecanico_mediapipe'
-                    ? 'Fisioterapeuta Laboral'
-                    : config.template;
-                agentObj = await Agent.findOne({
-                    $or: [
-                        { name: searchName },
-                        { name: new RegExp(searchName, 'i') }
-                    ]
-                }).lean();
+                // Check if user is in biomechanics / fisioterapeuta mode or template
+                const wantsBiomechanics = config.mode === 'live_analysis' || 
+                                          config.template === 'biomecanico_mediapipe' || 
+                                          !agentId;
+                if (wantsBiomechanics) {
+                    agentObj = await Agent.findOne({
+                        $or: [
+                            { name: /biomec[aá]nic/i },
+                            { name: /fisioterapeuta/i },
+                            { name: /ergon/i }
+                        ]
+                    }).lean();
+                }
             } catch (err) {
                 logger.warn('[VoiceSession] Could not fallback find agent in DB:', err.message);
             }
         }
 
+        // Bulletproof fallback: Load local markdown instructions if agentObj still lacks instructions
+        if (!agentObj || !agentObj.instructions) {
+            try {
+                const fs = require('fs');
+                const path = require('path');
+                const fisioPath = path.resolve(process.cwd(), 'Agentes/Agentes Wappy/fisioterapeuta_laboral.md');
+                if (fs.existsSync(fisioPath)) {
+                    const content = fs.readFileSync(fisioPath, 'utf-8');
+                    agentObj = {
+                        name: 'Especialista en Biomecánica Laboral',
+                        instructions: content,
+                    };
+                    logger.info('[VoiceSession] Successfully loaded Fisioterapeuta instructions from local markdown file');
+                }
+            } catch (mdErr) {
+                logger.warn('[VoiceSession] Could not load markdown fallback:', mdErr.message);
+            }
+        }
+
         // Dynamic Inspection Protocol Resolution across all WAPPY Agent Families
-        const agentProtocol = resolveInspectionProtocol(agentObj?.name || config.template || (config.mode === 'live_analysis' ? 'biomecanico_mediapipe' : 'general'));
-        const isBiomechanics = agentProtocol.id === 'biomecanico';
+        const agentProtocol = resolveInspectionProtocol(agentObj?.name || config.template || 'biomecanico');
+        const isBiomechanics = agentProtocol.id === 'biomecanico' ||
+            (agentObj && /biomec|fisioterapeuta|ergon|rosa|ipt/i.test(agentObj.name)) ||
+            config.template === 'biomecanico_mediapipe';
 
         logger.info(`[VoiceSession] Live session configured with Agent: ${agentObj?.name || agentId || 'General'} (Protocol: ${agentProtocol.title}, isBiomechanics: ${isBiomechanics})`);
 

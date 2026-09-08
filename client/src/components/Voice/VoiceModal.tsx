@@ -8,6 +8,7 @@ import VoiceSelector from './VoiceSelector';
 import { useVoiceSession } from '~/hooks/useVoiceSession';
 import { useLocalize } from '~/hooks';
 import { useGetAgentByIdQuery } from '~/data-provider';
+import { useChatContext } from '~/Providers';
 
 declare global {
     interface Window {
@@ -92,15 +93,63 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     const [isFlashActive, setIsFlashActive] = useState(false);
     const [limitNotification, setLimitNotification] = useState<string | null>(null);
 
+    // Resolve conversation & effective agent details
+    const chatContext = useChatContext();
+    const conversation = chatContext?.conversation;
+    const effectiveAgentId = agentId || conversation?.agent_id || (endpoint === 'agents' ? model : undefined);
+
     // Get active agent details
-    const { data: agent, isLoading } = useGetAgentByIdQuery(agentId, { enabled: !!agentId });
+    const { data: agent, isLoading } = useGetAgentByIdQuery(effectiveAgentId, { enabled: !!effectiveAgentId });
 
     // Dynamic Inspection Protocol Resolution across all WAPPY Agent Families
     const activeProtocol = useMemo<InspectionProtocol>(() => {
-        return resolveInspectionProtocol(agent?.name);
-    }, [agent?.name]);
+        const candidate = agent?.name || conversation?.title || '';
+        const resolved = resolveInspectionProtocol(candidate);
+        // Default to Biomechanics if candidate is generic or missing, ensuring vision AI is never disabled
+        if (resolved.id === 'auditoria' && (!agent || !agent.name)) {
+            return INSPECTION_PROTOCOLS.biomecanico;
+        }
+        return resolved;
+    }, [agent?.name, conversation?.title]);
 
-    const isBiomechanicsAgent = activeProtocol.id === 'biomecanico';
+    const isBiomechanicsAgent = useMemo(() => {
+        const agentName = (agent?.name || '').toLowerCase();
+        const agentInstructions = (agent?.instructions || '').toLowerCase();
+        const convoTitle = (conversation?.title || '').toLowerCase();
+        const modelStr = (model || '').toLowerCase();
+
+        // 1. Direct name or instructions match
+        if (
+            agentName.includes('biomec') ||
+            agentName.includes('fisioterapeuta') ||
+            agentName.includes('ergon') ||
+            agentName.includes('rosa') ||
+            agentName.includes('puesto de trabajo') ||
+            agentName.includes('ipt') ||
+            agentInstructions.includes('fisioterapeuta') ||
+            agentInstructions.includes('biomecánica') ||
+            agentInstructions.includes('biomecanica') ||
+            convoTitle.includes('biomec') ||
+            convoTitle.includes('fisioterapeuta') ||
+            modelStr.includes('biomec') ||
+            modelStr.includes('fisioterapeuta')
+        ) {
+            return true;
+        }
+
+        // 2. Protocol match
+        if (activeProtocol.id === 'biomecanico') {
+            return true;
+        }
+
+        // 3. Fallback: If not specifically another specialist, default to true so MediaPipe is always active in Vision
+        const otherSpecialistIds = ['quimico', 'pesv', 'emergencias_electrico', 'emergencias', 'electrico', 'alturas', 'investigacion_at', 'psicosocial'];
+        if (!otherSpecialistIds.includes(activeProtocol.id)) {
+            return true;
+        }
+
+        return false;
+    }, [agent, conversation, model, activeProtocol.id]);
 
     // Multi-Phase Inspection Protocol & Perspective States
     const [currentPhaseIndex, setCurrentPhaseIndex] = useState<number>(0);
@@ -338,7 +387,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         initialVoice: voiceChatGeneral,
         model,
         endpoint,
-        agentId,
+        agentId: effectiveAgentId,
         template: isBiomechanicsAgent ? 'biomecanico_mediapipe' : undefined,
         onAudioReceived: (audioData: string) => {
             handleAudioReceived(audioData);
@@ -383,7 +432,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             setIsGeneratingReport(false);
             setStatusText(`Error: ${error}`);
         },
-    }), [conversationId, onConversationIdUpdate, onConversationUpdated, voiceChatGeneral, model, endpoint, isBiomechanicsAgent, agentId]);
+    }), [conversationId, onConversationIdUpdate, onConversationUpdated, voiceChatGeneral, model, endpoint, isBiomechanicsAgent, effectiveAgentId]);
 
     const {
         isConnected,
@@ -1342,8 +1391,8 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                     </div>
                 )}
 
-                {/* Unified Specialized Inspection HUD for All SST Agents */}
-                {isReady && (
+                {/* Specialized Inspection HUD for SST Agents & Biomechanics Vision AI */}
+                {(isBiomechanicsAgent || isCameraOn || isConnected || isReady) && (
                     isBiomechanicsAgent ? (
                         <div className="absolute top-4 left-4 right-4 z-40 bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl p-3 shadow-2xl flex flex-wrap gap-2 md:gap-4 justify-between items-center transition-all animate-in fade-in duration-300">
                             <div className="flex flex-wrap items-center gap-2">

@@ -228,7 +228,7 @@ const INSPECTION_PROTOCOLS = {
  */
 function resolveInspectionProtocol(agentNameOrSpecialty) {
     if (!agentNameOrSpecialty) {
-        return INSPECTION_PROTOCOLS.auditoria_gtc45;
+        return INSPECTION_PROTOCOLS.biomecanico;
     }
 
     const name = String(agentNameOrSpecialty).toLowerCase();

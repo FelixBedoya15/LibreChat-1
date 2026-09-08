@@ -632,6 +632,14 @@ const DashboardPredictivo = () => {
     
     const heroStyles = getHeroStyles(overallRisk);
 
+    const cleanUUIDs = useCallback((text?: string) => {
+        if (!text) return '';
+        return text.replace(/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi, (match) => {
+            const found = profiles.find(p => p.id?.toLowerCase() === match.toLowerCase());
+            return found?.nombreCargo ? found.nombreCargo : 'Operaciones / Obra';
+        });
+    }, [profiles]);
+
     // Build bar data from forecast
     const barData = [
         { label: 'Incompatibilidad Biomecánica', value: forecast?.indicators?.ergonomicRisk || 0, color: '#8b5cf6' },
@@ -810,7 +818,7 @@ const DashboardPredictivo = () => {
                             </span>
                             <span className="font-black text-white text-sm sm:text-base tracking-wide flex items-center gap-2">
                                 <span className="w-2.5 h-2.5 rounded-full bg-rose-400 animate-ping" />
-                                {forecast.criticalArea.toUpperCase()}
+                                {cleanUUIDs(forecast.criticalArea).toUpperCase()}
                             </span>
                         </div>
                     )}
@@ -1172,7 +1180,7 @@ const DashboardPredictivo = () => {
                                 <div className="relative p-5 bg-surface-primary/80 backdrop-blur-sm rounded-2xl border border-border-medium shadow-inner">
                                     <span className="absolute -top-3 left-4 text-3xl font-serif text-teal-400/50 leading-none">“</span>
                                     <p className="text-xs text-text-primary leading-relaxed font-semibold italic pl-4 pr-2">
-                                        {forecast?.predictionSummary || "Haga clic en 'Actualizar' para generar el análisis predictivo cruzado de todos los módulos..."}
+                                        {cleanUUIDs(forecast?.predictionSummary) || "Haga clic en 'Actualizar' para generar el análisis predictivo cruzado de todos los módulos..."}
                                     </p>
                                     <span className="absolute -bottom-7 right-4 text-3xl font-serif text-teal-400/50 leading-none">”</span>
                                 </div>
@@ -1191,7 +1199,7 @@ const DashboardPredictivo = () => {
                                                 style={{ background: 'linear-gradient(135deg, #0d9488, #10b981)' }}>
                                                 {i + 1}
                                             </div>
-                                            <span className="text-xs text-text-primary font-semibold leading-relaxed">{action}</span>
+                                            <span className="text-xs text-text-primary font-semibold leading-relaxed">{cleanUUIDs(action)}</span>
                                         </div>
                                     )) : [1, 2, 3].map(i => (
                                         <div key={i} className="flex items-center gap-4 p-4.5 bg-surface-primary/60 rounded-2xl border border-border-light">

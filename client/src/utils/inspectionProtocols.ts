@@ -119,7 +119,7 @@ export const INSPECTION_PROTOCOLS: Record<string, InspectionProtocol> = {
  */
 export function resolveInspectionProtocol(agentNameOrSpecialty?: string | null): InspectionProtocol {
     if (!agentNameOrSpecialty) {
-        return INSPECTION_PROTOCOLS.auditoria_gtc45;
+        return INSPECTION_PROTOCOLS.biomecanico;
     }
 
     const name = agentNameOrSpecialty.toLowerCase();
