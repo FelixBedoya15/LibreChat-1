@@ -235,6 +235,140 @@ async function getFullSSTContext(userId, companyId) {
             }
         }
 
+        // ─── AMBIENTES CRÍTICOS, VULNERABILIDAD & OPERACIONES ESPECIALES ───
+        fullContext += `\n[MÓDULOS OPERATIVOS COMPLEMENTARIOS DEL ECOSISTEMA WAPPY]\n`;
+
+        // 1. Químicos & Compatibilidad SGA
+        try {
+            const SgsstChemicalData = mongoose.models.SgsstChemicalData || require('../../../models/SgsstChemicalData');
+            if (SgsstChemicalData) {
+                const chemDoc = await SgsstChemicalData.findOne({ user: userId, ...(companyId ? { companyId } : {}) }).lean();
+                if (chemDoc?.productos?.length) {
+                    const prods = chemDoc.productos;
+                    const sinFds = prods.filter(p => p.tieneFds !== 'Sí').length;
+                    const clases = [...new Set(prods.map(p => p.claseOnu).filter(Boolean))].join(', ') || 'General';
+                    fullContext += `  • Sustancias Químicas SGA: ${prods.length} productos inventariados (${sinFds} sin FDS actualizada). Clases ONU: ${clases}\n`;
+                }
+            }
+        } catch (e) {
+            logger.debug('[Predictivo Context] Chemical data skip:', e.message);
+        }
+
+        // 2. Seguridad Vial & Parque Automotor PESV
+        try {
+            const SgsstVehicleData = mongoose.models.SgsstVehicleData || require('../../../models/SgsstVehicleData');
+            if (SgsstVehicleData) {
+                const vehicles = await SgsstVehicleData.find({ user: userId, ...(companyId ? { companyId } : {}) }).lean();
+                if (vehicles?.length) {
+                    let preopRechazados = 0;
+                    vehicles.forEach(v => {
+                        (v.inspecciones || []).forEach(ins => {
+                            if (ins.resultado === 'Rechazado') preopRechazados++;
+                        });
+                    });
+                    fullContext += `  • Seguridad Vial PESV: ${vehicles.length} vehículos en flota (${preopRechazados} inspecciones preoperacionales rechazadas).\n`;
+                }
+            }
+        } catch (e) {
+            logger.debug('[Predictivo Context] Vehicle data skip:', e.message);
+        }
+
+        // 3. Dotación & Control de EPP
+        try {
+            const SgsstEppData = mongoose.models.SgsstEppData || require('../../../models/SgsstEppData');
+            if (SgsstEppData) {
+                const eppDocs = await SgsstEppData.find({ user: userId, ...(companyId ? { companyId } : {}) }).lean();
+                if (eppDocs?.length) {
+                    let totalEpp = 0, eppCriticos = 0;
+                    eppDocs.forEach(ed => {
+                        (ed.entregas || []).forEach(item => {
+                            totalEpp++;
+                            if (item.estado === 'Vencido' || item.estado === 'Inspección Requerida') eppCriticos++;
+                        });
+                    });
+                    fullContext += `  • Dotación & EPP: ${totalEpp} entregas en ${eppDocs.length} trabajadores (${eppCriticos} elementos con alerta de vencimiento/inspección).\n`;
+                }
+            }
+        } catch (e) {
+            logger.debug('[Predictivo Context] EPP data skip:', e.message);
+        }
+
+        // 4. Matriz Legal
+        try {
+            const getMatrizLegalModel = () => {
+                if (!mongoose.models.MatrizLegalData) {
+                    try { require('./matriz'); } catch (err) {}
+                }
+                return mongoose.models.MatrizLegalData;
+            };
+            const MatrizLegalData = getMatrizLegalModel();
+            if (MatrizLegalData) {
+                const mld = await MatrizLegalData.findOne({ user: userId, ...(companyId ? { companyId } : {}) }).lean();
+                if (mld?.statuses?.length) {
+                    const cumple = mld.statuses.filter(s => s.status === 'cumple' || s.status === 'Cumple').length;
+                    const total = mld.statuses.length;
+                    const pct = Math.round((cumple / total) * 100);
+                    fullContext += `  • Matriz Legal: ${pct}% de cumplimiento normativo (${cumple} de ${total} requisitos vigentes evaluados).\n`;
+                }
+            }
+        } catch (e) {
+            logger.debug('[Predictivo Context] Legal matrix skip:', e.message);
+        }
+
+        // 5. Análisis de Vulnerabilidad & Amenazas (Plan de Emergencias)
+        try {
+            const getAnalisisVulnerabilidadModel = () => {
+                if (!mongoose.models.AnalisisVulnerabilidadData) {
+                    try { require('./analisisVulnerabilidad'); } catch (err) {}
+                }
+                return mongoose.models.AnalisisVulnerabilidadData;
+            };
+            const AnalisisVulnerabilidadData = getAnalisisVulnerabilidadModel();
+            if (AnalisisVulnerabilidadData) {
+                const avd = await AnalisisVulnerabilidadData.findOne({ user: userId, ...(companyId ? { companyId } : {}) }).lean();
+                if (avd?.formData?.amenazasList?.length) {
+                    const amenazas = avd.formData.amenazasList;
+                    fullContext += `  • Plan de Emergencias & Vulnerabilidad: ${amenazas.length} amenazas evaluadas (Prioritarias: ${amenazas.slice(0, 3).map(a => a.amenaza || a.nombre).filter(Boolean).join(', ') || 'Evaluadas'}).\n`;
+                }
+            }
+        } catch (e) {
+            logger.debug('[Predictivo Context] Vulnerability skip:', e.message);
+        }
+
+        // 6. Análisis de Trabajo Seguro (ATS)
+        try {
+            const getAnalisisTrabajoSeguroModel = () => {
+                if (!mongoose.models.AnalisisTrabajoSeguroData) {
+                    try { require('./analisisTrabajoSeguro'); } catch (err) {}
+                }
+                return mongoose.models.AnalisisTrabajoSeguroData;
+            };
+            const AnalisisTrabajoSeguroData = getAnalisisTrabajoSeguroModel();
+            if (AnalisisTrabajoSeguroData) {
+                const atsd = await AnalisisTrabajoSeguroData.find({ user: userId, ...(companyId ? { companyId } : {}) }).lean();
+                if (atsd?.length) {
+                    fullContext += `  • Análisis de Trabajo Seguro (ATS): ${atsd.length} procedimientos de tareas no rutinarias documentados.\n`;
+                }
+            }
+        } catch (e) {
+            logger.debug('[Predictivo Context] ATS skip:', e.message);
+        }
+
+        // 7. Compromisos y Tareas Kanban
+        try {
+            const KanbanTask = mongoose.models.KanbanTask || require('../../../models/KanbanTask');
+            if (KanbanTask) {
+                const tasks = await KanbanTask.find({ user: userId }).lean();
+                if (tasks?.length) {
+                    const vencidas = tasks.filter(t => t.status === 'overdue').length;
+                    const pendientes = tasks.filter(t => t.status === 'todo' || t.status === 'due_soon').length;
+                    fullContext += `  • Compromisos y Planes de Acción Kanban: ${tasks.length} acciones de mejora (${pendientes} en gestión, ${vencidas} vencidas).\n`;
+                }
+            }
+        } catch (e) {
+            logger.debug('[Predictivo Context] Kanban skip:', e.message);
+        }
+
     } catch (err) {
         logger.error('[Predictivo] Context aggregation failed:', err.message);
     }
@@ -288,6 +422,21 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
         let sumFitScore = 0;
         let countFitWorkers = 0;
 
+        let countChemicals = 0;
+        let countToxicChemicals = 0;
+        let countVehicles = 0;
+        let countFailedPreops = 0;
+        let countEppDocs = 0;
+        let countCriticalEpp = 0;
+        let countNormas = 0;
+        let countLegalCumple = 0;
+        let countAmenazas = 0;
+        let countAts = 0;
+        let countCapacitaciones = 0;
+        let countKanban = 0;
+        let countPerfilesCargo = 0;
+        let countInvestigations = 0;
+
         try {
             const getPerfilCargoDataModel = () => {
                 if (!mongoose.models.PerfilCargoData) {
@@ -298,6 +447,7 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
             const PerfilCargoDataModel = getPerfilCargoDataModel();
             cargoProfileDoc = PerfilCargoDataModel ? await PerfilCargoDataModel.findOne({ user: userId, ...(companyId ? { companyId } : {}) }).lean() : null;
             if (cargoProfileDoc?.perfilesList) {
+                countPerfilesCargo = cargoProfileDoc.perfilesList.length;
                 cargoProfileDoc.perfilesList.forEach(p => {
                     if (p.id) cargoLookupMap[p.id] = p.nombreCargo || 'Operativo';
                 });
@@ -557,6 +707,157 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
                         }
                     });
                 }
+            }
+
+            countInvestigations = specificAtelAccidents.length;
+
+            // 3. Sustancias Químicas SGA
+            try {
+                const SgsstChemicalData = mongoose.models.SgsstChemicalData || require('../../../models/SgsstChemicalData');
+                if (SgsstChemicalData) {
+                    const chemDoc = await SgsstChemicalData.findOne({ user: userId, ...(companyId ? { companyId } : {}) }).lean();
+                    if (chemDoc?.productos?.length) {
+                        countChemicals = chemDoc.productos.length;
+                        chemDoc.productos.forEach(p => {
+                            const isToxic = (p.pictogramasSga || []).some(pic => /tóxico|toxico|corrosivo|inflamable|explosivo/i.test(pic));
+                            if (isToxic) countToxicChemicals++;
+                        });
+                        if (countToxicChemicals > 0) {
+                            domainRiskScores.Respiratorio += Math.min(6, countToxicChemicals * 1.5);
+                            domainRiskScores.Inmunológico += Math.min(4, countToxicChemicals);
+                        }
+                    }
+                }
+            } catch (e) {
+                logger.debug('[Predictivo Forecast] Chemical data skip:', e.message);
+            }
+
+            // 4. Seguridad Vial & Parque Automotor PESV
+            try {
+                const SgsstVehicleData = mongoose.models.SgsstVehicleData || require('../../../models/SgsstVehicleData');
+                if (SgsstVehicleData) {
+                    const vehicles = await SgsstVehicleData.find({ user: userId, ...(companyId ? { companyId } : {}) }).lean();
+                    if (vehicles?.length) {
+                        countVehicles = vehicles.length;
+                        vehicles.forEach(v => {
+                            (v.inspecciones || []).forEach(ins => {
+                                if (ins.resultado === 'Rechazado') countFailedPreops++;
+                            });
+                        });
+                        if (countFailedPreops > 0) {
+                            domainRiskScores.Seguridad += Math.min(6, countFailedPreops * 2);
+                        }
+                    }
+                }
+            } catch (e) {
+                logger.debug('[Predictivo Forecast] Vehicle data skip:', e.message);
+            }
+
+            // 5. Dotación & Control de EPP
+            try {
+                const SgsstEppData = mongoose.models.SgsstEppData || require('../../../models/SgsstEppData');
+                if (SgsstEppData) {
+                    const eppDocs = await SgsstEppData.find({ user: userId, ...(companyId ? { companyId } : {}) }).lean();
+                    if (eppDocs?.length) {
+                        countEppDocs = eppDocs.length;
+                        eppDocs.forEach(ed => {
+                            (ed.entregas || []).forEach(item => {
+                                if (item.estado === 'Vencido' || item.estado === 'Inspección Requerida') {
+                                    countCriticalEpp++;
+                                }
+                            });
+                        });
+                        if (countCriticalEpp > 0) {
+                            domainRiskScores.Seguridad += Math.min(5, countCriticalEpp);
+                        }
+                    }
+                }
+            } catch (e) {
+                logger.debug('[Predictivo Forecast] EPP data skip:', e.message);
+            }
+
+            // 6. Matriz Legal
+            try {
+                const getMatrizLegalModel = () => {
+                    if (!mongoose.models.MatrizLegalData) {
+                        try { require('./matriz'); } catch (err) {}
+                    }
+                    return mongoose.models.MatrizLegalData;
+                };
+                const MatrizLegalData = getMatrizLegalModel();
+                if (MatrizLegalData) {
+                    const mld = await MatrizLegalData.findOne({ user: userId, ...(companyId ? { companyId } : {}) }).lean();
+                    if (mld?.statuses?.length) {
+                        countNormas = mld.statuses.length;
+                        countLegalCumple = mld.statuses.filter(s => s.status === 'cumple' || s.status === 'Cumple').length;
+                    }
+                }
+            } catch (e) {
+                logger.debug('[Predictivo Forecast] Legal matrix skip:', e.message);
+            }
+
+            // 7. Plan de Emergencias & Vulnerabilidad
+            try {
+                const getAnalisisVulnerabilidadModel = () => {
+                    if (!mongoose.models.AnalisisVulnerabilidadData) {
+                        try { require('./analisisVulnerabilidad'); } catch (err) {}
+                    }
+                    return mongoose.models.AnalisisVulnerabilidadData;
+                };
+                const AnalisisVulnerabilidadData = getAnalisisVulnerabilidadModel();
+                if (AnalisisVulnerabilidadData) {
+                    const avd = await AnalisisVulnerabilidadData.findOne({ user: userId, ...(companyId ? { companyId } : {}) }).lean();
+                    if (avd?.formData?.amenazasList?.length) {
+                        countAmenazas = avd.formData.amenazasList.length;
+                    }
+                }
+            } catch (e) {
+                logger.debug('[Predictivo Forecast] Vulnerability skip:', e.message);
+            }
+
+            // 8. Análisis de Trabajo Seguro (ATS)
+            try {
+                const getAnalisisTrabajoSeguroModel = () => {
+                    if (!mongoose.models.AnalisisTrabajoSeguroData) {
+                        try { require('./analisisTrabajoSeguro'); } catch (err) {}
+                    }
+                    return mongoose.models.AnalisisTrabajoSeguroData;
+                };
+                const AnalisisTrabajoSeguroData = getAnalisisTrabajoSeguroModel();
+                if (AnalisisTrabajoSeguroData) {
+                    const atsd = await AnalisisTrabajoSeguroData.find({ user: userId, ...(companyId ? { companyId } : {}) }).lean();
+                    if (atsd?.length) {
+                        countAts = atsd.length;
+                    }
+                }
+            } catch (e) {
+                logger.debug('[Predictivo Forecast] ATS skip:', e.message);
+            }
+
+            // 9. Capacitaciones SG-SST
+            try {
+                const ProgramaCapacitacionesData = mongoose.models.ProgramaCapacitacionesData;
+                if (ProgramaCapacitacionesData) {
+                    const pcd = await ProgramaCapacitacionesData.findOne({ user: userId, ...(companyId ? { companyId } : {}) }).lean();
+                    if (pcd?.temas?.length) {
+                        countCapacitaciones = pcd.temas.length;
+                    }
+                }
+            } catch (e) {
+                logger.debug('[Predictivo Forecast] Capacitaciones skip:', e.message);
+            }
+
+            // 10. Compromisos Kanban
+            try {
+                const KanbanTask = mongoose.models.KanbanTask || require('../../../models/KanbanTask');
+                if (KanbanTask) {
+                    const tasks = await KanbanTask.find({ user: userId }).lean();
+                    if (tasks?.length) {
+                        countKanban = tasks.length;
+                    }
+                }
+            } catch (e) {
+                logger.debug('[Predictivo Forecast] Kanban skip:', e.message);
             }
 
         } catch(e) { 
@@ -852,12 +1153,33 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
             trend: 'stable'
         }));
 
+        const telemetrySources = [
+            { id: 'huella_biocentrica', name: 'Huella Biocéntrica 360°', category: 'Humano', count: totalWorkers, unit: 'colaboradores', status: 'connected' },
+            { id: 'perfiles_cargo', name: 'Perfiles de Cargo & Profesiograma', category: 'Humano', count: countPerfilesCargo, unit: 'cargos parametrizados', status: 'connected' },
+            { id: 'matriz_ipevar', name: 'Matriz Bio-IPEVAR (GTC-45)', category: 'Riesgos', count: totalHazards, unit: 'peligros evaluados', status: 'connected' },
+            { id: 'analisis_vulnerabilidad', name: 'Plan de Emergencias & Vulnerabilidad', category: 'Riesgos', count: countAmenazas, unit: 'amenazas analizadas', status: 'connected' },
+            { id: 'ergonomia_owas', name: 'Ergonomía OWAS & LIVA', category: 'Operación', count: totalOwas, unit: 'posturas evaluadas', status: 'connected' },
+            { id: 'permisos_alturas', name: 'Permisos de Alto Riesgo (Alturas/Caliente)', category: 'Operación', count: totalHeights, unit: 'permisos tramitados', status: 'connected' },
+            { id: 'sustancias_quimicas', name: 'Sustancias Químicas & FDS (SGA)', category: 'Operación', count: countChemicals, unit: 'productos químicos', status: 'connected' },
+            { id: 'seguridad_vial', name: 'Seguridad Vial PESV & Flota', category: 'Operación', count: countVehicles, unit: 'vehículos en flota', status: 'connected' },
+            { id: 'control_epp', name: 'Dotación & Control de EPP', category: 'Operación', count: countEppDocs, unit: 'registros de dotación', status: 'connected' },
+            { id: 'analisis_ats', name: 'Análisis de Trabajo Seguro (ATS)', category: 'Operación', count: countAts, unit: 'formatos ATS', status: 'connected' },
+            { id: 'reportes_actos', name: 'Reportes de Actos & Condiciones', category: 'Operación', count: totalActs, unit: 'tarjetas de campo', status: 'connected' },
+            { id: 'percepcion_miedo', name: 'Percepción & Miedo (Voz IPEVAR)', category: 'Operación', count: totalMiedo, unit: 'percepciones recogidas', status: 'connected' },
+            { id: 'estadisticas_atel', name: 'Estadísticas ATEL (Resolución 0312)', category: 'Forense', count: totalATEL, unit: 'eventos registrados', status: 'connected' },
+            { id: 'investigaciones_atel', name: 'Investigación Forense (Res. 1401 GEMA)', category: 'Forense', count: countInvestigations, unit: 'árboles de causas', status: 'connected' },
+            { id: 'matriz_legal', name: 'Matriz Legal & Cumplimiento', category: 'Gestión', count: countNormas, unit: 'artículos normativos', status: 'connected' },
+            { id: 'programa_capacitaciones', name: 'Programa Anual de Capacitaciones', category: 'Gestión', count: countCapacitaciones, unit: 'temas programados', status: 'connected' },
+            { id: 'kanban_tasks', name: 'Compromisos & Hallazgos Kanban', category: 'Gestión', count: countKanban, unit: 'planes de acción', status: 'connected' }
+        ];
+
         res.json({
             overallRisk,
             criticalArea,
             topDomain,
             domainRiskScores,
             predictionSummary: summaryText,
+            telemetrySources,
             activeCompany: {
                 id: ci?._id || null,
                 name: ci?.companyName || 'Empresa Activa',

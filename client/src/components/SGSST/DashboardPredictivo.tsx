@@ -1,4 +1,4 @@
-import React, {  useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
     Sparkles,
@@ -46,11 +46,21 @@ import PredictiveTimeSeriesChart, { type TimeSeriesPoint } from './PredictiveTim
 import PredictiveAnatomyTreemap, { type LesionItem, type AnatomyItem } from './PredictiveAnatomyTreemap';
 import PredictivePlantComparison, { type SiteItem } from './PredictivePlantComparison';
 
+export interface TelemetrySourceItem {
+    id: string;
+    name: string;
+    category: 'Humano' | 'Riesgos' | 'Operación' | 'Forense' | 'Gestión';
+    count: number;
+    unit: string;
+    status: string;
+}
+
 interface ForecastData {
     overallRisk: number;
     criticalArea: string;
     topDomain?: string;
     predictionSummary: string;
+    telemetrySources?: TelemetrySourceItem[];
     predictiveMetrics?: {
         modelReliabilityMonthly: string;
         modelReliabilityYearly: string;
@@ -86,6 +96,34 @@ interface ForecastData {
     };
     recommendedActions: string[];
 }
+
+const ALL_TELEMETRY_DEFINITIONS = [
+    { id: 'huella_biocentrica', name: 'Huella Biocéntrica 360°', tag: 'H1', category: 'Humano', desc: 'FIT Score, perfil sociodemográfico y salud', unit: 'colaboradores' },
+    { id: 'perfiles_cargo', name: 'Perfiles de Cargo & Profesiograma', tag: 'H1', category: 'Humano', desc: 'Exigencias físicas, biomecánicas y psicosociales', unit: 'cargos parametrizados' },
+    { id: 'matriz_ipevar', name: 'Matriz Bio-IPEVAR (GTC-45)', tag: 'H2', category: 'Riesgos', desc: '9 dominios de peligros y evaluación bio-física', unit: 'peligros evaluados' },
+    { id: 'analisis_vulnerabilidad', name: 'Plan de Emergencias & Vulnerabilidad', tag: 'H2', category: 'Riesgos', desc: 'Análisis de amenazas naturales y técnicas', unit: 'amenazas analizadas' },
+    { id: 'ergonomia_owas', name: 'Ergonomía OWAS & LIVA', tag: 'H3', category: 'Operación', desc: 'Sobrecarga postural, carga física y biomecánica', unit: 'posturas evaluadas' },
+    { id: 'permisos_alturas', name: 'Permisos de Alto Riesgo', tag: 'H3', category: 'Operación', desc: 'Alturas, caliente, confinados y energías peligrosas', unit: 'permisos tramitados' },
+    { id: 'sustancias_quimicas', name: 'Sustancias Químicas & SGA', tag: 'H3', category: 'Operación', desc: 'Fichas FDS e incompatibilidad de almacenamiento', unit: 'productos químicos' },
+    { id: 'seguridad_vial', name: 'Seguridad Vial PESV', tag: 'H3', category: 'Operación', desc: 'Flota, conductores y preoperacionales de vehículos', unit: 'vehículos en flota' },
+    { id: 'control_epp', name: 'Dotación & Control de EPP', tag: 'H3', category: 'Operación', desc: 'Inspección de equipos y reposición de dotación', unit: 'registros de dotación' },
+    { id: 'analisis_ats', name: 'Análisis de Trabajo Seguro (ATS)', tag: 'H3', category: 'Operación', desc: 'Procedimientos paso a paso para tareas no rutinarias', unit: 'formatos ATS' },
+    { id: 'reportes_actos', name: 'Reportes de Actos & Condiciones', tag: 'H3', category: 'Operación', desc: 'Tarjetas de observación preventiva en campo', unit: 'tarjetas de campo' },
+    { id: 'percepcion_miedo', name: 'Percepción & Miedo (Voz IPEVAR)', tag: 'H3', category: 'Operación', desc: 'Voz del trabajador y riesgo percibido en campo', unit: 'percepciones recogidas' },
+    { id: 'estadisticas_atel', name: 'Estadísticas ATEL (Res. 0312)', tag: 'H4', category: 'Forense', desc: 'Siniestralidad, severidad, frecuencia e ILI', unit: 'eventos registrados' },
+    { id: 'investigaciones_atel', name: 'Investigación Forense (Res. 1401)', tag: 'H4', category: 'Forense', desc: 'Árbol de causas, modelo GEMA y lecciones', unit: 'árboles de causas' },
+    { id: 'matriz_legal', name: 'Matriz Legal & Cumplimiento', tag: 'SG', category: 'Gestión', desc: 'Normatividad colombiana y evaluación de requisitos', unit: 'artículos normativos' },
+    { id: 'programa_capacitaciones', name: 'Programa de Capacitaciones', tag: 'SG', category: 'Gestión', desc: 'Cronograma anual y cobertura de inducciones', unit: 'temas programados' },
+    { id: 'kanban_tasks', name: 'Compromisos & Hallazgos Kanban', tag: 'SG', category: 'Gestión', desc: 'Planes de acción, cierre de hallazgos y PHVA', unit: 'planes de acción' }
+];
+
+const TAG_STYLE_BY_CATEGORY: Record<string, string> = {
+    Humano: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+    Riesgos: 'text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/20',
+    Operación: 'text-teal-600 dark:text-teal-400 bg-teal-500/10 border-teal-500/20',
+    Forense: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20',
+    Gestión: 'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20',
+};
 
 // ─── Animated Ring Gauge (Premium H1 Style) ──────────────────────────────────
 const RingGauge = ({
@@ -308,6 +346,22 @@ const DashboardPredictivo = () => {
     const [isReportCollapsed, setIsReportCollapsed] = useState(false);
     const [activeHito7Tab, setActiveHito7Tab] = useState<'timeseries' | 'anatomy' | 'sedes' | 'workforce'>('timeseries');
     const [riskFilter, setRiskFilter] = useState<{ roleOrTag: string; label: string } | null>(null);
+    const [sourceFilter, setSourceFilter] = useState<string>('Todos');
+
+    const telemetryMap = useMemo(() => {
+        const map = new Map<string, number>();
+        if (forecast?.telemetrySources) {
+            forecast.telemetrySources.forEach(s => map.set(s.id, s.count));
+        }
+        return map;
+    }, [forecast?.telemetrySources]);
+
+    const filteredSources = useMemo(() => {
+        return ALL_TELEMETRY_DEFINITIONS.filter(s => {
+            if (sourceFilter === 'Todos') return true;
+            return s.category === sourceFilter;
+        });
+    }, [sourceFilter]);
 
     // ─── Fetch Forecast & Biocentric data ─────────────────────────────────
     const fetchForecast = useCallback(async () => {
@@ -1245,44 +1299,84 @@ const DashboardPredictivo = () => {
 
                     {/* Data Sources */}
                     <div className="mt-6 pt-5 border-t border-border-medium/60">
-                        <div className="flex items-center justify-between mb-3.5">
-                            <span className="text-[10px] font-black text-teal-600 dark:text-teal-400 uppercase tracking-[0.15em] flex items-center gap-1.5">
-                                <Layers className="w-3.5 h-3.5 text-teal-500" />
-                                Fuentes Integradas & Motor Predictivo
-                            </span>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3.5">
+                            <div>
+                                <span className="text-[10px] font-black text-teal-600 dark:text-teal-400 uppercase tracking-[0.15em] flex items-center gap-1.5">
+                                    <Layers className="w-3.5 h-3.5 text-teal-500" />
+                                    Fuentes Integradas & Motor Predictivo (17 Módulos)
+                                </span>
+                                <p className="text-[9px] text-text-tertiary mt-0.5">
+                                    Red neuronal conectada en tiempo real a todo el ecosistema WAPPY SG-SST
+                                </p>
+                            </div>
                             {forecast?.predictiveMetrics && (
-                                <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1 shadow-sm">
+                                <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1 shadow-sm shrink-0">
                                     <Sparkles className="w-2.5 h-2.5 text-emerald-500" />
                                     Motor ML {forecast.predictiveMetrics.modelReliabilityMonthly} (1M) / {forecast.predictiveMetrics.modelReliabilityYearly} (1A)
                                 </span>
                             )}
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+
+                        {/* Category Filter Pills */}
+                        <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-3 no-scrollbar">
                             {[
-                                { tag: 'H1', name: 'Huella Biocéntrica', desc: 'FIT Score & Aptitud Médica', color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
-                                { tag: 'H2', name: 'Matriz Bio-IPEVAR', desc: '9 Dominios de Peligros', color: 'text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/20' },
-                                { tag: 'H4', name: 'Causalidad Forense', desc: 'Causas Básicas e Inmediatas Res. 1401', color: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20' },
-                                { tag: 'H4', name: 'Estadísticas ATEL', desc: 'Siniestralidad & Días Cargados', color: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' },
-                                { tag: 'H4', name: 'Investigación Forense', desc: 'Causas Raíz & Lecciones', color: 'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20' },
-                                { tag: 'H3', name: 'Dinámica OWAS & LIVA', desc: 'Sobrecarga Postural & Ergonomía', color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border-indigo-500/20' },
-                                { tag: 'H3', name: 'Percepción & Miedo', desc: 'Participación IPEVAR', color: 'text-teal-600 dark:text-teal-400 bg-teal-500/10 border-teal-500/20' },
-                                { tag: 'H3', name: 'Tareas de Alto Riesgo', desc: 'Alturas, Caliente & Confinados', color: 'text-orange-600 dark:text-orange-400 bg-orange-500/10 border-orange-500/20' },
-                            ].map(src => (
-                                <div key={src.tag + src.name} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-surface-primary/70 dark:bg-slate-900/40 border border-border-light hover:border-teal-500/40 hover:bg-teal-500/5 transition-all duration-300 group cursor-default">
-                                    <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black border font-mono shrink-0 ${src.color}`}>
-                                        {src.tag}
-                                    </span>
-                                    <div className="min-w-0 flex-1">
-                                        <p className="text-[10px] font-bold text-text-primary truncate group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
-                                            {src.name}
-                                        </p>
-                                        <p className="text-[8.5px] text-text-tertiary truncate">
-                                            {src.desc}
-                                        </p>
-                                    </div>
-                                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399] shrink-0" />
-                                </div>
+                                { key: 'Todos', label: 'Todos (17)' },
+                                { key: 'Humano', label: 'Humano (2)' },
+                                { key: 'Riesgos', label: 'Riesgos (2)' },
+                                { key: 'Operación', label: 'Operación (8)' },
+                                { key: 'Forense', label: 'Forense (2)' },
+                                { key: 'Gestión', label: 'Gestión (3)' },
+                            ].map(cat => (
+                                <button
+                                    key={cat.key}
+                                    type="button"
+                                    onClick={() => setSourceFilter(cat.key)}
+                                    className={cn(
+                                        "px-2.5 py-1 rounded-lg text-[9px] font-bold transition-all shrink-0 border",
+                                        sourceFilter === cat.key
+                                            ? "bg-teal-600 text-white border-teal-600 shadow-sm"
+                                            : "bg-surface-primary/70 text-text-secondary border-border-light hover:border-teal-500/40 hover:text-text-primary"
+                                    )}
+                                >
+                                    {cat.label}
+                                </button>
                             ))}
+                        </div>
+
+                        {/* Telemetry Grid */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[380px] overflow-y-auto pr-1">
+                            {filteredSources.map(src => {
+                                const liveCount = telemetryMap.has(src.id)
+                                    ? (telemetryMap.get(src.id) ?? 0)
+                                    : (src.id === 'huella_biocentrica' ? workers.length : (src.id === 'perfiles_cargo' ? profiles.length : 0));
+                                const tagColor = TAG_STYLE_BY_CATEGORY[src.category] || 'text-teal-600 bg-teal-500/10 border-teal-500/20';
+
+                                return (
+                                    <div key={src.id} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-surface-primary/70 dark:bg-slate-900/40 border border-border-light hover:border-teal-500/40 hover:bg-teal-500/5 transition-all duration-300 group cursor-default">
+                                        <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black border font-mono shrink-0 ${tagColor}`}>
+                                            {src.tag}
+                                        </span>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-center justify-between gap-1">
+                                                <p className="text-[10px] font-bold text-text-primary truncate group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
+                                                    {src.name}
+                                                </p>
+                                            </div>
+                                            <p className="text-[8.5px] text-text-tertiary truncate">
+                                                {liveCount > 0 ? (
+                                                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{liveCount} {src.unit}</span>
+                                                ) : (
+                                                    <span>0 {src.unit}</span>
+                                                )}
+                                                {' · '}{src.desc}
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-1 shrink-0" title="Telemetría conectada en tiempo real">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_6px_#10b981]" />
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
