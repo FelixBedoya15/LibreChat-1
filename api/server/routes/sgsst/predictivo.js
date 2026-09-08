@@ -257,6 +257,11 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
         let specificHeightsPermits = [];
         let specificMiedoFeedback = [];
 
+        let cargoLookupMap = {};
+        let cargoProfileDoc = null;
+        let sumFitScore = 0;
+        let countFitWorkers = 0;
+
         try {
             const getPerfilCargoDataModel = () => {
                 if (!mongoose.models.PerfilCargoData) {
@@ -265,8 +270,7 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
                 return mongoose.models.PerfilCargoData;
             };
             const PerfilCargoDataModel = getPerfilCargoDataModel();
-            const cargoProfileDoc = PerfilCargoDataModel ? await PerfilCargoDataModel.findOne({ user: userId, ...(companyId ? { companyId } : {}) }).lean() : null;
-            const cargoLookupMap = {};
+            cargoProfileDoc = PerfilCargoDataModel ? await PerfilCargoDataModel.findOne({ user: userId, ...(companyId ? { companyId } : {}) }).lean() : null;
             if (cargoProfileDoc?.perfilesList) {
                 cargoProfileDoc.perfilesList.forEach(p => {
                     if (p.id) cargoLookupMap[p.id] = p.nombreCargo || 'Operativo';
@@ -298,9 +302,6 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
                 }
                 return { hasIssue: false, condition: 'Apto' };
             };
-
-            let sumFitScore = 0;
-            let countFitWorkers = 0;
 
             // Hito 1: Trabajadores SgsstWorker & Perfil Sociodemográfico
             const SgsstWorker = mongoose.models.SgsstWorker;
