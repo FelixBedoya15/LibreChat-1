@@ -149,42 +149,46 @@ export const PHASE_CATEGORIES = {
         }
     ],
 
-    // ─── HITO 06: RESTAURACIÓN, IA PREDICTIVA Y LIDERAZGO ───
+    // ─── HITO 06: AUDITORÍA, CAUSALIDAD Y MEJORA CONTINUA ───
     hito6: [
         { 
             id: 'estadisticas', title: 'Estadísticas ATEL', icon: 'BarChart',
             bioRationale: 'Indicadores normativos de frecuencia, severidad, mortalidad y ausentismo para visibilizar el balance sistémico.', 
-            normativity: 'Hito 6: Restauración, IA Predictiva y Liderazgo' 
+            normativity: 'Hito 6: Auditoría, Causalidad y Mejora Continua' 
         },
         { 
             id: 'investigacion_atel', title: 'Investigación Forense ATEL', icon: 'Activity',
             bioRationale: 'Indagación forense de causa raíz (Árbol de Causas e Ishikawa) asistida por IA para restaurar la salud del sistema.', 
-            normativity: 'Hito 6: Restauración, IA Predictiva y Liderazgo' 
-        },
-        { 
-            id: 'predictivo', title: 'Centro de Inteligencia Predictiva', icon: 'BrainCircuit',
-            bioRationale: 'Modelos de machine learning que cruzan datos sociodemográficos y operativos para alertar tendencias y prevenir siniestros.', 
-            normativity: 'Hito 6: Restauración, IA Predictiva y Liderazgo' 
+            normativity: 'Hito 6: Auditoría, Causalidad y Mejora Continua' 
         },
         { 
             id: 'control_acpm', title: 'Tablero Kanban ACPM', icon: 'Trello',
             bioRationale: 'Control ágil e integral de las Acciones Correctivas, Preventivas y de Mejora generadas en el sistema.',
-            normativity: 'Hito 6: Restauración, IA Predictiva y Liderazgo'
+            normativity: 'Hito 6: Auditoría, Causalidad y Mejora Continua'
         },
         { 
             id: 'auditoria', title: 'Informe de Auditoría SG-SST', icon: 'ClipboardCheck',
             bioRationale: 'Examen anual introspectivo de la eficacia del sistema de gestión con participación del COPASST o Vigía.', 
-            normativity: 'Hito 6: Restauración, IA Predictiva y Liderazgo' 
+            normativity: 'Hito 6: Auditoría, Causalidad y Mejora Continua' 
         },
         { 
             id: 'alta_direccion', title: 'Revisión por la Alta Dirección', icon: 'Target',
             bioRationale: 'Evaluación anual de 22 puntos y rendición de cuentas de los líderes sobre la salud y recursos de la empresa.', 
-            normativity: 'Hito 6: Restauración, IA Predictiva y Liderazgo' 
+            normativity: 'Hito 6: Auditoría, Causalidad y Mejora Continua' 
         },
         { 
             id: 'investigacion_profunda', title: 'Investigación Profunda SST', icon: 'Search',
-            bioRationale: 'Consultas avanzadas de doctrina, normatividad colombiana y análisis predictivo complejo.', 
-            normativity: 'Hito 6: Restauración, IA Predictiva y Liderazgo' 
+            bioRationale: 'Consultas avanzadas de doctrina, normatividad colombiana y análisis sistémico profundo.', 
+            normativity: 'Hito 6: Auditoría, Causalidad y Mejora Continua' 
+        }
+    ],
+
+    // ─── HITO 07: INTELIGENCIA ARTIFICIAL & ORÁCULO PREDICTIVO ───
+    hito7: [
+        { 
+            id: 'predictivo', title: 'Centro de Inteligencia Predictiva', icon: 'BrainCircuit',
+            bioRationale: 'Cúspide de analítica avanzada y machine learning: pronóstico estocástico de siniestralidad, radar de 9 dominios bioindividuales y prescripción proactiva de controles.', 
+            normativity: 'Hito 7: Inteligencia Artificial & Oráculo Predictivo' 
         }
     ],
 

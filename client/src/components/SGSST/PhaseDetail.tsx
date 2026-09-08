@@ -711,7 +711,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                 )}
 
                 {/* Interactive HTML Sandbox Apps Collapsible Card */}
-                {['planear', 'hacer', 'verificar', 'actuar', 'fase1', 'fase2', 'hito1', 'hito2', 'hito3', 'hito4', 'hito5', 'hito6'].includes(phase.id) && (() => {
+                {['planear', 'hacer', 'verificar', 'actuar', 'fase1', 'fase2', 'hito1', 'hito2', 'hito3', 'hito4', 'hito5', 'hito6', 'hito7'].includes(phase.id) && (() => {
                     const isSandboxDisabled = disabledApps.includes('custom_html_sandbox');
                     const isExpanded = expandedCategories.includes('custom_html_sandbox');
 

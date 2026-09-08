@@ -114,15 +114,27 @@ const getUnifiedHitos = (): Array<{
     },
     {
         id: 'hito6',
-        title: 'Restauración, IA Predictiva y Liderazgo',
+        title: 'Auditoría, Causalidad & Cierre de Ciclo',
         subtitle: 'Verificación, Forense y Dirección',
-        description: 'Estadísticas ATEL, Investigación Forense con IA, Centro Predictivo, Tablero ACPM, Auditoría y Alta Dirección.',
-        extendedPhilosophy: 'Cierra el ciclo sistémico: aprende con rigor forense de los accidentes, audita los estándares, rinde cuentas gerenciales y proyecta la prevención mediante modelos predictivos de inteligencia artificial.',
-        accent: 'text-[#8b5cf6]',
-        bgGlow: 'bg-[#8b5cf6]/5',
-        borderHover: 'hover:border-[#8b5cf6]',
-        icon: <BrainCircuit className="w-8 h-8 text-[#8b5cf6] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+        description: 'Estadísticas ATEL, Investigación Forense 8M, Tablero Kanban ACPM, Auditoría SG-SST y Alta Dirección.',
+        extendedPhilosophy: 'Cierra el ciclo sistémico de mejora continua: aprende con rigor forense de los accidentes, audita el cumplimiento de los estándares legales, rinde cuentas gerenciales y gestiona acciones correctivas para blindar la organización.',
+        accent: 'text-[#6366f1]',
+        bgGlow: 'bg-[#6366f1]/5',
+        borderHover: 'hover:border-[#6366f1]',
+        icon: <ClipboardCheck className="w-8 h-8 text-[#6366f1] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
         label: 'HITO 06'
+    },
+    {
+        id: 'hito7',
+        title: 'Inteligencia Artificial & Oráculo Predictivo',
+        subtitle: 'El Pináculo: Gemelo Digital y Prescripción',
+        description: 'Modelos predictivos de siniestralidad, Radar de los 9 Dominios Bioindividuales, simulador estocástico y prescripción con IA.',
+        extendedPhilosophy: 'El pináculo y destino final de Somos SST. Aquí convergen todos los datos biocéntricos, operativos y forenses para alimentar el oráculo de IA: anticipa siniestros antes de que ocurran, simula escenarios futuros y prescribe controles autónomos para salvar vidas.',
+        accent: 'text-[#ec4899]',
+        bgGlow: 'bg-[#ec4899]/5',
+        borderHover: 'hover:border-[#ec4899]',
+        icon: <BrainCircuit className="w-8 h-8 text-[#ec4899] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+        label: 'HITO 07'
     }
 ];
 
@@ -277,15 +289,17 @@ export default function SGSSTDashboard() {
             app_builder: 'hito5',
             custom_html_sandbox: 'hito5',
 
-            // Hito 6: Restauración, IA Predictiva y Liderazgo
+            // Hito 6: Auditoría, Causalidad & Cierre de Ciclo
             estadisticas: 'hito6',
             investigacion_atel: 'hito6',
-            predictivo: 'hito6',
             control_acpm: 'hito6',
             acpm: 'hito6',
             auditoria: 'hito6',
             alta_direccion: 'hito6',
             investigacion_profunda: 'hito6',
+
+            // Hito 7: Inteligencia Artificial & Oráculo Predictivo
+            predictivo: 'hito7',
         };
         const handler = (e: Event) => {
             const { module } = (e as CustomEvent).detail || {};
@@ -415,14 +429,14 @@ export default function SGSSTDashboard() {
                                 Ruta Integral de Prevención y Liderazgo
                             </h2>
                             <p className="text-sm md:text-base text-text-secondary font-medium mt-2 max-w-2xl mx-auto">
-                                Recorra los 6 hitos estratégicos: desde la gobernanza legal y la huella del bio-individuo, hasta los controles de terreno y la analítica predictiva.
+                                Recorra los 7 hitos estratégicos: desde la gobernanza legal y la huella del bio-individuo, hasta los controles de terreno, la auditoría y la analítica predictiva de inteligencia artificial.
                             </p>
                         </div>
                     </div>
 
                     <div className="relative flex flex-col gap-16 lg:gap-24 w-full py-6 mx-auto max-w-5xl">
                         {/* Línea Central Conectora */}
-                        <div className="absolute top-0 bottom-0 left-[34px] lg:left-1/2 w-1 -translate-x-1/2 bg-gradient-to-b from-[#10b981] via-[#0d9488] to-[#14b8a6] opacity-30 dark:opacity-40 rounded-full" />
+                        <div className="absolute top-0 bottom-0 left-[34px] lg:left-1/2 w-1 -translate-x-1/2 bg-gradient-to-b from-[#0d9488] via-[#0284c7] via-[#f59e0b] via-[#6366f1] to-[#ec4899] opacity-35 dark:opacity-45 rounded-full" />
                         
                         {unifiedHitos.map((phase, i) => {
                             const isEven = i % 2 === 1;
