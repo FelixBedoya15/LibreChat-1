@@ -62,6 +62,21 @@ const ATELAnnualData = mongoose.models.ATELAnnualData || mongoose.model('ATELAnn
 
 // ─── Routes ──────────────────────────────────────────────────────────
 
+// GET /api/sgsst/atel-data/years/list
+router.get('/years/list', requireJwtAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const companyId = await getActiveCompanyId(userId);
+        const query = { user: userId };
+        if (companyId) query.companyId = companyId;
+        const recordedYears = await ATELAnnualData.distinct('year', query);
+        res.json({ years: (recordedYears || []).map(Number).sort((a, b) => b - a) });
+    } catch (error) {
+        logger.error('[SGSST ATEL Data] Error fetching years list:', error);
+        res.status(500).json({ error: 'Error al listar años con registros' });
+    }
+});
+
 // GET /api/sgsst/atel-data/:year
 router.get('/:year', requireJwtAuth, async (req, res) => {
     try {

@@ -162,16 +162,39 @@ ${companyInfo.generalActivities || 'No registradas (Asume un entorno operativo g
 function buildSignatureSection(companyInfo, worker = null) {
   if (!companyInfo) return '';
 
-  const responsible = companyInfo.responsibleSST || 'Nombre del Responsable';
+  const responsible = (companyInfo.responsibleSST || 'Nombre del Responsable').trim();
+  const legalRep = (companyInfo.legalRepresentative || 'Representante Legal').trim();
   const license = companyInfo.licenseNumber || 'Número de Licencia';
   const licenseExpiry = companyInfo.licenseExpiry ? ` - Vence: ${companyInfo.licenseExpiry}` : '';
-  
-  const colWidth = worker ? '33.33%' : '50%';
+  const companyName = companyInfo.companyName || 'Empresa';
+
+  // Check if Responsible SG-SST and Legal Representative are the exact same individual
+  const isSamePerson = responsible.toLowerCase() === legalRep.toLowerCase() ||
+                       (!companyInfo.legalRepresentative && !!companyInfo.responsibleSST);
+
+  const tableStyle = (isSamePerson && !worker)
+    ? 'width: 60%; max-width: 480px; margin: 20px auto 0 auto; border-collapse: collapse;'
+    : 'width: 100%; border-collapse: collapse; margin-top: 20px;';
 
   let html = `
 <div style="margin-top: 50px; page-break-inside: avoid;">
-    <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-        <tr>
+    <table style="${tableStyle}">
+        <tr>`;
+
+  if (isSamePerson) {
+    const colWidth = worker ? '50%' : '100%';
+    html += `
+            <td style="width: ${colWidth}; padding: 20px; text-align: center; vertical-align: bottom;">
+                <div class="signature-placeholder" data-signature-id="responsible" style="border-bottom: 2px solid #333; width: 80%; margin: 0 auto 10px auto; min-height: 80px; display: flex; align-items: center; justify-content: center; background-color: #f9f9f9; cursor: pointer; border-radius: 8px 8px 0 0; transition: all 0.3s ease;">
+                    <span style="color: #999; font-size: 12px;">Haga clic para insertar FIRMA DIGITAL</span>
+                </div>
+                <div style="font-weight: 800; font-size: 14px; color: #1e293b; text-transform: uppercase;">${responsible}</div>
+                <div style="font-size: 12px; color: #64748b; font-weight: 600;">Responsable SG-SST / Representante Legal</div>
+                <div style="font-size: 11px; color: #94a3b8;">${companyName} • Licencia No. ${license}${licenseExpiry}</div>
+            </td>`;
+  } else {
+    const colWidth = worker ? '33.33%' : '50%';
+    html += `
             <td style="width: ${colWidth}; padding: 20px; text-align: center; vertical-align: bottom;">
                 <div class="signature-placeholder" data-signature-id="responsible" style="border-bottom: 2px solid #333; width: 80%; margin: 0 auto 10px auto; min-height: 80px; display: flex; align-items: center; justify-content: center; background-color: #f9f9f9; cursor: pointer; border-radius: 8px 8px 0 0; transition: all 0.3s ease;">
                     <span style="color: #999; font-size: 12px;">Haga clic para insertar FIRMA DIGITAL</span>
@@ -184,12 +207,14 @@ function buildSignatureSection(companyInfo, worker = null) {
                 <div class="signature-placeholder" data-signature-id="legal" style="border-bottom: 2px solid #333; width: 80%; margin: 0 auto 10px auto; min-height: 80px; display: flex; align-items: center; justify-content: center; background-color: #f9f9f9; cursor: pointer; border-radius: 8px 8px 0 0; transition: all 0.3s ease;">
                     <span style="color: #999; font-size: 12px;">Haga clic para insertar FIRMA DIGITAL</span>
                 </div>
-                <div style="font-weight: 800; font-size: 14px; color: #1e293b; text-transform: uppercase;">${companyInfo.legalRepresentative || 'Representante Legal'}</div>
+                <div style="font-weight: 800; font-size: 14px; color: #1e293b; text-transform: uppercase;">${legalRep}</div>
                 <div style="font-size: 12px; color: #64748b; font-weight: 600;">Representante Legal</div>
-                <div style="font-size: 11px; color: #94a3b8;">${companyInfo.companyName || 'Empresa'}</div>
+                <div style="font-size: 11px; color: #94a3b8;">${companyName}</div>
             </td>`;
+  }
 
   if (worker) {
+    const colWidth = isSamePerson ? '50%' : '33.33%';
     // Attempt to inject valid signature image if worker has one registered
     const signatureContent = (worker.consentimientoFirmaDigital === 'Sí' && worker.firmaDigital) 
       ? `<img src="${worker.firmaDigital}" style="max-height: 70px; max-width: 100%;" />`

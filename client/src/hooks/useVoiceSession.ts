@@ -598,13 +598,13 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     }, []);
 
     /**
-     * Send Evidence Image
+     * Send Evidence Image with structured metadata
      */
-    const sendEvidenceImage = useCallback((base64: string, text?: string) => {
+    const sendEvidenceImage = useCallback((base64: string, text?: string, metadata?: any) => {
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
         wsRef.current.send(JSON.stringify({
             type: 'evidence-image',
-            data: { image: base64, text }
+            data: { image: base64, text, metadata }
         }));
     }, []);
 

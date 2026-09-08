@@ -15,6 +15,26 @@ const SKILLS_DIR = path.resolve(__dirname, '../../../config/skills');
 const { resolveInspectionProtocol, INSPECTION_PROTOCOLS } = require('./inspectionProtocols');
 
 /**
+ * Sanitizes voice transcription for common Spanish/SST phonetic misrecognitions
+ */
+function sanitizeTranscription(text) {
+    if (!text || typeof text !== 'string') return text;
+    let s = text;
+
+    // Fix affirmative false cognates (e.g. Google STT hearing "bistro" for "listo")
+    s = s.replace(/\b(bistro|visto|misto|cristo|pisto|disto)\b/gi, (match) => {
+        return match[0] === match[0].toUpperCase() ? 'Listo' : 'listo';
+    });
+
+    // Fix report voice triggers
+    s = s.replace(/\bgeneral\s+(el\s+|al\s+)?(informe|reporte)\b/gi, 'generar el informe');
+    s = s.replace(/\b(has|hazme|as)\s+el\s+(informe|reporte)\b/gi, 'haz el informe');
+    s = s.replace(/\b(quiero|dame)\s+el\s+(reporte|informe)\b/gi, 'genera el informe');
+
+    return s;
+}
+
+/**
  * Loads and extracts clean technical domain knowledge from agent skills
  */
 function getAgentSkillsContent(agentObj, isBiomechanics) {
@@ -178,6 +198,8 @@ class VoiceSession {
         this.aiAudioChunkCount = 0; // Count audio chunks to know if AI responded with voice
         this.lastMessageId = null; // Track last message ID for parent linking
         this.activeEvidenceMessageId = null; // Track current grouped evidence message ID
+        this.manualEvidences = []; // Stored manual evidence photos
+        this.phaseEvidences = {}; // Stored structured multi-phase photos and telemetries
         this.agentObj = null;
         this.isBiomechanics = false;
 
@@ -450,12 +472,13 @@ REGLAS DE INTERACCIÓN EN VIVO:
         // Listen for USER transcription (what the user says)
         this.geminiClient.on('userTranscription', (text) => {
             logger.info(`[VoiceSession] User transcription received: "${text}"`);
+            const cleanText = sanitizeTranscription(text);
             // Accumulate user text for saving
-            this.userTranscriptionText += text;
-            // ✅ FIX: Send user transcription to client in real-time for HUD display
+            this.userTranscriptionText += cleanText;
+            // ✅ FIX: Send sanitized user transcription to client in real-time for HUD display
             this.sendToClient({
                 type: 'text',
-                data: { text, isUserTranscription: true }
+                data: { text: cleanText, isUserTranscription: true }
             });
 
             // Fast-track real-time voice report trigger (only on explicit user command to generate report)
@@ -709,19 +732,56 @@ REGLAS DE INTERACCIÓN EN VIVO:
 
             case 'evidence-image':
                 if (data && (data.image || data.text)) {
-                    logger.info(`[VoiceSession] Received evidence payload (has image: ${!!data.image}, has text: ${!!data.text})`);
+                    logger.info(`[VoiceSession] Received evidence payload (has image: ${!!data.image}, has text: ${!!data.text}, has metadata: ${!!data.metadata})`);
                     
                     if (data.image) {
-                        // Let the model know about this image: set it as the latestFrame 
-                        // so that if the user asks about it, the model has the context.
                         this.latestFrame = data.image;
+                        if (!this.manualEvidences) {
+                            this.manualEvidences = [];
+                        }
+                        this.manualEvidences.push(data.image);
+                        if (this.manualEvidences.length > 10) {
+                            this.manualEvidences.shift();
+                        }
                     }
 
-                    const isTelemetry = !!data.text;
+                    // Save structured multi-phase evidence with MediaPipe telemetry
+                    if (!this.phaseEvidences) {
+                        this.phaseEvidences = {};
+                    }
+
+                    const phaseIdx = (data.metadata && data.metadata.phaseIndex !== undefined)
+                        ? Number(data.metadata.phaseIndex)
+                        : (data.phaseIndex !== undefined ? Number(data.phaseIndex) : null);
+
+                    if (phaseIdx !== null && data.image) {
+                        this.phaseEvidences[phaseIdx] = {
+                            image: data.image,
+                            phaseIndex: phaseIdx,
+                            phaseName: data.metadata?.phaseName || data.phaseName || `Fase ${phaseIdx + 1}`,
+                            telemetry: data.metadata?.telemetry || data.telemetry || null,
+                            text: data.text || ''
+                        };
+                        logger.info(`[VoiceSession] Stored evidence photo for phase ${phaseIdx} (${this.phaseEvidences[phaseIdx].phaseName})`);
+                    } else if (data.image) {
+                        const existingCount = Object.keys(this.phaseEvidences).length;
+                        const assignedIdx = existingCount < 3 ? existingCount : 0;
+                        if (!this.phaseEvidences[assignedIdx]) {
+                            this.phaseEvidences[assignedIdx] = {
+                                image: data.image,
+                                phaseIndex: assignedIdx,
+                                phaseName: `Fase ${assignedIdx + 1}`,
+                                telemetry: data.metadata?.telemetry || null,
+                                text: data.text || ''
+                            };
+                        }
+                    }
+
+                    const isTelemetry = !!data.text && !data.metadata?.phaseName;
                     const text = data.text || "Fotos de evidencia";
 
                     // Build message content
-                    const messageContent = [
+                    let messageContent = [
                         { type: 'text', text }
                     ];
 
@@ -736,18 +796,10 @@ REGLAS DE INTERACCIÓN EN VIVO:
                             });
                         }
                     } else {
-                        // Manual evidence photo: group it in manualEvidences
-                        if (!this.manualEvidences) {
-                            this.manualEvidences = [];
-                        }
-                        if (data.image) {
-                            this.manualEvidences.push(data.image);
-                        }
-                        // Keep up to 10 manual evidence photos
-                        if (this.manualEvidences.length > 10) {
-                            this.manualEvidences.shift();
-                        }
-
+                        // Manual / phase evidence: group all captured photos in the chat bubble
+                        messageContent = [
+                            { type: 'text', text: "Fotos de evidencia de inspección multifase" }
+                        ];
                         for (const img of this.manualEvidences) {
                             const imageUrl = img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`;
                             messageContent.push({
@@ -1164,48 +1216,85 @@ REGLAS DE INTERACCIÓN EN VIVO:
      * Stop the session
      */
     /**
-     * Correct user transcription using Gemini Flash Lite
+     * Correct user transcription using Gemini Flash Lite with instant fast-path for common phrases
      */
     async correctTranscription(userText, aiResponseText) {
         try {
-            if (!userText || userText.trim().length <= 3) {
+            if (!userText || typeof userText !== 'string') {
                 return userText;
             }
-            logger.info(`[VoiceSession] Starting transcription correction for: "${userText}"`);
+
+            // 1. Pre-sanitizer for common voice recognition inaccuracies
+            const sanitized = sanitizeTranscription(userText).trim();
+
+            // 2. Fast-path for common Spanish responses (zero latency, no API call required)
+            const lower = sanitized.toLowerCase().replace(/[.,!¡?¿]/g, '').trim();
+            const quickPhrases = {
+                'listo': 'Listo.',
+                'si': 'Sí.',
+                'sí': 'Sí.',
+                'vale': 'Vale.',
+                'de una': 'De una.',
+                'dale': 'Dale.',
+                'ya': 'Ya.',
+                'ok': 'OK.',
+                'okay': 'OK.',
+                'no': 'No.',
+                'correcto': 'Correcto.',
+                'entendido': 'Entendido.',
+                'haz el informe': 'Haz el informe.',
+                'genera el informe': 'Genera el informe.',
+                'generar el informe': 'Generar el informe.',
+                'listo genera el informe': 'Listo, genera el informe.',
+                'si genera el informe': 'Sí, genera el informe.',
+                'si haz el informe': 'Sí, haz el informe.',
+            };
+
+            if (quickPhrases[lower]) {
+                logger.info(`[VoiceSession] Transcription fast-path matched: "${userText}" -> "${quickPhrases[lower]}"`);
+                return quickPhrases[lower];
+            }
+
+            if (sanitized.length <= 3) {
+                return sanitized;
+            }
+
+            logger.info(`[VoiceSession] Starting transcription correction for: "${sanitized}"`);
 
             // Use Gemini 3.5 Flash Lite for high performance voice transcription corrections
             const correctionModelName = 'gemini-3.5-flash-lite';
 
             const prompt = `
-            Eres un corrector ortográfico y gramatical experto en español, especializado en Seguridad y Salud en el Trabajo (SST/HSE).
-            Tu tarea es corregir y pulir los errores fonéticos o de puntuación de la transcripción de voz para hacerla fluida y profesional.
+            Eres un corrector ortográfico y gramatical experto en español de Colombia/Latinoamérica, especializado en Seguridad y Salud en el Trabajo (SST/HSE).
+            Tu tarea es corregir y pulir los errores fonéticos o de puntuación de la transcripción de voz para hacerla fluida, correcta y en perfecto español.
 
-            ÚLTIMA INTERVENCIÓN:
+            ÚLTIMA INTERVENCIÓN DE LA IA:
             """
             ${(aiResponseText || '').substring(0, 250)}
             """
 
-            TRANSCRIPCIÓN DE VOZ A CORREGIR:
+            TRANSCRIPCIÓN DE VOZ DEL USUARIO A CORREGIR:
             """
-            ${userText}
+            ${sanitized}
             """
 
             REGLAS DE ORO:
-            1. MANTÉN ESTRICTAMENTE EL TEXTO EN ESPAÑOL. Está absolutamente prohibido traducir cualquier palabra al inglés.
-            2. Reconoce y respeta siglas y términos de SST como: "SST", "EPP", "RULA", "REBA", "GTC 45", "ISO 45001", "Decreto 1072", "LOTO", "línea de vida", "arnés", "dieléctrico", etc.
-            3. Si el texto original está en español correcto, devuélvelo tal cual sin inventar nada.
-            4. Si la transcripción es ininteligible o muy corta (ej: "hola"), devuélvela exactamente igual.
-            5. DEVUELVE ÚNICA Y EXCLUSIVAMENTE EL TEXTO CORREGIDO. Sin explicaciones, introducciones ni despedidas.
+            1. MANTÉN ESTRICTAMENTE EL TEXTO EN ESPAÑOL. Está absolutamente prohibido traducir cualquier palabra al inglés o a cualquier otro idioma. El usuario habla español.
+            2. Si la transcripción dice palabras como "bistro", "visto" o "cristo" en tono de asentimiento, corrígelas a "Listo".
+            3. Si el usuario pide el informe con palabras parecidas (ej: "general el informe"), corrígelo a "Generar el informe".
+            4. Reconoce y respeta siglas y términos de SST como: "SST", "EPP", "RULA", "REBA", "OWAS", "GTC 45", "ISO 45001", "Decreto 1072", "postura", "ergonomía".
+            5. Si el texto original está en español correcto, devuélvelo tal cual sin inventar nada.
+            6. DEVUELVE ÚNICA Y EXCLUSIVAMENTE EL TEXTO CORREGIDO EN ESPAÑOL. Sin explicaciones, comillas ni notas.
             `;
 
             const result = await generateWithKeyRotation(correctionModelName, this.userId, prompt);
-            const correctedText = result.response.text().trim();
+            const correctedText = result.response.text().replace(/^["']|["']$/g, '').trim();
 
             logger.info(`[VoiceSession] Transcription correction result: "${userText}" -> "${correctedText}"`);
             return correctedText;
         } catch (error) {
             logger.error('[VoiceSession] Error correcting transcription:', error);
-            return userText; // Fallback to original
+            return sanitizeTranscription(userText); // Fallback to sanitized
         }
     }
 
@@ -1438,24 +1527,66 @@ ${activeProtocol.reportMatrixHeader}
             `;
 
 
+            // Gather frames and telemetries from phaseEvidences
+            let phaseFrames = [];
+            let phaseTelemetryNotes = [];
+
+            if (this.phaseEvidences && Object.keys(this.phaseEvidences).length > 0) {
+                const sortedPhaseIndices = Object.keys(this.phaseEvidences)
+                    .map(Number)
+                    .sort((a, b) => a - b);
+
+                for (const idx of sortedPhaseIndices) {
+                    const pe = this.phaseEvidences[idx];
+                    if (pe && pe.image) {
+                        phaseFrames.push(pe.image);
+                        const telemDesc = pe.telemetry?.summary || pe.text || '';
+                        phaseTelemetryNotes.push(`• Fase ${idx + 1} (${pe.phaseName}): ${telemDesc || 'Captura de postura registrada'}`);
+                    }
+                }
+            }
+
+            // If some phases didn't have explicit captures, fill from manualEvidences
+            if (phaseFrames.length < 3 && this.manualEvidences && this.manualEvidences.length > 0) {
+                for (const img of this.manualEvidences) {
+                    if (phaseFrames.length >= 3) break;
+                    if (!phaseFrames.includes(img)) {
+                        phaseFrames.push(img);
+                    }
+                }
+            }
+
+            const framesToUse = phaseFrames.length > 0 
+                ? phaseFrames 
+                : (this.manualEvidences && this.manualEvidences.length > 0) 
+                    ? this.manualEvidences 
+                    : (this.frameBuffer && this.frameBuffer.length > 0) 
+                        ? this.frameBuffer 
+                        : this.latestFrame 
+                            ? [this.latestFrame] 
+                            : [];
+
+            let realTelemetryBlock = '';
+            if (phaseTelemetryNotes.length > 0) {
+                realTelemetryBlock = `
+VALORES REALES DE TELEMETRÍA ARTICULAR REGISTRADOS EN VIVO (MEDICIÓN DIRECTA MEDIAPIPE):
+${phaseTelemetryNotes.join('\n')}
+
+REGLA ESTRICTA DE LA MATRIZ ERGONÓMICA:
+En la sección "4.1 Matriz Ergonómica Comparativa Multifase", en la columna "Telemetría Articular (Cuello / Tronco / Brazo)", DEBES PLASMAR OBLIGATORIAMENTE estos ángulos articulares medidos en cada una de las fases. NO inventes valores ficticios. Sustenta los puntajes RULA / REBA y el nivel de riesgo directamente sobre estas mediciones reales.
+`;
+            }
+
             logger.info(`[VoiceSession] Sending multimodal prompt to model: ${reportModelName} (via rotation)`);
             
             // Multimodal Array of Parts
             const promptParts = [
-                { text: prompt }
+                { text: `${prompt}\n\n${realTelemetryBlock}` }
             ];
 
-            // Inject visual frames: prefer manual photos captured by the user, fallback to automatic rolling buffer
+            // Inject visual frames: prefer 3 distinct phase photos
             let injectedFrames = 0;
-            const framesToUse = (this.manualEvidences && this.manualEvidences.length > 0) 
-                ? this.manualEvidences 
-                : (this.frameBuffer && this.frameBuffer.length > 0) 
-                    ? this.frameBuffer 
-                    : this.latestFrame 
-                        ? [this.latestFrame] 
-                        : [];
-
-            for (const b64 of framesToUse) {
+            for (const b64 of framesToUse.slice(0, 3)) {
                 promptParts.push({
                     inlineData: {
                         data: b64,
@@ -1464,7 +1595,7 @@ ${activeProtocol.reportMatrixHeader}
                 });
                 injectedFrames++;
             }
-            logger.info(`[VoiceSession] Injected ${injectedFrames} visual frames (manual: ${!!(this.manualEvidences && this.manualEvidences.length > 0)}) into report prompt.`);
+            logger.info(`[VoiceSession] Injected ${injectedFrames} visual frames (phaseEvidences: ${Object.keys(this.phaseEvidences || {}).length}, manual: ${!!(this.manualEvidences && this.manualEvidences.length > 0)}) into report prompt.`);
 
             // Call API with the multimodal array
             const result = await generateWithKeyRotation(reportModelName, this.userId, promptParts);
@@ -1526,15 +1657,19 @@ ${activeProtocol.reportMatrixHeader}
             let evidenceHtml = '';
             if (framesToUse.length > 0) {
                 const activeProtocol = this.agentProtocol || resolveInspectionProtocol(this.agentObj?.name || this.config?.template);
-                const phaseLabels = activeProtocol.phases;
+                const phaseLabels = (activeProtocol.phases || []).map(p => typeof p === 'string' ? p : (p.name || p.shortName));
                 const sectionTitle = `1. Evidencia Fotográfica y Documental Multifase (${activeProtocol.title})`;
 
-                const imgItems = framesToUse.map((b64, idx) => {
-                    const caption = `<strong>${phaseLabels[idx] || `Fase ${idx + 1}: Evidencia de Inspección`}</strong>`;
+                const imgItems = framesToUse.slice(0, 3).map((b64, idx) => {
+                    const phaseData = this.phaseEvidences?.[idx];
+                    const label = phaseData?.phaseName || phaseLabels[idx] || `Fase ${idx + 1}: Evidencia de Inspección`;
+                    const telemSummary = phaseData?.telemetry?.summary || '';
+
                     return `
                     <div style="flex:1 1 calc(33.333% - 16px); max-width:300px; min-width:200px; text-align:center; margin-bottom:12px; box-sizing:border-box;">
-                        <img src="data:image/jpeg;base64,${b64}" alt="Evidencia ${idx+1}" style="width:100%; height:240px; object-fit:contain; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.05);" />
-                        <p style="font-size:0.75em; color:#475569; margin-top:6px; line-height:1.3;">${caption}</p>
+                        <img src="data:image/jpeg;base64,${b64}" alt="Evidencia Fase ${idx+1}" style="width:100%; height:240px; object-fit:contain; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.05);" />
+                        <p style="font-size:0.75em; color:#0f766e; font-weight:700; margin-top:6px; line-height:1.3;">${label}</p>
+                        ${telemSummary ? `<p style="font-size:0.7em; color:#475569; margin-top:2px; font-family:monospace; line-height:1.2;">${telemSummary}</p>` : ''}
                     </div>`;
                 }).join('');
 
@@ -1866,16 +2001,19 @@ ${kpiDiv}
             }
 
             // Get the frames evaluated
-            const evalFrames = (this.manualEvidences && this.manualEvidences.length > 0)
-                ? [...this.manualEvidences]
-                : (this.frameBuffer && this.frameBuffer.length > 0)
-                    ? [...this.frameBuffer]
-                    : this.latestFrame
-                        ? [this.latestFrame]
-                        : [];
+            const evalFrames = (framesToUse && framesToUse.length > 0)
+                ? [...framesToUse.slice(0, 3)]
+                : (this.manualEvidences && this.manualEvidences.length > 0)
+                    ? [...this.manualEvidences]
+                    : (this.frameBuffer && this.frameBuffer.length > 0)
+                        ? [...this.frameBuffer]
+                        : this.latestFrame
+                            ? [this.latestFrame]
+                            : [];
 
-            // Clear manual evidence buffer for next turns/reports
+            // Clear manual evidence and phase buffers for next turns/reports
             this.manualEvidences = [];
+            this.phaseEvidences = {};
 
             // Notify client with HTML (for rich rendering in Live editor) AND messageId
             this.sendToClient({

@@ -137,10 +137,10 @@ export const PredictiveTimeSeriesChart: React.FC<PredictiveTimeSeriesChartProps>
                     </div>
                     <div>
                         <div className="text-3xl font-black text-text-primary tracking-tight">
-                            {nextMonthPoint?.count ?? (metrics?.expectedMonthlyAccidents || 2)} <span className="text-xs font-bold text-text-secondary">accidentes</span>
+                            {nextMonthPoint?.count ?? (metrics?.expectedMonthlyAccidents ?? 0)} <span className="text-xs font-bold text-text-secondary">accidentes</span>
                         </div>
                         <p className="text-[10px] text-text-secondary font-medium mt-1">
-                            Siniestros previstos para el mes inmediato
+                            {(nextMonthPoint?.count ?? metrics?.expectedMonthlyAccidents ?? 0) === 0 ? 'Tasa Cero prevista para el mes inmediato' : 'Siniestros previstos para el mes inmediato'}
                         </p>
                     </div>
                 </div>
@@ -158,10 +158,10 @@ export const PredictiveTimeSeriesChart: React.FC<PredictiveTimeSeriesChartProps>
                     </div>
                     <div>
                         <div className="text-3xl font-black text-text-primary tracking-tight">
-                            {metrics?.expectedYearlyTotal || 18} <span className="text-xs font-bold text-text-secondary">accidentes</span>
+                            {metrics?.expectedYearlyTotal ?? 0} <span className="text-xs font-bold text-text-secondary">accidentes</span>
                         </div>
                         <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold mt-1 flex items-center gap-1">
-                            <TrendingUp className="w-3 h-3" /> Tendencia: -12% vs año anterior
+                            <TrendingUp className="w-3 h-3" /> {(metrics?.expectedYearlyTotal ?? 0) === 0 ? 'Tasa Cero Mantenida · Blindaje Activo' : 'Tendencia controlada'}
                         </p>
                     </div>
                 </div>
@@ -177,7 +177,7 @@ export const PredictiveTimeSeriesChart: React.FC<PredictiveTimeSeriesChartProps>
                     </div>
                     <div>
                         <div className="text-3xl font-black text-text-primary tracking-tight">
-                            {metrics?.expectedYearlyDaysLost || 24} <span className="text-xs font-bold text-text-secondary">días</span>
+                            {metrics?.expectedYearlyDaysLost ?? 0} <span className="text-xs font-bold text-text-secondary">días</span>
                         </div>
                         <p className="text-[10px] text-text-secondary font-medium mt-1">
                             Jornadas laborales perdidas estimadas
@@ -196,10 +196,10 @@ export const PredictiveTimeSeriesChart: React.FC<PredictiveTimeSeriesChartProps>
                     </div>
                     <div>
                         <div className="text-3xl font-black text-text-primary tracking-tight">
-                            {metrics?.expectedDaysCharged || 600} <span className="text-xs font-bold text-text-secondary">días</span>
+                            {metrics?.expectedDaysCharged ?? 0} <span className="text-xs font-bold text-text-secondary">días</span>
                         </div>
                         <p className="text-[10px] text-text-secondary font-medium mt-1">
-                            Reserva actuarial para secuelas potenciales
+                            {(metrics?.expectedDaysCharged ?? 0) === 0 ? 'Sin secuelas ni días cargados estimados' : 'Reserva actuarial para secuelas potenciales'}
                         </p>
                     </div>
                 </div>

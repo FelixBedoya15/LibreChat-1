@@ -175,10 +175,15 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
 
     const currentPhaseRef = useRef(currentPhase);
     currentPhaseRef.current = currentPhase;
+    const currentPhaseIndexRef = useRef(currentPhaseIndex);
+    currentPhaseIndexRef.current = currentPhaseIndex;
     const capturePerspectiveRef = useRef(capturePerspective);
     capturePerspectiveRef.current = capturePerspective;
     const activeProtocolRef = useRef(activeProtocol);
     activeProtocolRef.current = activeProtocol;
+
+    const capturePhaseEvidenceRef = useRef<((phaseIdx?: number, isAuto?: boolean) => void) | null>(null);
+    const autoCapturedPhasesRef = useRef<Set<number>>(new Set());
 
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const videoIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -399,8 +404,25 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                 console.log('[VoiceModal] User transcription:', text);
                 setLastUserTranscript(text);
                 if (transcriptTimeoutRef.current) clearTimeout(transcriptTimeoutRef.current);
+            } else if (text) {
+                // AI text response: check for phase advancement cues spoken by AI
+                const lower = text.toLowerCase();
+                let targetIdx: number | null = null;
+                if (/(?:paso|fase)\s*2\b|alcance|mayor esfuerzo|segund[oa] fase/i.test(lower)) {
+                    targetIdx = 1;
+                } else if (/(?:paso|fase)\s*3\b|fatiga|cansad[oa]|colapso|tercer[oa] fase/i.test(lower)) {
+                    targetIdx = 2;
+                } else if (/(?:paso|fase)\s*1\b|postura habitual|línea base|primer[oa] fase/i.test(lower)) {
+                    targetIdx = 0;
+                }
+
+                if (targetIdx !== null && targetIdx !== currentPhaseIndexRef.current) {
+                    console.log(`[VoiceModal] AI voice cue triggered phase transition: ${currentPhaseIndexRef.current} -> ${targetIdx}`);
+                    // Secure capture of current phase before advancing
+                    capturePhaseEvidenceRef.current?.(currentPhaseIndexRef.current, true);
+                    setCurrentPhaseIndex(targetIdx);
+                }
             }
-            // AI text responses are intentionally not displayed (audio-only UI)
         },
 
         onReportReceived: (html: string, messageId?: string, evaluatedFrames?: string[]) => {
@@ -430,6 +452,8 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             console.log('[VoiceModal] Status changed:', newStatus);
             if (newStatus === 'generating_report') {
                 setIsGeneratingReport(true);
+                // Secure capture of current phase immediately so report prompt has complete evidence
+                capturePhaseEvidenceRef.current?.(currentPhaseIndexRef.current, true);
             } else if (newStatus === 'listening') {
                 if (transcriptTimeoutRef.current) clearTimeout(transcriptTimeoutRef.current);
                 transcriptTimeoutRef.current = setTimeout(() => {
@@ -1134,6 +1158,113 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         };
     }, [isPoseActive]);
 
+    const capturePhaseEvidence = useCallback((phaseIdx?: number, isAuto = false) => {
+        if (!isCameraOn && !isScreenSharing) return;
+
+        const targetPhaseIdx = phaseIdx !== undefined ? phaseIdx : currentPhaseIndexRef.current;
+        const proto = activeProtocolRef.current;
+        const phase = proto.phases[targetPhaseIdx] || proto.phases[0];
+        const perspective = capturePerspectiveRef.current || 'Auto-evaluación';
+
+        const dataUrl = captureSnapshot();
+        if (!dataUrl) return;
+
+        if (!isAuto) {
+            // Trigger visual flash only on user click
+            setIsFlashActive(true);
+            setTimeout(() => setIsFlashActive(false), 250);
+
+            setManualCapturedPhotos((prev) => {
+                const next = [...prev, dataUrl];
+                manualPhotosCountRef.current = next.length;
+                return next;
+            });
+        }
+
+        const base64 = dataUrl.split(',')[1];
+
+        // Gather real MediaPipe angles
+        const currentAngles = anglesRef.current || {};
+        const nAngle = currentAngles.neck ?? neckAngle;
+        const tAngle = currentAngles.trunk ?? trunkAngle;
+        const aAngle = currentAngles.arm ?? armAngle;
+        const eAngle = currentAngles.elbow ?? elbowAngle;
+        const kAngle = currentAngles.knee ?? kneeAngle;
+
+        let telemetryParts: string[] = [];
+        if (nAngle !== null) telemetryParts.push(`Flexión Cervical: ${nAngle}° (${neckInfo.status})`);
+        if (tAngle !== null) telemetryParts.push(`Flexión de Tronco: ${tAngle}° (${trunkInfo.status})`);
+        if (aAngle !== null) telemetryParts.push(`Abducción de Brazo: ${aAngle}° (${armInfo.status})`);
+        if (eAngle !== null) telemetryParts.push(`Flexión de Codo: ${eAngle}° (${elbowInfo.status})`);
+        if (kAngle !== null) telemetryParts.push(`Flexión de Rodilla: ${kAngle}° (${kneeInfo.status})`);
+
+        let telemetryText = '';
+        if (isBiomechanicsAgent) {
+            telemetryText = telemetryParts.length > 0 
+                ? `[Captura de Evidencia Biomecánica • ${phase.name} • Perspectiva: ${perspective}] Telemetría articular: ${telemetryParts.join(', ')}.`
+                : `[Captura de Evidencia Biomecánica • ${phase.name} • Perspectiva: ${perspective}] Captura registrada sin telemetría articular activa.`;
+        } else {
+            telemetryText = `[Captura de Evidencia Técnica • ${proto.title} • ${phase.name} • Perspectiva: ${perspective} • Enfoque: ${phase.focus}]`;
+        }
+
+        const metadata = {
+            phaseIndex: targetPhaseIdx,
+            phaseName: phase.name,
+            telemetry: {
+                neck: nAngle,
+                trunk: tAngle,
+                arm: aAngle,
+                elbow: eAngle,
+                knee: kAngle,
+                summary: telemetryParts.join(' • ')
+            }
+        };
+
+        sendEvidenceImage(base64, telemetryText, metadata);
+        autoCapturedPhasesRef.current.add(targetPhaseIdx);
+
+        if (!isAuto) {
+            // Auto-advance to next phase if not at last phase
+            setCurrentPhaseIndex((prev) => (prev < proto.phases.length - 1 ? prev + 1 : prev));
+        }
+
+        console.log(`[VoiceModal] ${isAuto ? 'Auto' : 'Manual'} photo captured for ${proto.title} - ${phase.name} (${perspective}). Phase index: ${targetPhaseIdx}`);
+    }, [
+        isCameraOn, 
+        isScreenSharing, 
+        captureSnapshot, 
+        sendEvidenceImage, 
+        neckAngle,
+        neckInfo.status,
+        trunkAngle,
+        trunkInfo.status,
+        armAngle,
+        armInfo.status,
+        elbowAngle,
+        elbowInfo.status,
+        kneeAngle,
+        kneeInfo.status,
+        isBiomechanicsAgent
+    ]);
+
+    useEffect(() => {
+        capturePhaseEvidenceRef.current = capturePhaseEvidence;
+    }, [capturePhaseEvidence]);
+
+    // Auto-capture stabilization timer: captures each phase after ~4.5 seconds if not yet captured
+    useEffect(() => {
+        if (!isCameraOn && !isScreenSharing) return;
+
+        const timer = setTimeout(() => {
+            if (!autoCapturedPhasesRef.current.has(currentPhaseIndex)) {
+                console.log(`[VoiceModal] Auto-capturing stabilized posture for phase ${currentPhaseIndex}`);
+                capturePhaseEvidence(currentPhaseIndex, true);
+            }
+        }, 4500);
+
+        return () => clearTimeout(timer);
+    }, [currentPhaseIndex, isCameraOn, isScreenSharing, capturePhaseEvidence]);
+
     const handleManualCapture = useCallback(() => {
         if (!isCameraOn && !isScreenSharing) return;
 
@@ -1145,74 +1276,8 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             return;
         }
 
-        const dataUrl = captureSnapshot();
-        if (dataUrl) {
-            // Trigger visual flash
-            setIsFlashActive(true);
-            setTimeout(() => setIsFlashActive(false), 250);
-
-            // Update local state to show on screen
-            setManualCapturedPhotos((prev) => {
-                const next = [...prev, dataUrl];
-                manualPhotosCountRef.current = next.length;
-                return next;
-            });
-
-            // Send to backend via WS (extract base64 payload from data URL)
-            const base64 = dataUrl.split(',')[1];
-
-            // Construct telemetry description at the exact moment of user manual capture
-            const currentAngles = anglesRef.current;
-            const nAngle = currentAngles.neck ?? neckAngle;
-            const tAngle = currentAngles.trunk ?? trunkAngle;
-            const aAngle = currentAngles.arm ?? armAngle;
-            const eAngle = currentAngles.elbow ?? elbowAngle;
-            const kAngle = currentAngles.knee ?? kneeAngle;
-
-            let telemetryParts: string[] = [];
-            if (nAngle !== null) telemetryParts.push(`Flexión Cervical: ${nAngle}° (${neckInfo.status})`);
-            if (tAngle !== null) telemetryParts.push(`Flexión de Tronco: ${tAngle}° (${trunkInfo.status})`);
-            if (aAngle !== null) telemetryParts.push(`Abducción de Brazo: ${aAngle}° (${armInfo.status})`);
-            if (eAngle !== null) telemetryParts.push(`Flexión de Codo: ${eAngle}° (${elbowInfo.status})`);
-            if (kAngle !== null) telemetryParts.push(`Flexión de Rodilla: ${kAngle}° (${kneeInfo.status})`);
-
-            const proto = activeProtocolRef.current;
-            const phase = currentPhaseRef.current || proto.phases[0];
-            const perspective = capturePerspectiveRef.current || 'Auto-evaluación';
-
-            let telemetryText = '';
-            if (isBiomechanicsAgent) {
-                telemetryText = telemetryParts.length > 0 
-                    ? `[Captura de Evidencia Biomecánica • ${phase.name} • Perspectiva: ${perspective}] Registro de telemetría articular en el momento de la captura: ${telemetryParts.join(', ')}.`
-                    : `[Captura de Evidencia Biomecánica • ${phase.name} • Perspectiva: ${perspective}] Captura de evidencia sin telemetría articular activa en el momento.`;
-            } else {
-                telemetryText = `[Captura de Evidencia Técnica • ${proto.title} • ${phase.name} • Perspectiva: ${perspective} • Enfoque: ${phase.focus}] Evidencia fotográfica registrada en el ciclo de inspección.`;
-            }
-
-            sendEvidenceImage(base64, telemetryText);
-
-            // Auto-advance to next phase if not at last phase
-            setCurrentPhaseIndex((prev) => (prev < proto.phases.length - 1 ? prev + 1 : prev));
-
-            console.log(`[VoiceModal] Manual photo captured for ${proto.title} - ${phase.name} (${perspective}). Total manual photos: ${manualPhotosCountRef.current}`);
-        }
-    }, [
-        isCameraOn, 
-        isScreenSharing, 
-        captureSnapshot, 
-        sendEvidenceImage, 
-        setManualCapturedPhotos,
-        neckAngle,
-        neckInfo.status,
-        trunkAngle,
-        trunkInfo.status,
-        armAngle,
-        armInfo.status,
-        elbowAngle,
-        elbowInfo.status,
-        kneeAngle,
-        kneeInfo.status
-    ]);
+        capturePhaseEvidence(currentPhaseIndexRef.current, false);
+    }, [isCameraOn, isScreenSharing, capturePhaseEvidence]);
 
     const [isPlaying, setIsPlaying] = useState(false);
     const outputAnalyserRef = useRef<AnalyserNode | null>(null);

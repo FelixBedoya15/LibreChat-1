@@ -8,6 +8,7 @@ import {
     BarChart,
     ChevronDown,
     ChevronRight,
+    ChevronLeft,
     Calculator,
     Loader2,
     Calendar,
@@ -81,7 +82,34 @@ const EstadisticasATEL = () => {
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-    // Load Data Effect
+    // Dynamic list of selectable years
+    const currentCalYear = new Date().getFullYear();
+    const [availableYears, setAvailableYears] = useState<number[]>([
+        currentCalYear - 2,
+        currentCalYear - 1,
+        currentCalYear,
+        currentCalYear + 1
+    ]);
+
+    // Fetch list of years with registered data
+    useEffect(() => {
+        if (!token) return;
+        fetch('/api/sgsst/atel-data/years/list', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data?.years?.length) {
+                    setAvailableYears(prev => {
+                        const set = new Set([...prev, ...data.years]);
+                        return Array.from(set).sort((a, b) => b - a);
+                    });
+                }
+            })
+            .catch(() => {});
+    }, [token, refreshTrigger]);
+
+    // Load Data Effect (Reset to clean slate per year to prevent cross-year leakage)
     useEffect(() => {
         const loadData = async () => {
             if (!token) return;
@@ -90,19 +118,29 @@ const EstadisticasATEL = () => {
                 const res = await fetch(`/api/sgsst/atel-data/${year}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
+                
+                // Initialize clean annual structure
+                const freshAnnual: Record<number, MonthData> = {};
+                MONTHS.forEach((_, i) => {
+                    freshAnnual[i] = { numTrabajadores: '', diasProgramados: '', events: [] };
+                });
+
                 if (res.ok) {
                     const data = await res.json();
                     if (data && data.months) {
-                        // Merge loaded data with default structure to ensure all months exist
-                        setAnnualData(prev => {
-                            const merged: Record<number, MonthData> = { ...prev };
-                            Object.keys(data.months).forEach(key => {
-                                merged[Number(key)] = data.months[key];
-                            });
-                            return merged;
+                        Object.keys(data.months).forEach(key => {
+                            const m = data.months[key];
+                            if (m) {
+                                freshAnnual[Number(key)] = {
+                                    numTrabajadores: m.numTrabajadores ?? '',
+                                    diasProgramados: m.diasProgramados ?? '',
+                                    events: Array.isArray(m.events) ? m.events : []
+                                };
+                            }
                         });
                     }
                 }
+                setAnnualData(freshAnnual);
             } catch (error) {
                 console.error('Error loading annual data:', error);
                 showToast({ message: 'Error al cargar datos guardados', status: 'error' });
@@ -112,6 +150,11 @@ const EstadisticasATEL = () => {
         };
         loadData();
     }, [year, token]);
+
+    // Calculate total recorded events for active year
+    const totalYearEvents = useMemo(() => {
+        return Object.values(annualData).reduce((sum, m) => sum + (m.events?.length || 0), 0);
+    }, [annualData]);
 
     // Helpers to update current month data
     const updateMonthData = (field: keyof MonthData, value: any) => {
@@ -387,14 +430,29 @@ const EstadisticasATEL = () => {
                     </div>
                     <div>
                         <h2 className="text-lg font-bold text-text-primary">Gestión de Indicadores ATEL</h2>
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <input
-                                type="number"
-                                value={year}
-                                onChange={(e) => setYear(Number(e.target.value))}
-                                className="text-sm font-semibold bg-transparent border-none w-16 p-0 focus:ring-0 text-text-secondary"
-                            />
-                            <span className="text-sm text-text-secondary">| Res. 0312 Art. 30</span>
+                        <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                            <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg border border-border-medium bg-surface-primary shadow-xs">
+                                <button
+                                    type="button"
+                                    onClick={() => setYear(y => y - 1)}
+                                    title="Año anterior"
+                                    className="p-1 rounded text-text-secondary hover:text-text-primary hover:bg-surface-tertiary transition-colors"
+                                >
+                                    <ChevronLeft className="w-3.5 h-3.5" />
+                                </button>
+                                <span className="text-xs font-black font-mono text-teal-600 dark:text-teal-400 px-1">
+                                    {year}
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => setYear(y => y + 1)}
+                                    title="Año siguiente"
+                                    className="p-1 rounded text-text-secondary hover:text-text-primary hover:bg-surface-tertiary transition-colors"
+                                >
+                                    <ChevronRight className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                            <span className="text-xs text-text-secondary">| Res. 0312 Art. 30</span>
                         </div>
                     </div>
                 </div>
@@ -448,7 +506,7 @@ const EstadisticasATEL = () => {
                         {isFormExpanded ? <ChevronDown className="h-5 w-5 text-text-secondary" /> : <ChevronRight className="h-5 w-5 text-text-secondary" />}
                         <CalendarDays className="h-5 w-5 text-teal-600 dark:text-teal-400" />
                         <span className="font-semibold text-text-primary">
-                            Registro Mensual de Eventos
+                            Registro Mensual de Eventos ({year})
                         </span>
                         {isLoadingData && <span className="text-xs text-text-secondary animate-pulse ml-2">(Cargando datos...)</span>}
                     </div>
@@ -457,7 +515,50 @@ const EstadisticasATEL = () => {
                 {isFormExpanded && (
                     <div className="flex flex-col md:flex-row min-h-[500px] overflow-hidden">
                         {/* Month Selector Sidebar (Desktop) or Scroll (Mobile) */}
-                        <div className="w-full md:w-48 bg-surface-tertiary/20 border-b md:border-b-0 md:border-r border-border-medium flex md:flex-col overflow-x-auto md:overflow-visible">
+                        <div className="w-full md:w-52 bg-surface-tertiary/20 border-b md:border-b-0 md:border-r border-border-medium flex md:flex-col overflow-x-auto md:overflow-visible">
+                            {/* Year Selector Control in Sidebar */}
+                            <div className="p-3 bg-surface-primary/80 border-b border-border-medium flex flex-col gap-2 shrink-0">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-text-tertiary flex items-center gap-1.5">
+                                    <Calendar className="w-3.5 h-3.5 text-teal-500" />
+                                    Año de Registro
+                                </span>
+                                <div className="flex items-center justify-between gap-1 bg-surface-secondary rounded-xl p-1 border border-border-medium">
+                                    <button
+                                        type="button"
+                                        onClick={() => setYear(y => y - 1)}
+                                        title="Año anterior"
+                                        className="p-1.5 rounded-lg hover:bg-surface-tertiary text-text-secondary hover:text-text-primary transition-colors shrink-0"
+                                    >
+                                        <ChevronLeft className="w-3.5 h-3.5" />
+                                    </button>
+                                    <select
+                                        value={year}
+                                        onChange={(e) => setYear(Number(e.target.value))}
+                                        className="bg-transparent text-xs font-black text-text-primary focus:outline-none cursor-pointer text-center flex-1 py-1"
+                                    >
+                                        {availableYears.map(y => (
+                                            <option key={y} value={y} className="bg-surface-primary text-text-primary">
+                                                Año {y}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        type="button"
+                                        onClick={() => setYear(y => y + 1)}
+                                        title="Año siguiente"
+                                        className="p-1.5 rounded-lg hover:bg-surface-tertiary text-text-secondary hover:text-text-primary transition-colors shrink-0"
+                                    >
+                                        <ChevronRight className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                                <div className="flex items-center justify-between text-[10px] text-text-secondary px-0.5">
+                                    <span>Eventos {year}:</span>
+                                    <span className={`font-black px-1.5 py-0.2 rounded-md ${totalYearEvents > 0 ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'}`}>
+                                        {totalYearEvents} {totalYearEvents === 1 ? 'evento' : 'eventos'}
+                                    </span>
+                                </div>
+                            </div>
+
                             {MONTHS.map((month, index) => {
                                 const mData = annualData[index];
                                 const hasData = mData && (mData.events?.length > 0 || (mData.numTrabajadores !== '' && mData.numTrabajadores > 0));
