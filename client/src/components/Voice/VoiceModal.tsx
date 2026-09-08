@@ -83,6 +83,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     const [isScreenSharing, setIsScreenSharing] = useState(false);
     const setShowModalState = useSetRecoilState(store.showVoiceModal);
     const setIsCanvasActive = useSetRecoilState(store.isCanvasActive);
+    const setStreamingCanvas = useSetRecoilState(store.streamingCanvasState);
     const [showVoiceSelector, setShowVoiceSelector] = useState(false);
     const [audioAmplitude, setAudioAmplitude] = useState(0);
     const [statusText, setStatusText] = useState('');
@@ -406,7 +407,19 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             console.log('[VoiceModal] Report received successfully');
             setIsGeneratingReport(false);
             setReportSuccess(true);
-            setIsCanvasActive(true);
+            if (html && html.length > 30 && !html.includes('⚠️ Error de Generación')) {
+                setStreamingCanvas({
+                    id: messageId || `report-${Date.now()}`,
+                    title: isBiomechanicsAgent 
+                        ? 'Informe Técnico de Ergonomía y Biomecánica' 
+                        : 'Informe Técnico de Evaluación SST',
+                    fileType: 'text',
+                    content: html,
+                    messageId: messageId,
+                    isStreaming: false,
+                });
+                setIsCanvasActive(true);
+            }
             setTimeout(() => setReportSuccess(false), 6000);
             if (onConversationUpdated) {
                 onConversationUpdated(conversationId);

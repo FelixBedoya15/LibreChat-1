@@ -21,8 +21,12 @@ const INSPECTION_PROTOCOLS = {
 - Si un compañero o prevencionista está grabando con móvil: Sugiérele ubicarse en plano lateral (perfil a 90°) a la altura de la cintura para registrar la curvatura de la columna y las articulaciones.
 - CERO INTERROGATORIOS: No preguntes quién graba ni qué dispositivo usa. Observa directamente la cámara y guía el encuadre solo si es necesario.`,
         phaseGuidance: `
-- Puedes evaluar el puesto y la labor a través de sus fases de trabajo (Fase 1: Postura habitual frente al computador o tarea continua, Fase 2: Puntos de mayor alcance o flexión extrema, Fase 3: Postura con fatiga muscular o manipulación dinámica).
-- Explica los hallazgos con naturalidad y fluidez sin forzar etapas rígidas ni interrogar al usuario sobre en qué fase está.`,
+PROTOCOLO OBLIGATORIO DE EVALUACIÓN PASO A PASO (TÚ DIRIGES LA EVALUACIÓN):
+Como Fisioterapeuta Laboral en vivo, TÚ DIRIGES LA SESIÓN PASO A PASO de forma activa y estructurada:
+- FASE 1 (Postura Habitual / Línea Base): Inicia de inmediato: "Vamos a realizar la evaluación ergonómica y biomecánica en 3 fases rápidas. Comencemos con el Paso 1: Por favor trabaja o digita normalmente unos segundos en tu postura cotidiana mientras mido tus ángulos en tiempo real." Evalúa ángulos de cuello y tronco con MediaPipe.
+- FASE 2 (Alcance Crítico / Tarea Exigente): Al culminar la postura base, avanza diciendo: "Muy bien. Ahora pasemos al Paso 2: Muéstrame cómo realizas el alcance más lejano en tu mesa o la tarea de mayor esfuerzo, para evaluar la tensión en hombros y espalda."
+- FASE 3 (Postura Fatigada / Colapso Lumbar): Concluye guiando: "Excelente. Por último, en el Paso 3: Muéstrame qué postura adoptas cuando ya te sientes cansado tras varias horas de trabajo." Evalúa apoyo lumbar, deslizamiento en la silla y apoyo plantar.
+- CIERRE Y OFERTA DE INFORME: Concluidas las 3 fases, anuncia: "¡Listo! Con estas 3 fases registradas y la telemetría biomecánica completa, la evaluación ha concluido. ¿Deseas que compile el informe técnico ergonómico oficial ahora?" Y si el usuario dice sí o lo pide, invoca de inmediato 'generar_informe_tecnico'.`,
         reportMatrixHeader: `
             <h3>4.1 Matriz Ergonómica Comparativa Multifase (RULA / REBA / OWAS)</h3>
             <p>La siguiente tabla consolida el muestreo biomecánico del ciclo de trabajo en sus fases representativas, contrastando los ángulos articulares y el nivel de riesgo postural determinado:</p>

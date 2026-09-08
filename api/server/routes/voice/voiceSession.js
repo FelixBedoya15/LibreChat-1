@@ -458,23 +458,16 @@ REGLAS DE INTERACCIÓN EN VIVO:
                 data: { text, isUserTranscription: true }
             });
 
-            // Fast-track real-time voice report trigger
+            // Fast-track real-time voice report trigger (only on explicit user command to generate report)
             if (!this.isGeneratingReport) {
-                const userReportRegex = /(genera(r)?|haz|hacer|crea|crear|dame|darme|sacar|saca|compil(a|ar)|proces(a|ar)|puedes generar|quiero el|realiza(r)?|muestra|mu[eé]strame|prepara(r)?|vamos a hacer)\s*(el|un|mi)?\s*(informe|reporte|resumen|diagn[oó]stico|evaluaci[oó]n|documento)/i;
-                const phoneticApproxRegex = /general\s*(el|al)?\s*(mundo|informe|reporte)/i;
+                const userReportRegex = /\b(genera(r)?|haz|compil(a|ar)|dame|quiero|entreg(a|ar)|sacar?)\s+(el\s+|un\s+)?(informe|reporte)\b/i;
+                const phoneticApproxRegex = /\b(general)\s+(el\s+|al\s+)?(informe|reporte)\b/i;
                 if (userReportRegex.test(this.userTranscriptionText) || phoneticApproxRegex.test(this.userTranscriptionText)) {
                     logger.info(`[VoiceSession] Real-time voice trigger matched in user transcription: "${this.userTranscriptionText}"`);
                     this.isGeneratingReport = true;
                     this.sendToClient({
                         type: 'status',
                         data: { status: 'generating_report', message: 'Compilando informe técnico...' }
-                    });
-                    this.sendToClient({
-                        type: 'report',
-                        data: {
-                            html: '<p class="text-gray-500 italic animate-pulse">Generando informe técnico detallado...</p>',
-                            evaluatedFrames: this.frameBuffer || []
-                        }
                     });
                     this.generateReport(this.config.conversationContext).finally(() => {
                         this.isGeneratingReport = false;
@@ -855,14 +848,6 @@ REGLAS DE INTERACCIÓN EN VIVO:
                     data: { status: 'generating_report', message: 'Compilando informe técnico...' }
                 });
 
-                this.sendToClient({
-                    type: 'report',
-                    data: {
-                        html: '<p class="text-gray-500 italic animate-pulse">Compilando informe técnico detallado...</p>',
-                        evaluatedFrames: manualFrames
-                    }
-                });
-
                 if (this.geminiClient && this.isActive) {
                     try {
                         this.geminiClient.sendText('INSTRUCCIÓN DE SISTEMA: El usuario presionó el botón de generar informe técnico. Confírmale verbalmente en 1 sola frase breve: "Entendido, estoy compilando tu informe técnico ergonómico con las evidencias recopiladas."');
@@ -1188,8 +1173,8 @@ REGLAS DE INTERACCIÓN EN VIVO:
             }
             logger.info(`[VoiceSession] Starting transcription correction for: "${userText}"`);
 
-            // Use Gemini 3.1 Flash Lite for high performance voice transcription corrections
-            const correctionModelName = 'gemini-3.7-flash';
+            // Use Gemini 3.5 Flash for high performance voice transcription corrections
+            const correctionModelName = 'gemini-3.5-flash';
 
             const prompt = `
             Eres un corrector ortográfico y gramatical experto en español, especializado en Seguridad y Salud en el Trabajo (SST/HSE).
@@ -1967,9 +1952,9 @@ ${kpiDiv}
             this.aiTranscriptionBuffer = '';
         } else {
             // Check BOTH user voice request (including common phonetic STT variations) AND AI keywords
-            const userReportRegex = /(genera(r)?|haz|crea|dame|sacar|compil(a|ar)|proces(a|ar)|puedes generar|quiero el|realiza(r)?)\s*(el|un|mi)?\s*(informe|reporte|resumen|diagn[oó]stico|evaluaci[oó]n|documento)/i;
-            const phoneticApproxRegex = /general\s*(el|al)?\s*(mundo|informe|reporte)/i;
-            const aiReportRegex = /(generar( el| un)? (informe|reporte)|procesando( lo que vimos| la informaci[oó]n| las evidencias)|informe t[eé]cnico detallado|informe.*generado|reporte.*generado|generando.*(informe|reporte)|(informe|reporte).*creado)/i;
+            const userReportRegex = /\b(genera(r)?|haz|compil(a|ar)|dame|quiero|entreg(a|ar)|sacar?)\s+(el\s+|un\s+)?(informe|reporte)\b/i;
+            const phoneticApproxRegex = /\b(general)\s+(el\s+|al\s+)?(informe|reporte)\b/i;
+            const aiReportRegex = /\b(procedo a generar|voy a compilar|generando el informe t[eé]cnico|informe técnico compilado)\b/i;
 
             const userRequested = userReportRegex.test(currentUserText) || phoneticApproxRegex.test(currentUserText);
             const aiConfirmed = aiReportRegex.test(currentAiText) || aiReportRegex.test(this.aiTranscriptionBuffer);
@@ -1989,24 +1974,9 @@ ${kpiDiv}
                     }
                 }
                 
-                let evalFrames = [];
-                if (this.frameBuffer && this.frameBuffer.length > 0) {
-                    evalFrames = [...this.frameBuffer];
-                } else if (this.latestFrame) {
-                    evalFrames = [this.latestFrame];
-                }
-                
-                this.sendToClient({
-                    type: 'report',
-                    data: { 
-                        html: '<p class="text-gray-500 italic animate-pulse">Generando informe técnico detallado...</p>',
-                        evaluatedFrames: evalFrames
-                    }
-                });
-
                 this.sendToClient({
                     type: 'status',
-                    data: { status: 'generating_report', message: 'Generando informe técnico...' }
+                    data: { status: 'generating_report', message: 'Compilando informe técnico...' }
                 });
 
                 this.isGeneratingReport = true;
@@ -2240,6 +2210,15 @@ ROL: Eres el Fisioterapeuta Laboral y Especialista en Biomecánica de WAPPY IA.
 PROPÓSITO:
 Asesorar en vivo mediante visión artificial y voz en la prevención de desórdenes musculoesqueléticos, higiene postural y evaluación ergonómica integral de puestos de trabajo (oficinas, pantallas, teletrabajo o labores operativas).
 
+DIRECTIVA DE LIDERAZGO ACTIVO Y EVALUACIÓN PASO A PASO (OBLIGATORIO):
+No actúes como un chatbot pasivo que solo espera preguntas o suelta recomendaciones sueltas. TÚ DIRIGES LA EVALUACIÓN ERGONÓMICA EN CAMPO:
+1. Toma el control desde tu primer saludo proponiendo la evaluación estructurada en 3 pasos rápidos:
+   - Paso 1 (Postura Habitual / Línea Base): Pídele trabajar/digitar normalmente unos segundos mientras mides cuello y tronco con MediaPipe.
+   - Paso 2 (Alcance Crítico / Flexión Máxima): Pídele mostrar el punto o alcance más exigente de su puesto de trabajo.
+   - Paso 3 (Postura Fatigada / Apoyo Lumbar): Pídele mostrar cómo se sienta cuando ya siente cansancio para revisar soporte de silla, columna y pies.
+2. En cada fase, utiliza la telemetría articular (grados de cuello, tronco, brazos) para darle retroalimentación en vivo sobre lo que ves.
+3. Al culminar las 3 fases, ofrece compilar el informe técnico oficial e invoca 'generar_informe_tecnico' en cuanto el usuario lo apruebe.
+
 EVALUACIÓN DE PUESTO DE TRABAJO (IPT / OFICINA / PANTALLAS):
 Cuando el usuario te muestre su puesto de trabajo o solicite una inspección/evaluación de su puesto:
 1. PANTALLA: Verifica que el borde superior esté a la altura de los ojos, a 50-70 cm de distancia (longitud de un brazo), centrada directamente al frente para no rotar el cuello.
@@ -2260,14 +2239,13 @@ TELEMETRÍA ARTICULAR EN TIEMPO REAL (MEDIAPIPE):
 - Codos y Rodillas: Rango neutro 90°-100°.
 Explica oralmente y con claridad el hallazgo biomecánico observado en la cámara y cómo corregirlo físicamente de inmediato.
 
-PAUTAS DE ENCUADRE Y MULTIFASE (GUÍA NATURAL SIN INTERROGATORIOS):
+PAUTAS DE ENCUADRE Y MULTIFASE:
 - Si el usuario usa portátil/webcam y se corta el cuerpo: Sugiérele amablemente inclinar un poco la pantalla a 45° o dar un paso atrás.
 - Si un compañero está grabando con celular: Sugiérele ubicarse en plano lateral (perfil a 90°) a la altura de la cintura.
-- Muestreo multifase: Acompaña al usuario en su ciclo de trabajo si pasa de postura habitual a alcances lejanos o fatiga.
-- NUNCA hagas preguntas ni cuestionarios sobre quién graba, qué celular usa o en qué fase está: observa directamente y evalúa.
+- CERO INTERROGATORIOS: No preguntes quién graba ni qué dispositivo usa ni hagas cuestionarios de empresa. Observa directamente y evalúa.
 
 ${cleanedInstructions ? `\nINSTRUCCIONES Y NORMATIVIDAD DEL AGENTE:\n${cleanedInstructions.substring(0, 1500)}\n` : ''}
-GENERACIÓN DEL INFORME TÉCNICO: Cuando el usuario te pida generar, hacer o sacar el informe, reporte o resumen técnico ("haz el informe", "genera el informe", "dame el reporte", "quiero el informe"), DEBES INVOCAR INMEDIATAMENTE la función 'generar_informe_tecnico'. Mientras se procesa, confirma en una sola frase breve: "Listo, procesando las evidencias bajo el método seleccionado para generar el informe técnico ergonómico."`;
+GENERACIÓN DEL INFORME TÉCNICO: Cuando el usuario te pida generar, hacer o sacar el informe, reporte o resumen técnico ("haz el informe", "genera el informe", "dame el reporte", "quiero el informe", "sí, hazlo"), DEBES INVOCAR INMEDIATAMENTE la función 'generar_informe_tecnico'. Mientras se procesa, confirma en una sola frase breve: "Listo, procesando las evidencias bajo el método seleccionado para generar el informe técnico ergonómico."`;
         } else {
             domainKnowledge = `
 ROL: Eres el asistente especialista "${agentObj?.name || agentProtocol.title}" de WAPPY IA.
@@ -2290,11 +2268,12 @@ ${domainKnowledge}
 
 [DIRECTIVAS DE INTERACCIÓN EN VIVO POR VOZ Y VIDEO]:
 1. **IDIOMA EXCLUSIVO: ESPAÑOL.** El usuario y tú se comunican SIEMPRE en español de Colombia/Latinoamérica. NUNCA respondas, transcribas ni traduzcas en árabe, inglés ni ningún otro idioma. Todo lo que dice el usuario está en español.
-2. **SALUDO INICIAL:** En tu primera respuesta saluda cordialmente en 1 sola frase corta y directa invitando al usuario a mostrar su puesto o labor (ej: "¡Hola! Te veo en cámara. Muéstrame tu puesto de trabajo o la labor que estás realizando y te voy guiando en vivo.").
-3. **OBSERVA Y GUÍA DIRECTAMENTE (CERO INTERROGATORIOS):** No hagas cuestionarios administrativos. Prohibido preguntar por tamaño de empresa, ARL, porcentaje de implementación o hacer cuestionarios en voz alta. Céntrate 100% en lo que ves en cámara y en tu especialidad.
-4. **RESPUESTAS HABLADAS CLARAS Y FLUIDAS:** Brinda respuestas habladas claras, naturales y pedagógicas (2 a 4 oraciones por turno), explicando qué ves, qué riesgo genera y cómo corregirlo de inmediato.
-5. **FORMATO EXCLUSIVAMENTE HABLADO:** NUNCA utilices etiquetas HTML, tablas Markdown, asteriscos ni viñetas en tus respuestas de voz.
-6. **GENERACIÓN DE INFORMES:** Si el usuario te solicita generar, hacer, compilar o entregar el informe técnico ("haz el informe", "genera el informe", "dame el reporte", "quiero el informe"), invoca de inmediato la herramienta 'generar_informe_tecnico'.
+2. **SALUDO INICIAL Y LIDERAZGO:** En tu primera respuesta saluda cordialmente en 1 o 2 frases y TOMA EL LIDERAZGO proponiendo de inmediato iniciar el Paso 1 de la evaluación de campo.
+3. **CONDUCE LA EVALUACIÓN PASO A PASO:** Guía activamente al usuario por las fases de campo: Paso 1 (Postura Habitual), Paso 2 (Alcance Crítico) y Paso 3 (Fatiga / Deslizamiento). NO seas un asistente pasivo que solo espera preguntas.
+4. **RETROALIMENTACIÓN BIOMECÁNICA PRECISA:** Menciona los ángulos articulares medidos en cámara (cuello, tronco, brazos) y brinda correcciones físicas inmediatas.
+5. **CERO CUESTIONARIOS ADMINISTRATIVOS:** Prohibido preguntar por ARL, tamaño de empresa o porcentajes de implementación. Céntrate en la observación de campo.
+6. **RESPUESTAS HABLADAS CONCISAS:** Respuestas habladas claras y pedagógicas (2 a 4 oraciones por turno). Sin formato Markdown ni HTML en voz.
+7. **GENERACIÓN DE INFORME:** Al concluir las 3 fases o cuando el usuario lo solicite ("haz el informe", "genera el reporte", "dame el informe", "sí, hazlo"), invoca INMEDIATAMENTE la herramienta 'generar_informe_tecnico'.
 `.trim();
         
         // Pass the array of keys to VoiceSession
