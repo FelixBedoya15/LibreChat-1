@@ -101,13 +101,6 @@ export const exportPerfilSociodemograficoToExcel = async (
   wb.created = new Date();
   wb.modified = new Date();
 
-  // ============================================================================
-  // HOJA 2: LISTAS DE OPCIONES / PESTAÑA DE RESPUESTAS
-  // ============================================================================
-  const wsOptions = wb.addWorksheet('Listas de Opciones', {
-    views: [{ state: 'frozen', ySplit: 1, showGridLines: true }]
-  });
-
   // Catálogos Normalizados
   const listGenero = ['Masculino', 'Femenino', 'Otro'];
   const listEstadoCivil = ['Soltero/a', 'Casado/a', 'Unión Libre', 'Separado/a', 'Viudo/a'];
@@ -138,20 +131,41 @@ export const exportPerfilSociodemograficoToExcel = async (
   const listFuma = ['No', 'Sí, ocasional', 'Sí, diario'];
   const listAlcohol = ['No', 'Sí (Social)', 'Sí (Frecuente)'];
   const listTerapia = ['No', 'Sí', 'Anteriormente'];
-  const listEstrato = ['1', '2', '3', '4', '5', '6'];
-  const listVivienda = ['Propia', 'Arrendada', 'Familiar'];
+  const listEstrato = ['Estrato 1', 'Estrato 2', 'Estrato 3', 'Estrato 4', 'Estrato 5', 'Estrato 6'];
+  const listVivienda = ['Propia', 'Familiar', 'Arrendada', 'Otra'];
   const listSangre = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'];
-  const listRiesgoCardio = ['Bajo', 'Medio', 'Alto'];
+  const listRiesgoCardio = ['Bajo', 'Moderado', 'Alto', 'Muy Alto'];
   const listDiagnostico = [
-    'Apto / Sin Hallazgos / Ninguno',
-    'Espalda: Lumbalgia / Cervicalgia / Hernias',
-    'M. Superiores: Túnel carpiano / Epicondilitis / Manguito',
-    'Vicios de refracción',
+    'Ninguno / Apto Sin Restricción',
+    'Apto Con Restricciones Menores',
+    'Túnel Carpiano',
+    'Epicondilitis / Codo de Tenista',
+    'Lumbago / Espasmo Muscular',
+    'Tendinitis Manguito Rotador',
+    'Trastorno de Ansiedad / Estrés',
+    'Hipertensión Arterial',
+    'Diabetes Mellitus',
+    'Defecto Refractivo Visual',
     'Hipoacusia',
     'Otros Clínicos'
   ];
   const listCategoriasLicencia = ['A1', 'A2', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3'];
   const listSiNo = ['Sí', 'No'];
+
+  // ============================================================================
+  // HOJA 1: TRABAJADORES (PERFIL SOCIODEMOGRÁFICO Y CONDICIONES DE SALUD)
+  // CREADA PRIMERO PARA QUE EL EXCEL SE ABRA DIRECTAMENTE EN ESTA HOJA
+  // ============================================================================
+  const ws = wb.addWorksheet('Trabajadores', {
+    views: [{ state: 'frozen', ySplit: 1, showGridLines: true }]
+  });
+
+  // ============================================================================
+  // HOJA 2: LISTAS DE OPCIONES / PESTAÑA DE RESPUESTAS (REFERENCIA DESPLEGABLES)
+  // ============================================================================
+  const wsOptions = wb.addWorksheet('Listas de Opciones', {
+    views: [{ state: 'frozen', ySplit: 1, showGridLines: true }]
+  });
 
   const optionsHeaders = [
     { header: 'Género', key: 'genero', width: 16, data: listGenero },
@@ -215,13 +229,6 @@ export const exportPerfilSociodemograficoToExcel = async (
       cell.alignment = { vertical: 'middle', horizontal: 'left' };
     });
   }
-
-  // ============================================================================
-  // HOJA 1: TRABAJADORES (PERFIL SOCIODEMOGRÁFICO Y CONDICIONES DE SALUD)
-  // ============================================================================
-  const ws = wb.addWorksheet('Trabajadores', {
-    views: [{ state: 'frozen', ySplit: 1, showGridLines: true }]
-  });
 
   ws.columns = [
     { header: 'Nombre', key: 'nombre', width: 28 },

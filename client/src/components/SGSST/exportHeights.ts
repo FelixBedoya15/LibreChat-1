@@ -32,9 +32,13 @@ export const exportHeightsToExcel = async (heightsList: WorkerHeightsDoc[]) => {
   wb.created = new Date();
   wb.modified = new Date();
 
-  // ============================================================================
-  // HOJA 3: LISTAS DE OPCIONES (EQUIPOS DE PROTECCIÓN CONTRA CAÍDAS - RES. 4272)
-  // ============================================================================
+  // Crear hojas en orden prioritario para que abra directamente en Resumen de Asignaciones
+  const wsSummary = wb.addWorksheet('Resumen de Asignaciones', {
+    views: [{ showGridLines: true }]
+  });
+  const wsDetail = wb.addWorksheet('Detalle de Equipos', {
+    views: [{ showGridLines: true }]
+  });
   const wsOptions = wb.addWorksheet('Listas de Opciones', {
     views: [{ showGridLines: true }]
   });
@@ -88,13 +92,6 @@ export const exportHeightsToExcel = async (heightsList: WorkerHeightsDoc[]) => {
       cell.alignment = { vertical: 'middle', horizontal: 'left' };
     });
   }
-
-  // ============================================================================
-  // HOJA 1: RESUMEN POR TRABAJADOR
-  // ============================================================================
-  const wsSummary = wb.addWorksheet('Resumen de Asignaciones', {
-    views: [{ showGridLines: true }]
-  });
 
   // Título Hero
   wsSummary.mergeCells('A1:G2');
@@ -182,13 +179,6 @@ export const exportHeightsToExcel = async (heightsList: WorkerHeightsDoc[]) => {
       if (val.length > maxLen) maxLen = val.length;
     });
     col.width = Math.min(35, Math.max(12, maxLen + 2));
-  });
-
-  // ============================================================================
-  // HOJA 2: DETALLE COMPLETO DE EQUIPOS
-  // ============================================================================
-  const wsDetail = wb.addWorksheet('Detalle de Equipos', {
-    views: [{ showGridLines: true }]
   });
 
   // Título

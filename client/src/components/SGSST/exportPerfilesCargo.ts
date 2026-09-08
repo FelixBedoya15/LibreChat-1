@@ -141,7 +141,14 @@ export const exportPerfilesCargoToExcel = async (
   wb.modified = new Date();
 
   // ============================================================================
-  // HOJA 2: LISTAS DE OPCIONES / PESTAÑA DE RESPUESTAS (CREADA PRIMERO PARA REFERENCIA)
+  // HOJA 1: PERFILES DE CARGO (CREADA PRIMERO PARA ABRIR DIRECTAMENTE EN EXCEL)
+  // ============================================================================
+  const ws = wb.addWorksheet('Perfiles de Cargo', {
+    views: [{ state: 'frozen', ySplit: 1, showGridLines: true }]
+  });
+
+  // ============================================================================
+  // HOJA 2: LISTAS DE OPCIONES / PESTAÑA DE RESPUESTAS (CATÁLOGOS DESPLEGABLES)
   // ============================================================================
   const wsOptions = wb.addWorksheet('Listas de Opciones', {
     views: [{ state: 'frozen', ySplit: 1, showGridLines: true }]
@@ -167,7 +174,6 @@ export const exportPerfilesCargoToExcel = async (
     width: col.width
   }));
 
-  // Header Styling para Opciones
   const optHeaderRow = wsOptions.getRow(1);
   optHeaderRow.height = 32;
   optHeaderRow.eachCell((cell) => {
@@ -203,13 +209,6 @@ export const exportPerfilesCargoToExcel = async (
       cell.alignment = { vertical: 'middle', horizontal: 'left' };
     });
   }
-
-  // ============================================================================
-  // HOJA 1: PERFILES DE CARGO
-  // ============================================================================
-  const ws = wb.addWorksheet('Perfiles de Cargo', {
-    views: [{ state: 'frozen', ySplit: 1, showGridLines: true }]
-  });
 
   ws.columns = [
     { header: 'Nombre del Cargo', key: 'nombreCargo', width: 28 },

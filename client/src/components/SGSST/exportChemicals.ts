@@ -34,6 +34,13 @@ export const exportChemicalsToExcel = async (
   wb.modified = new Date();
 
   // ============================================================================
+  // HOJA 1: INVENTARIO DE PRODUCTOS QUÍMICOS (CREADA PRIMERO PARA ABRIR DIRECTAMENTE)
+  // ============================================================================
+  const wsInv = wb.addWorksheet('Inventario Químico', {
+    views: [{ showGridLines: true }]
+  });
+
+  // ============================================================================
   // HOJA 2: LISTAS DE OPCIONES (CATÁLOGOS NORMATIVOS SGA / ONU / DECRETO 1496)
   // ============================================================================
   const wsOptions = wb.addWorksheet('Listas de Opciones', {
@@ -110,12 +117,6 @@ export const exportChemicalsToExcel = async (
   }
 
   // ============================================================================
-  // HOJA 1: INVENTARIO DE PRODUCTOS QUÍMICOS
-  // ============================================================================
-  const wsInv = wb.addWorksheet('Inventario Químico', {
-    views: [{ showGridLines: true }]
-  });
-
   // Título Hero
   wsInv.mergeCells('A1:L2');
   const titleCell = wsInv.getCell('A1');

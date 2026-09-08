@@ -44,9 +44,13 @@ export const exportEppToExcel = async (
   wb.created = new Date();
   wb.modified = new Date();
 
-  // ============================================================================
-  // HOJA 3: LISTAS DE OPCIONES (CATÁLOGOS EPP Y ALTURAS)
-  // ============================================================================
+  // Crear hojas en orden prioritario para abrir directamente en Resumen de Trabajadores
+  const wsSummary = wb.addWorksheet('Resumen de Trabajadores', {
+    views: [{ showGridLines: true }]
+  });
+  const wsHistorial = wb.addWorksheet('Historial Detallado', {
+    views: [{ showGridLines: true }]
+  });
   const wsOptions = wb.addWorksheet('Listas de Opciones', {
     views: [{ showGridLines: true }]
   });
@@ -102,13 +106,6 @@ export const exportEppToExcel = async (
       cell.alignment = { vertical: 'middle', horizontal: 'left' };
     });
   }
-
-  // ============================================================================
-  // HOJA 1: RESUMEN DE TRABAJADORES
-  // ============================================================================
-  const wsSummary = wb.addWorksheet('Resumen de Trabajadores', {
-    views: [{ showGridLines: true }]
-  });
 
   // Título Hero
   wsSummary.mergeCells('A1:H2');
@@ -214,13 +211,6 @@ export const exportEppToExcel = async (
       if (val.length > maxLen) maxLen = val.length;
     });
     col.width = Math.min(40, Math.max(12, maxLen + 2));
-  });
-
-  // ============================================================================
-  // HOJA 2: HISTORIAL DE ENTREGAS DETALLADO
-  // ============================================================================
-  const wsHistorial = wb.addWorksheet('Historial Detallado', {
-    views: [{ showGridLines: true }]
   });
 
   // Título Hero

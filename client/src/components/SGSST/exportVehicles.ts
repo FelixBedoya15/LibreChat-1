@@ -38,9 +38,13 @@ export const exportVehiclesToExcel = async (vehiclesList: VehicleDoc[]) => {
   wb.created = new Date();
   wb.modified = new Date();
 
-  // ============================================================================
-  // HOJA 3: LISTAS DE OPCIONES (PESV - RESOLUCIÓN 20223040040595)
-  // ============================================================================
+  // Crear hojas en orden prioritario para que Excel abra directamente en Resumen de Flota
+  const wsFleet = wb.addWorksheet('Resumen de Flota', {
+    views: [{ showGridLines: true }]
+  });
+  const wsInspecciones = wb.addWorksheet('Inspecciones Pre-operacionales', {
+    views: [{ showGridLines: true }]
+  });
   const wsOptions = wb.addWorksheet('Listas de Opciones', {
     views: [{ showGridLines: true }]
   });
@@ -110,13 +114,6 @@ export const exportVehiclesToExcel = async (vehiclesList: VehicleDoc[]) => {
       cell.alignment = { vertical: 'middle', horizontal: 'left' };
     });
   }
-
-  // ============================================================================
-  // HOJA 1: RESUMEN DE FLOTA
-  // ============================================================================
-  const wsFleet = wb.addWorksheet('Resumen de Flota', {
-    views: [{ showGridLines: true }]
-  });
 
   // Título Hero
   wsFleet.mergeCells('A1:L2');
@@ -261,13 +258,6 @@ export const exportVehiclesToExcel = async (vehiclesList: VehicleDoc[]) => {
       if (val.length > maxLen) maxLen = val.length;
     });
     col.width = Math.min(35, Math.max(12, maxLen + 2));
-  });
-
-  // ============================================================================
-  // HOJA 2: HISTORIAL DE INSPECCIONES PRE-OPERACIONALES
-  // ============================================================================
-  const wsInspecciones = wb.addWorksheet('Inspecciones Pre-operacionales', {
-    views: [{ showGridLines: true }]
   });
 
   // Título
