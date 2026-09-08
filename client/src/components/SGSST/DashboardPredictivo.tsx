@@ -27,6 +27,7 @@ import {
     CheckCircle,
     Clock,
     Building2,
+    Layers,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
@@ -151,30 +152,97 @@ const RingGauge = ({
     );
 };
 
-// ─── Horizontal Bar Chart (Premium Shimmer style) ──────────────────────────
-const RiskBar = ({ label, value, color, delay }: { label: string; value: number; color: string; delay: number }) => {
+// ─── Horizontal Bar Chart (Cyber-SST Metric Card) ──────────────────────────
+interface RiskBarProps {
+    label: string;
+    subtitle?: string;
+    value: number;
+    color: string;
+    delay: number;
+    icon?: 'activity' | 'heart' | 'shield' | 'brain';
+}
+
+const getRiskStatus = (val: number) => {
+    if (val <= 15) return { label: 'Zona Segura / Óptimo', badgeClass: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20', dotClass: 'bg-emerald-500 shadow-[0_0_8px_#10b981]' };
+    if (val <= 30) return { label: 'Riesgo Controlado', badgeClass: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20', dotClass: 'bg-teal-500 shadow-[0_0_8px_#14b8a6]' };
+    if (val <= 60) return { label: 'Precaución / Moderado', badgeClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20', dotClass: 'bg-amber-500 shadow-[0_0_8px_#f59e0b]' };
+    return { label: 'Atención Prioritaria', badgeClass: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20', dotClass: 'bg-red-500 shadow-[0_0_8px_#ef4444]' };
+};
+
+const RiskBar = ({ label, subtitle, value, color, delay, icon }: RiskBarProps) => {
     const [width, setWidth] = useState(0);
     useEffect(() => {
-        const t = setTimeout(() => setWidth(value), delay);
+        const t = setTimeout(() => setWidth(Math.min(100, Math.max(0, value))), delay);
         return () => clearTimeout(t);
     }, [value, delay]);
 
+    const status = getRiskStatus(value);
+
+    const renderIcon = () => {
+        switch (icon) {
+            case 'activity':
+                return <Activity className="w-4 h-4 text-purple-500" />;
+            case 'heart':
+                return <HeartPulse className="w-4 h-4 text-emerald-500" />;
+            case 'shield':
+                return <ShieldCheck className="w-4 h-4 text-amber-500" />;
+            case 'brain':
+                return <BrainCircuit className="w-4 h-4 text-teal-500" />;
+            default:
+                return <Activity className="w-4 h-4 text-teal-500" />;
+        }
+    };
+
     return (
-        <div className="flex items-center gap-4 group py-1">
-            <span className="text-xs font-bold text-text-secondary w-36 shrink-0 text-right group-hover:text-text-primary transition-colors">{label}</span>
-            <div className="flex-1 bg-gray-100 dark:bg-slate-800/80 rounded-full h-6 overflow-hidden border border-border-light shadow-inner relative flex items-center">
+        <div className="p-3.5 rounded-2xl bg-surface-primary/70 dark:bg-slate-900/50 border border-border-light hover:border-teal-500/40 hover:shadow-md transition-all duration-300 group">
+            {/* Header: Metric details & Status badge */}
+            <div className="flex items-center justify-between gap-2.5 mb-2.5">
+                <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-border-light shrink-0 group-hover:scale-105 transition-transform">
+                        {renderIcon()}
+                    </div>
+                    <div className="min-w-0">
+                        <h4 className="text-xs font-bold text-text-primary truncate group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
+                            {label}
+                        </h4>
+                        {subtitle && (
+                            <p className="text-[10px] text-text-tertiary truncate max-w-[200px] sm:max-w-xs md:max-w-sm">
+                                {subtitle}
+                            </p>
+                        )}
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                    <span className={`hidden sm:inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold border items-center gap-1.5 ${status.badgeClass}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${status.dotClass}`} />
+                        {status.label}
+                    </span>
+                    <span 
+                        className="px-2.5 py-1 rounded-xl text-xs font-mono font-black border text-white shadow-sm transition-transform group-hover:scale-105"
+                        style={{
+                            backgroundColor: color,
+                            borderColor: `${color}99`,
+                            boxShadow: `0 0 12px ${color}40`,
+                        }}
+                    >
+                        {value}%
+                    </span>
+                </div>
+            </div>
+
+            {/* Smooth Progress Track with Shimmer & Glow */}
+            <div className="w-full bg-slate-100 dark:bg-slate-800/90 rounded-full h-2.5 overflow-hidden border border-border-light shadow-inner relative flex items-center">
                 <div className="absolute inset-0 animate-shimmer-move pointer-events-none" />
                 <div
-                    className="h-full rounded-full flex items-center justify-end pr-3 transition-all relative"
+                    className="h-full rounded-full transition-all relative"
                     style={{
                         width: `${width}%`,
-                        background: `linear-gradient(90deg, ${color}cc, ${color})`,
-                        transition: `width 1.5s cubic-bezier(0.34, 1.56, 0.64, 1) ${delay}ms`,
-                        boxShadow: `0 0 10px ${color}50`,
+                        background: `linear-gradient(90deg, ${color}99, ${color})`,
+                        transition: `width 1.4s cubic-bezier(0.34, 1.56, 0.64, 1) ${delay}ms`,
+                        boxShadow: `0 0 10px ${color}60`,
                     }}
-                >
-                    <span className="text-[10px] font-black text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">{value}%</span>
-                </div>
+                />
             </div>
         </div>
     );
@@ -641,12 +709,40 @@ const DashboardPredictivo = () => {
         });
     }, [profiles]);
 
-    // Build bar data from forecast
-    const barData = [
-        { label: 'Incompatibilidad Biomecánica', value: forecast?.indicators?.ergonomicRisk || 0, color: '#8b5cf6' },
-        { label: 'Vulnerabilidad Biométrica', value: forecast?.indicators?.healthRisk || 0, color: '#ef4444' },
-        { label: 'Exposición Operacional', value: forecast?.indicators?.safetyRisk || 0, color: '#f97316' },
-        { label: 'Riesgo Bio-Individual General', value: overallRisk, color: '#0d9488' },
+    // Build bar data from forecast with rich contextual metadata and adaptive severity colors
+    const barData: RiskBarProps[] = [
+        { 
+            label: 'Incompatibilidad Biomecánica', 
+            subtitle: 'Sobrecarga postural, repetitividad y dinamometría (OWAS / LIVA)',
+            value: forecast?.indicators?.ergonomicRisk || 0, 
+            color: '#8b5cf6',
+            icon: 'activity',
+            delay: 0,
+        },
+        { 
+            label: 'Vulnerabilidad Biométrica', 
+            subtitle: 'Aptitud médica, preexistencias y FIT Score poblacional (Hito 1)',
+            value: forecast?.indicators?.healthRisk || 0, 
+            color: (forecast?.indicators?.healthRisk || 0) <= 20 ? '#10b981' : (forecast?.indicators?.healthRisk || 0) <= 50 ? '#f59e0b' : '#ef4444',
+            icon: 'heart',
+            delay: 120,
+        },
+        { 
+            label: 'Exposición Operacional', 
+            subtitle: 'Severidad IPEVAR y tareas de alto riesgo en puestos de trabajo (Hito 2 / H3)',
+            value: forecast?.indicators?.safetyRisk || 0, 
+            color: (forecast?.indicators?.safetyRisk || 0) <= 25 ? '#3b82f6' : (forecast?.indicators?.safetyRisk || 0) <= 50 ? '#f59e0b' : '#ef4444',
+            icon: 'shield',
+            delay: 240,
+        },
+        { 
+            label: 'Riesgo Bio-Individual General', 
+            subtitle: 'Índice sintético multivariado ponderado por Ensamble ML',
+            value: overallRisk, 
+            color: overallRisk <= 20 ? '#0d9488' : overallRisk <= 50 ? '#f59e0b' : '#ef4444',
+            icon: 'brain',
+            delay: 360,
+        },
     ];
 
     useAutoLoadReport({
@@ -1097,61 +1193,86 @@ const DashboardPredictivo = () => {
             {/* ═══ Bar Chart + Predicted Insight ═══ */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                {/* Bar Chart (Radar Panel) */}
-                <div className="p-6 rounded-3xl border border-border-medium/60 glass-premium shadow-xl transition-all duration-300">
-                    <h3 className="text-xs font-black text-text-primary mb-6 flex items-center gap-2 tracking-[0.12em] uppercase">
-                        <Activity className="h-4 w-4 text-teal-500" />
-                        PUNTOS CRÍTICOS BIO-SEGURIDAD 360
-                    </h3>
-                    {isLoadingForecast ? (
-                        <div className="space-y-4">
-                            {[1, 2, 3, 4].map(i => (
-                                <div key={i} className="flex flex-wrap items-center gap-3 w-full animate-pulse">
-                                    <div className="w-28 h-3 bg-gray-200 dark:bg-gray-700 rounded" />
-                                    <div className="flex-1 h-5 bg-gray-200 dark:bg-gray-700 rounded-full" />
-                                </div>
-                            ))}
+                {/* Left Panel: PUNTOS CRÍTICOS BIO-SEGURIDAD 360 & FUENTES INTEGRADAS */}
+                <div className="p-6 rounded-3xl border border-border-medium/60 glass-premium shadow-xl transition-all duration-300 flex flex-col justify-between">
+                    <div>
+                        <div className="flex items-center justify-between mb-5">
+                            <h3 className="text-xs font-black text-text-primary flex items-center gap-2 tracking-[0.12em] uppercase">
+                                <Activity className="h-4 w-4 text-teal-500" />
+                                PUNTOS CRÍTICOS BIO-SEGURIDAD 360
+                            </h3>
+                            <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20 flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
+                                4 Ejes Cuantitativos
+                            </span>
                         </div>
-                    ) : (
-                        <div className="space-y-4.5">
-                            {barData.map((bar, i) => (
-                                <RiskBar key={bar.label} {...bar} delay={i * 150} />
-                            ))}
-                        </div>
-                    )}
+
+                        {isLoadingForecast ? (
+                            <div className="space-y-3.5">
+                                {[1, 2, 3, 4].map(i => (
+                                    <div key={i} className="p-4 rounded-2xl bg-surface-primary/50 border border-border-light animate-pulse space-y-2.5">
+                                        <div className="flex justify-between items-center">
+                                            <div className="w-32 h-3.5 bg-gray-200 dark:bg-gray-700 rounded" />
+                                            <div className="w-12 h-4 bg-gray-200 dark:bg-gray-700 rounded-md" />
+                                        </div>
+                                        <div className="w-full h-2.5 bg-gray-200 dark:bg-gray-700 rounded-full" />
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {barData.map((bar) => (
+                                    <RiskBar key={bar.label} {...bar} />
+                                ))}
+                            </div>
+                        )}
+                    </div>
 
                     {/* Data Sources */}
                     <div className="mt-6 pt-5 border-t border-border-medium/60">
                         <div className="flex items-center justify-between mb-3.5">
-                            <span className="text-[10px] font-black text-teal-600 dark:text-teal-400 block uppercase tracking-[0.15em]">Fuentes Integradas & Motor Predictivo</span>
+                            <span className="text-[10px] font-black text-teal-600 dark:text-teal-400 uppercase tracking-[0.15em] flex items-center gap-1.5">
+                                <Layers className="w-3.5 h-3.5 text-teal-500" />
+                                Fuentes Integradas & Motor Predictivo
+                            </span>
                             {forecast?.predictiveMetrics && (
-                                <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
-                                    <Sparkles className="w-2.5 h-2.5" />
+                                <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1 shadow-sm">
+                                    <Sparkles className="w-2.5 h-2.5 text-emerald-500" />
                                     Motor ML {forecast.predictiveMetrics.modelReliabilityMonthly} (1M) / {forecast.predictiveMetrics.modelReliabilityYearly} (1A)
                                 </span>
                             )}
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {[
-                                'Huella Biocéntrica H1 (FIT & Salud)',
-                                'Matriz Bio-IPEVAR (9 Dominios H2)',
-                                'Matriz Causal Multidimensional (8M)',
-                                'Estadísticas ATEL & Días Cargados (H4)',
-                                'Investigaciones Forenses (H4)',
-                                'Dinámica OWAS & LIVA IA (H3)',
-                                'Participación IPEVAR & Miedo (H3)',
-                                'Tareas Críticas & Alturas (H3)'
+                                { tag: 'H1', name: 'Huella Biocéntrica', desc: 'FIT Score & Aptitud Médica', color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
+                                { tag: 'H2', name: 'Matriz Bio-IPEVAR', desc: '9 Dominios de Peligros', color: 'text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/20' },
+                                { tag: '8M', name: 'Causal Multidimensional', desc: 'Factores Sistémicos Ishikawa', color: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20' },
+                                { tag: 'H4', name: 'Estadísticas ATEL', desc: 'Siniestralidad & Días Cargados', color: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' },
+                                { tag: 'H4', name: 'Investigación Forense', desc: 'Causas Raíz & Lecciones', color: 'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20' },
+                                { tag: 'H3', name: 'Dinámica OWAS & LIVA', desc: 'Sobrecarga Postural & Ergonomía', color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border-indigo-500/20' },
+                                { tag: 'H3', name: 'Percepción & Miedo', desc: 'Participación IPEVAR', color: 'text-teal-600 dark:text-teal-400 bg-teal-500/10 border-teal-500/20' },
+                                { tag: 'H3', name: 'Tareas de Alto Riesgo', desc: 'Alturas, Caliente & Confinados', color: 'text-orange-600 dark:text-orange-400 bg-orange-500/10 border-orange-500/20' },
                             ].map(src => (
-                                <div key={src} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-surface-primary border border-border-light hover:border-teal-500/30 hover:bg-teal-500/5 transition-all duration-300 group cursor-default">
-                                    <div className="h-2 w-2 rounded-full bg-teal-400 shadow-[0_0_6px_#14b8a6] shrink-0 group-hover:scale-125 transition-transform" />
-                                    <span className="text-[10px] font-bold text-text-secondary group-hover:text-text-primary transition-colors">{src}</span>
+                                <div key={src.tag + src.name} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-surface-primary/70 dark:bg-slate-900/40 border border-border-light hover:border-teal-500/40 hover:bg-teal-500/5 transition-all duration-300 group cursor-default">
+                                    <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black border font-mono shrink-0 ${src.color}`}>
+                                        {src.tag}
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-[10px] font-bold text-text-primary truncate group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
+                                            {src.name}
+                                        </p>
+                                        <p className="text-[8.5px] text-text-tertiary truncate">
+                                            {src.desc}
+                                        </p>
+                                    </div>
+                                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399] shrink-0" />
                                 </div>
                             ))}
                         </div>
                     </div>
                 </div>
 
-                {/* Correlation Panel or Upgrade Wall */}
+                {/* Right Panel: Correlation Panel or Upgrade Wall */}
                 <div className="flex flex-col gap-6">
                     {!isPro ? (
                         <div className="flex-1 flex flex-col justify-center h-full">
@@ -1166,45 +1287,93 @@ const DashboardPredictivo = () => {
                         <>
                             {/* AI Insight Card */}
                             <div className="p-6 rounded-3xl border border-border-medium/60 glass-premium shadow-xl flex-1 hover:shadow-2xl transition-all duration-300 relative overflow-hidden group">
-                                <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-teal-500/10 blur-2xl pointer-events-none group-hover:bg-teal-500/20 transition-all duration-500" />
-                                <div className="flex items-center justify-between mb-5">
-                                    <h3 className="text-xs font-black text-text-primary flex items-center gap-2 tracking-[0.12em] uppercase">
-                                        <AnimatedIcon name="sparkles" size={16} className="text-teal-500 animate-pulse" />
-                                        ANÁLISIS PREDICTIVO ML & CAUSALIDAD MULTIDIMENSIONAL (8M)
-                                    </h3>
+                                <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-teal-500/10 blur-3xl pointer-events-none group-hover:bg-teal-500/20 transition-all duration-500" />
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="p-2 rounded-xl bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400">
+                                            <BrainCircuit className="w-4 h-4" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xs font-black text-text-primary tracking-[0.12em] uppercase">
+                                                ANÁLISIS PREDICTIVO ML & CAUSALIDAD 8M
+                                            </h3>
+                                            <span className="text-[10px] text-text-tertiary">
+                                                Modelo Ensamble ML · Random Forest + XGBoost Regressor
+                                            </span>
+                                        </div>
+                                    </div>
                                     {forecast?.topDomain && (
-                                        <span className="px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 border border-red-200 dark:border-red-800">
+                                        <span className="px-3 py-1 rounded-xl text-[10px] font-black uppercase bg-red-100 text-red-700 dark:bg-red-950/70 dark:text-red-300 border border-red-200 dark:border-red-800 flex items-center gap-1.5 shadow-sm">
+                                            <AlertTriangle className="w-3 h-3 text-red-500 animate-pulse" />
                                             Dominio Crítico: {forecast.topDomain}
                                         </span>
                                     )}
                                 </div>
-                                <div className="relative p-5 bg-surface-primary/80 backdrop-blur-sm rounded-2xl border border-border-medium shadow-inner">
-                                    <span className="absolute -top-3 left-4 text-3xl font-serif text-teal-400/50 leading-none">“</span>
-                                    <p className="text-xs text-text-primary leading-relaxed font-semibold italic pl-4 pr-2">
+
+                                <div className="relative p-5 bg-surface-primary/90 dark:bg-slate-900/60 rounded-2xl border-l-4 border-l-teal-500 border border-border-medium shadow-inner">
+                                    <div className="flex items-center gap-2 mb-2 pb-2 border-b border-border-light/70">
+                                        <Sparkles className="w-3.5 h-3.5 text-teal-500" />
+                                        <span className="text-[10px] font-black uppercase tracking-wider text-teal-600 dark:text-teal-400">
+                                            Diagnóstico Causal Sintético (WAPPY Oráculo)
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-text-primary leading-relaxed font-medium">
                                         {cleanUUIDs(forecast?.predictionSummary) || "Haga clic en 'Actualizar' para generar el análisis predictivo cruzado de todos los módulos..."}
                                     </p>
-                                    <span className="absolute -bottom-7 right-4 text-3xl font-serif text-teal-400/50 leading-none">”</span>
                                 </div>
                             </div>
 
                             {/* Recommended Actions */}
                             <div className="p-6 rounded-3xl border border-border-medium/60 glass-premium shadow-xl hover:shadow-2xl transition-all duration-300">
-                                <h3 className="text-xs font-black text-text-primary mb-5 flex items-center gap-2 tracking-[0.12em] uppercase">
-                                    <AnimatedIcon name="database" size={16} className="text-teal-500" />
-                                    ACCIONES PREVENTIVAS PRIORITARIAS
-                                </h3>
-                                <div className="space-y-3.5">
-                                    {forecast?.recommendedActions?.length ? forecast.recommendedActions.map((action, i) => (
-                                        <div key={i} className="flex items-start gap-4.5 p-4.5 bg-surface-primary/60 hover:bg-surface-primary hover:border-teal-500/40 hover:shadow-md transition-all duration-300 rounded-2xl border border-border-light/80 group">
-                                            <div className="mt-0.5 h-7 w-7 rounded-2xl flex items-center justify-center text-[11px] font-black text-white shrink-0 shadow-lg shadow-teal-500/20 group-hover:scale-110 transition-transform"
-                                                style={{ background: 'linear-gradient(135deg, #0d9488, #10b981)' }}>
-                                                {i + 1}
-                                            </div>
-                                            <span className="text-xs text-text-primary font-semibold leading-relaxed">{cleanUUIDs(action)}</span>
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="p-2 rounded-xl bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400">
+                                            <ShieldCheck className="w-4 h-4" />
                                         </div>
-                                    )) : [1, 2, 3].map(i => (
-                                        <div key={i} className="flex items-center gap-4 p-4.5 bg-surface-primary/60 rounded-2xl border border-border-light">
-                                            <div className="h-7 w-7 rounded-2xl bg-gray-200 dark:bg-slate-700 animate-pulse shrink-0" />
+                                        <div>
+                                            <h3 className="text-xs font-black text-text-primary tracking-[0.12em] uppercase">
+                                                ACCIONES PREVENTIVAS PRIORITARIAS
+                                            </h3>
+                                            <span className="text-[10px] text-text-tertiary">
+                                                Directrices Tácticas Derivadas del Oráculo IA
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                                        {forecast?.recommendedActions?.length || 3} Medidas Clave
+                                    </span>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {forecast?.recommendedActions?.length ? forecast.recommendedActions.map((action, i) => {
+                                        const priorities = [
+                                            { label: 'P1 · Prioridad Inmediata', badge: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20' },
+                                            { label: 'P2 · Prioridad Táctica', badge: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' },
+                                            { label: 'P3 · Monitoreo & Gerencia', badge: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20' },
+                                        ];
+                                        const p = priorities[i] || priorities[2];
+
+                                        return (
+                                            <div key={i} className="flex items-start gap-3.5 p-3.5 bg-surface-primary/80 dark:bg-slate-900/50 hover:bg-surface-primary hover:border-teal-500/40 hover:shadow-md transition-all duration-300 rounded-2xl border border-border-light/80 group">
+                                                <div className="mt-0.5 h-7 w-7 rounded-xl flex items-center justify-center text-[11px] font-black text-white shrink-0 shadow-md group-hover:scale-105 transition-transform"
+                                                    style={{ background: 'linear-gradient(135deg, #0d9488, #10b981)' }}>
+                                                    {i + 1}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold border ${p.badge}`}>
+                                                            {p.label}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs text-text-primary font-medium leading-relaxed">
+                                                        {cleanUUIDs(action)}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        );
+                                    }) : [1, 2, 3].map(i => (
+                                        <div key={i} className="flex items-center gap-4 p-4 bg-surface-primary/60 rounded-2xl border border-border-light">
+                                            <div className="h-7 w-7 rounded-xl bg-gray-200 dark:bg-slate-700 animate-pulse shrink-0" />
                                             <div className="flex-1 h-4 bg-gray-200 dark:bg-slate-700 animate-pulse rounded" />
                                         </div>
                                     ))}
