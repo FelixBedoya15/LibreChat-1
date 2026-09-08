@@ -1501,7 +1501,7 @@ Diseña una tarjeta destacada con fondo #f0fdfa con borde 1px solid #99f6e4, pad
 - Categoría de Aptitud Legal (Apto Pleno / Apto con Observaciones y Controles Preventivos / Requiere Reubicación o Tratamiento Prioritario).
 - Juicio Clínico-Laboral Sintético: Balance entre la capacidad biológica del colaborador y las exigencias del cargo.
 
-<!-- SECCIÓN 2: MATRIZ DE COMPATIBILIDAD OPERATIVA (FACTORES OPERATIVOS 8M vs. CAPACIDAD BIOINDIVIDUAL) -->
+<!-- SECCIÓN 2: MATRIZ DE COMPATIBILIDAD OPERATIVA (FACTORES OPERATIVOS Y CAUSALES vs. CAPACIDAD BIOINDIVIDUAL) -->
 Crea una tabla estilizada (<table style="width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #cbd5e1; margin: 16px 0;">):
 - Encabezado: fondo #0f766e, texto blanco, negrita, tamaño 11px, padding 10px.
 - Columnas:
@@ -1509,7 +1509,7 @@ Crea una tabla estilizada (<table style="width: 100%; border-collapse: separate;
   2. Exigencia del Cargo
   3. Condición Bioindividual del Trabajador
   4. Nivel de Compatibilidad (con badges: <span style="background:#dcfce7; color:#15803d; padding:4px 8px; border-radius:6px; font-weight:700; font-size:11px;">COMPATIBLE</span>, <span style="background:#fef9c3; color:#854d0e; padding:4px 8px; border-radius:6px; font-weight:700; font-size:11px;">CONTROL PREVENTIVO</span>, o <span style="background:#fee2e2; color:#b91c1c; padding:4px 8px; border-radius:6px; font-weight:700; font-size:11px;">ALERTA CRÍTICA</span>).
-- Filas a evaluar (Las 8 Dimensiones Operativas):
+- Filas a evaluar (Dimensiones Operativas del Puesto):
   1. Personas (Idoneidad técnica, competencia, resistencia a fatiga)
   2. Procedimientos y Métodos (Pausas, estandarización de tareas, ATS)
   3. Máquinas y Equipos (Interacción mecánica, vibraciones, controles)

@@ -1261,7 +1261,7 @@ const DashboardPredictivo = () => {
                             {[
                                 { tag: 'H1', name: 'Huella Biocéntrica', desc: 'FIT Score & Aptitud Médica', color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
                                 { tag: 'H2', name: 'Matriz Bio-IPEVAR', desc: '9 Dominios de Peligros', color: 'text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/20' },
-                                { tag: '8M', name: 'Causal Multidimensional', desc: 'Factores Sistémicos Ishikawa', color: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20' },
+                                { tag: 'H4', name: 'Causalidad Forense', desc: 'Causas Básicas e Inmediatas Res. 1401', color: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20' },
                                 { tag: 'H4', name: 'Estadísticas ATEL', desc: 'Siniestralidad & Días Cargados', color: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' },
                                 { tag: 'H4', name: 'Investigación Forense', desc: 'Causas Raíz & Lecciones', color: 'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20' },
                                 { tag: 'H3', name: 'Dinámica OWAS & LIVA', desc: 'Sobrecarga Postural & Ergonomía', color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border-indigo-500/20' },
@@ -1310,7 +1310,7 @@ const DashboardPredictivo = () => {
                                         </div>
                                         <div>
                                             <h3 className="text-xs font-black text-text-primary tracking-[0.12em] uppercase">
-                                                ANÁLISIS PREDICTIVO ML & CAUSALIDAD 8M
+                                                MODELO PREDICTIVO & CAUSALIDAD INTEGRAL SG-SST
                                             </h3>
                                             <span className="text-[10px] text-text-tertiary">
                                                 Modelo Ensamble ML · Random Forest + XGBoost Regressor
@@ -1318,9 +1318,30 @@ const DashboardPredictivo = () => {
                                         </div>
                                     </div>
                                     {forecast?.topDomain && (
-                                        <span className="px-3 py-1 rounded-xl text-[10px] font-black uppercase bg-red-100 text-red-700 dark:bg-red-950/70 dark:text-red-300 border border-red-200 dark:border-red-800 flex items-center gap-1.5 shadow-sm">
-                                            <AlertTriangle className="w-3 h-3 text-red-500 animate-pulse" />
-                                            Dominio Crítico: {forecast.topDomain}
+                                        <span className={cn(
+                                            "px-3 py-1 rounded-xl text-[10px] font-black uppercase flex items-center gap-1.5 shadow-sm border",
+                                            (forecast.overallRisk || 0) >= 50
+                                                ? "bg-red-100 text-red-700 dark:bg-red-950/70 dark:text-red-300 border-red-200 dark:border-red-800"
+                                                : (forecast.overallRisk || 0) >= 25
+                                                    ? "bg-amber-100 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300 border-amber-200 dark:border-amber-800"
+                                                    : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                                        )}>
+                                            {(forecast.overallRisk || 0) >= 50 ? (
+                                                <>
+                                                    <AlertTriangle className="w-3 h-3 text-red-500 animate-pulse" />
+                                                    Dominio Crítico: {forecast.topDomain}
+                                                </>
+                                            ) : (forecast.overallRisk || 0) >= 25 ? (
+                                                <>
+                                                    <Activity className="w-3 h-3 text-amber-500" />
+                                                    Dominio en Observación: {forecast.topDomain}
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <ShieldCheck className="w-3 h-3 text-emerald-500" />
+                                                    Dominio en Zona Segura: {forecast.topDomain}
+                                                </>
+                                            )}
                                         </span>
                                     )}
                                 </div>
@@ -1361,12 +1382,19 @@ const DashboardPredictivo = () => {
 
                                 <div className="space-y-3">
                                     {forecast?.recommendedActions?.length ? forecast.recommendedActions.map((action, i) => {
-                                        const priorities = [
+                                        const isSafe = (forecast?.overallRisk || 0) < 35;
+                                        const priorities = isSafe ? [
+                                            { label: 'M1 · Blindaje & Mantenimiento', badge: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' },
+                                            { label: 'M2 · Prevención Proactiva', badge: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20' },
+                                            { label: 'M3 · Vigilancia & Bienestar', badge: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20' },
+                                            { label: 'M4 · Seguimiento Continuo', badge: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20' },
+                                        ] : [
                                             { label: 'P1 · Prioridad Inmediata', badge: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20' },
                                             { label: 'P2 · Prioridad Táctica', badge: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' },
                                             { label: 'P3 · Monitoreo & Gerencia', badge: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20' },
+                                            { label: 'P4 · Control Periódico', badge: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20' },
                                         ];
-                                        const p = priorities[i] || priorities[2];
+                                        const p = priorities[i] || priorities[priorities.length - 1];
 
                                         return (
                                             <div key={i} className="flex items-start gap-3.5 p-3.5 bg-surface-primary/80 dark:bg-slate-900/50 hover:bg-surface-primary hover:border-teal-500/40 hover:shadow-md transition-all duration-300 rounded-2xl border border-border-light/80 group">

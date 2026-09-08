@@ -116,7 +116,7 @@ const getUnifiedHitos = (): Array<{
         id: 'hito6',
         title: 'Auditoría, Causalidad & Cierre de Ciclo',
         subtitle: 'Verificación, Forense y Dirección',
-        description: 'Estadísticas ATEL, Investigación Forense 8M, Tablero Kanban ACPM, Auditoría SG-SST y Alta Dirección.',
+        description: 'Estadísticas ATEL, Investigación Forense de Causalidad SG-SST, Tablero Kanban ACPM, Auditoría y Alta Dirección.',
         extendedPhilosophy: 'Cierra el ciclo sistémico de mejora continua: aprende con rigor forense de los accidentes, audita el cumplimiento de los estándares legales, rinde cuentas gerenciales y gestiona acciones correctivas para blindar la organización.',
         accent: 'text-[#6366f1]',
         bgGlow: 'bg-[#6366f1]/5',

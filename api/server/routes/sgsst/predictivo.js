@@ -178,8 +178,8 @@ async function getFullSSTContext(userId, companyId) {
             }
         }
 
-        // ─── HITO 4: TRAUMATISMO Y CURACIÓN (SINIESTRALIDAD ATEL & CAUSALIDAD FORENSE 8M) ───
-        fullContext += `\n[HITO 4 - TRAUMATISMO Y CURACIÓN: HISTÓRICO ATEL & INVESTIGACIONES DE CAUSALIDAD 8M]\n`;
+        // ─── HITO 4: TRAUMATISMO Y CURACIÓN (SINIESTRALIDAD ATEL & CAUSALIDAD FORENSE RES. 1401) ───
+        fullContext += `\n[HITO 4 - TRAUMATISMO Y CURACIÓN: HISTÓRICO ATEL & INVESTIGACIONES DE CAUSALIDAD FORENSE (RES. 1401 / GEMA)]\n`;
         const ATELAnnualData = mongoose.models.ATELAnnualData;
         if (ATELAnnualData) {
             const ad = await ATELAnnualData.findOne({ user: userId, companyId }).lean();
@@ -594,9 +594,9 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
             criticalArea = cargoLookupMap[criticalArea] || "OPERACIONES GENERALES";
         }
 
-        // Identificar el Dominio Bioindividual más amenazado
-        let topDomain = 'Seguridad';
-        let maxDomainScore = -1;
+        // Identificar el Dominio Bioindividual más amenazado o de mayor vigilancia
+        let topDomain = 'Osteomuscular';
+        let maxDomainScore = 0;
         for (const [dom, score] of Object.entries(domainRiskScores)) {
             if (score > maxDomainScore) {
                 maxDomainScore = score;
@@ -669,28 +669,37 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
             dynamicActions.push(`Verificar puntos de anclaje certificados e inspección de arneses para labores en alturas activas a ${hp.alturaMetros}m.`);
         }
 
-        // Rellenar con acciones adaptativas si el sistema está en etapa de levantamiento inicial
+        // Rellenar con acciones adaptativas acordes al nivel de riesgo real
         if (dynamicActions.length < 4) {
-            if (criticalArea !== "SISTEMA GENERAL") {
-                dynamicActions.push(`Revisar y estandarizar los procedimientos de trabajo seguro e inspecciones operativas en el puesto de ${criticalArea}.`);
-            }
-            if (dynamicActions.length < 4) {
-                dynamicActions.push(`Priorizar la eliminación de sobrecargas y adecuación técnica para blindar el Dominio ${topDomain}.`);
-            }
-            if (dynamicActions.length < 4) {
-                dynamicActions.push("Completar el registro de la Huella Biocéntrica y evaluaciones posturales para elevar la precisión predictiva.");
-            }
-            if (dynamicActions.length < 4) {
-                dynamicActions.push("Monitorear la severidad proyectada y los costos ocultos por ausentismo para presentar en el informe a la Gerencia.");
+            if (overallRisk < 25) {
+                dynamicActions.push("Mantener el blindaje activo de Tasa Cero mediante inspecciones de seguridad y seguimiento continuo a condiciones de trabajo.");
+                dynamicActions.push("Promover pausas activas osteomusculares, ergonomía en puestos y programas de bienestar y clima emocional.");
+                dynamicActions.push("Continuar con el cronograma de capacitación preventiva, inducciones y sesiones mensuales del COPASST.");
+                dynamicActions.push("Realizar seguimiento médico ocupacional periódico para preservar los altos índices de aptitud y FIT Score.");
+            } else {
+                if (criticalArea !== "SISTEMA GENERAL" && dynamicActions.length < 4) {
+                    dynamicActions.push(`Revisar y estandarizar los procedimientos de trabajo seguro e inspecciones operativas en el puesto de ${criticalArea}.`);
+                }
+                if (dynamicActions.length < 4) {
+                    dynamicActions.push(`Priorizar la mitigación de factores de riesgo y adecuación técnica para blindar el Dominio ${topDomain}.`);
+                }
+                if (dynamicActions.length < 4) {
+                    dynamicActions.push("Completar el registro de la Huella Biocéntrica y evaluaciones posturales para elevar la precisión predictiva.");
+                }
+                if (dynamicActions.length < 4) {
+                    dynamicActions.push("Monitorear la severidad proyectada y los costos ocultos por ausentismo para presentar en el informe a la Gerencia.");
+                }
             }
         }
 
         // Limitar exactamente a las 4 mejores acciones prioritarias
         const finalRecommendedActions = dynamicActions.slice(0, 4);
 
-        const summaryText = criticalArea === "SISTEMA GENERAL"
-            ? `Modelo Predictivo Avanzado (Random Forest & XGBoost con 94% de confiabilidad). Alerta preventiva concentrada en el Dominio ${topDomain}, con necesidad de intervención transversal en las operaciones.`
-            : `Modelo Predictivo Avanzado (Random Forest & XGBoost con 94% de confiabilidad). Alerta preventiva concentrada en el Dominio ${topDomain}, focalizando la prioridad en el puesto de ${criticalArea}.`;
+        const summaryText = overallRisk < 25
+            ? `Modelo Predictivo Avanzado (Random Forest & XGBoost con 94% de confiabilidad). Ecosistema SG-SST en Zona Segura y Control Óptimo (Riesgo Integral: ${overallRisk}%). La plantilla registra estabilidad integral y cero siniestralidad, con vigilancia preventiva orientada a preservar la salud física y el bienestar laboral.`
+            : criticalArea === "SISTEMA GENERAL"
+                ? `Modelo Predictivo Avanzado (Random Forest & XGBoost con 94% de confiabilidad). Vigilancia preventiva orientada al Dominio ${topDomain}, manteniendo estabilidad operacional y control transversal de riesgos.`
+                : `Modelo Predictivo Avanzado (Random Forest & XGBoost con 94% de confiabilidad). Foco de monitoreo preventivo en el Dominio ${topDomain}, con seguimiento prioritario en el puesto de ${criticalArea}.`;
 
         // ── Generación de Series Temporales (12M Histórico Real + 1M Inmediato 94% + 11M Proyección 86%) ──
         const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -873,7 +882,7 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ─── ENDPOINT: Generate Predictive Report (Matriz Causal 8M + ML + Bioindividual) ──
+// ─── ENDPOINT: Generate Predictive Report (Causalidad Integral Res. 1401 + ML + Bioindividual) ──
 // ═══════════════════════════════════════════════════════════════════════════════
 router.post('/generate-report', requireJwtAuth, async (req, res) => {
     try {
@@ -891,14 +900,14 @@ router.post('/generate-report', requireJwtAuth, async (req, res) => {
             title: 'INFORME MAESTRO DE INTELIGENCIA PREDICTIVA & ANÁLISIS DE CAUSALIDAD OPERATIVA',
             companyInfo: ci,
             date: fecha,
-            norm: 'Decreto 1072 de 2015 / Res. 0312 de 2019 / Metodología Causal Avanzada',
+            norm: 'Decreto 1072 de 2015 / Res. 0312 de 2019 / Resolución 1401 de 2007',
         });
 
         const fullContext = await getFullSSTContext(userId, companyId);
 
         const promptText = `Eres un Experto Consultor Estratégico Senior en Seguridad y Salud en el Trabajo (SGSST) y Científico de Datos en Prevención Laboral en Colombia.
-Dominas la doctrina del **Modelo de Análisis Causal y Factores Operativos 8M** y el **Modelo Predictivo de Prevención (Random Forest & XGBoost con histórico de siniestralidad)**, integrados de forma pionera con la **Huella Biocéntrica (Hito 1)** y los **9 Dominios de la Matriz Bioindividual (Hito 2)** de WAPPY.
-REGLA ESTRICTA: NO menciones "Atenea", "Modelo Atenea" ni "Colmena" en ninguna parte de tu respuesta. Usa terminología técnico-normativa oficial SG-SST en Colombia.
+Dominas la doctrina del **Modelo de Análisis Causal de Siniestralidad y Factores Operacionales (Resolución 1401 de 2007 / Metodología GEMA - Gente, Equipos, Materiales y Ambiente)** y el **Modelo Predictivo de Prevención (Random Forest & XGBoost con histórico de siniestralidad)**, integrados de forma pionera con la **Huella Biocéntrica (Hito 1)** y los **9 Dominios de la Matriz Bioindividual (Hito 2)** de WAPPY.
+REGLA ESTRICTA: NO menciones "8M", "Atenea", "Modelo Atenea" ni "Colmena" en ninguna parte de tu respuesta. Usa exclusivamente terminología técnico-normativa oficial SG-SST en Colombia (Resolución 1401 de 2007, Decreto 1072 de 2015, Resolución 0312 de 2019).
 
 Datos Reales del Ecosistema de la Empresa:
 ${fullContext}
@@ -911,7 +920,7 @@ Genera un INFORME DENSO, ESTRUCTURADO, ALTAMENTE TÉCNICO Y RIGUROSO.
 Debes cruzar de forma científica y matemática:
 1. **HITO 1 (Huella Biocéntrica):** Estado de salud, FIT Score %, antecedentes y vulnerabilidad individual de los trabajadores.
 2. **HITO 2 (Núcleo Bio-Evaluativo):** Evaluación en los **9 Dominios Bioindividuales** (Osteomuscular, Sensorial, Respiratorio, Cardiovascular, Neurológico, Psicoemocional, Inmunológico, Metabólico, Seguridad).
-3. **METODOLOGÍA DE FACTORES OPERATIVOS (Matriz 8M):** Desglose de causalidad en Personas, Procedimientos, Máquinas, Herramientas, EPP, Gerencia, Entorno y Materiales. Diferenciación estricta entre **Causas Suficientes** (las que al eliminarlas garantizan que el daño no ocurrirá) y **Causas Coadyuvantes**.
+3. **METODOLOGÍA DE FACTORES OPERATIVOS (GEMA / Res. 1401):** Desglose de causalidad en Gente (Factores Personales), Equipos/Maquinaria, Materiales y Ambiente/Procedimientos. Diferenciación estricta entre **Causas Básicas**, **Causas Inmediatas** y **Factores de Control de Gestión**.
 4. **MODELO PREDICTIVO ML (Random Forest + XGBoost):** Pronóstico a **30 días (94% confiabilidad)** y a **1 año (86% confiabilidad)**.
 5. **EVALUACIÓN ECONÓMICA & SEVERIDAD:** Días perdidos temporales + **Días Cargados (Base 6.000 días por 100% PCL / Muerte)** y balance de **Costos Tangibles (Asegurados ARL vs No Asegurados Empleador)** e **Intangibles** (reputación, clima, productividad).
 
@@ -935,21 +944,21 @@ Genera una tabla visual elegante (CSS inline, fondo blanco con encabezado teal #
 - Análisis por dominios vitales (Osteomuscular, Cardiovascular, Respiratorio, Psicoemocional).
 - Cruza la **Huella Biocéntrica H1** (trabajadores con bajo FIT Score o patologías) con las exigencias del puesto para pronosticar desórdenes musculoesqueléticos (DME), crisis cardiovasculares o estrés crónico.
 
-──── SECCIÓN 4: MATRIZ DE FACTORES OPERATIVOS (8M) & CAUSAS SUFICIENTES VS COADYUVANTES ────
-Presenta una tabla o bloques con el análisis de las 8 dimensiones causales para el proceso crítico:
-- **Personas, Procedimientos, Máquinas, Herramientas, EPP, Gerencia, Entorno, Materiales.**
-- Identifica explícitamente qué factor constituye la **Causa Suficiente** (prioridad de corto plazo) y cuáles son las **Causas Coadyuvantes** (mediano plazo).
+──── SECCIÓN 4: MATRIZ DE FACTORES CAUSALES OPERACIONALES (GEMA / RES. 1401) & CONTROL DE CAUSAS RAÍZ ────
+Presenta una tabla o bloques con el análisis de las dimensiones causales para el proceso crítico:
+- **Gente (Comportamiento y Aptitud), Equipos/Maquinaria, Materiales/Herramientas, Ambiente/Entorno, y Procedimientos/Gestión.**
+- Identifica explícitamente qué factor constituye la **Causa Inmediata Principal** y cuáles son las **Causas Básicas Subyacentes**.
 
 ──── SECCIÓN 5: DIAGRAMA DE ÁRBOL DE INTERVENCIÓN ('¿CÓMO? ¿CÓMO?') ────
 Desglosa la solución técnica estructurada de derecha a izquierda por Jerarquía de Controles:
 - ¿Qué se quiere lograr? (ej. Erradicar lesiones lumbares en bodega o atrape en troqueladora).
-- ¿Cómo en la Fuente / Ingeniería? (Causa Suficiente - eliminación del riesgo en origen).
+- ¿Cómo en la Fuente / Ingeniería? (Causa Raíz - eliminación del riesgo en origen).
 - ¿Cómo en el Medio / Procedimientos? (Estandarización de tareas y pausas).
 - ¿Cómo en el Individuo? (Aptitud, capacitación y EPP).
 
 ──── SECCIÓN 6: PLAN DE ACCIÓN CONJUNTA (PAC 5W2H) ────
 Tabla detallada con columnas:
-| # | Dominio Bioindividual | Factor Causal 8M | ¿Qué hacer? (Medida) | ¿Cómo hacerlo? | Responsable | Plazo (Fechas) | Presupuesto Estimado |
+| # | Dominio Bioindividual | Dimensión Causal Operacional | ¿Qué hacer? (Medida) | ¿Cómo hacerlo? | Responsable | Plazo (Fechas) | Presupuesto Estimado |
 - Mínimo 6 a 8 acciones concretas, priorizando las causas suficientes.
 
 ──── SECCIÓN 7: BALANCE FINANCIERO, DÍAS CARGADOS & RESPONSABILIDAD LEGAL ────
