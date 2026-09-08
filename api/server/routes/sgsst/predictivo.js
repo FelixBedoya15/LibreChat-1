@@ -393,6 +393,7 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
         let totalDaysChargedReal = 0;
         const monthlyAtelCounts = {};
         let totalIpevarHighMiedo = 0;
+        let totalMiedo = 0;
         let totalAlturasActive = 0;
         let criticalAreasMap = {};
         
@@ -605,11 +606,19 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
                 }
             }
 
-            const ipevarData = mongoose.models.ParticipacionIpevarData;
+            const getParticipacionIpevarModel = () => {
+                if (!mongoose.models.ParticipacionIpevarData) {
+                    try { require('./participacionIpevar'); } catch (e) {}
+                }
+                return mongoose.models.ParticipacionIpevarData;
+            };
+            const ipevarData = getParticipacionIpevarModel();
             if (ipevarData) {
-                const docs = await ipevarData.find({ user: userId, companyId }).lean();
-                if (docs?.length) {
-                    docs.forEach(p => {
+                const doc = await ipevarData.findOne({ user: userId, ...(companyId ? { companyId } : {}) }).lean();
+                const allList = [...(doc?.participacionesList || []), ...(doc?.inboxPublico || [])];
+                totalMiedo = allList.length;
+                if (allList.length) {
+                    allList.forEach(p => {
                         if (p.miedoScore >= 7) {
                             totalIpevarHighMiedo++;
                             domainRiskScores.Psicoemocional += 2;
@@ -624,16 +633,22 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
                 }
             }
 
-            const alturasData = mongoose.models.PermisoAlturasData;
+            const getPermisoAlturasModel = () => {
+                if (!mongoose.models.PermisoAlturasData) {
+                    try { require('./permisoAlturas'); } catch (e) {}
+                }
+                return mongoose.models.PermisoAlturasData;
+            };
+            const alturasData = getPermisoAlturasModel();
             if (alturasData) {
-                const docs = await alturasData.find({ user: userId, companyId }).lean();
+                const docs = await alturasData.find({ user: userId, ...(companyId ? { companyId } : {}) }).lean();
                 if (docs?.length) {
                     totalAlturasActive = docs.length;
                     domainRiskScores.Seguridad += totalAlturasActive * 2.5;
                     docs.forEach(pad => {
                         specificHeightsPermits.push({
-                            solicitante: pad.solicitante || 'Operario',
-                            alturaMetros: pad.alturaMetros || '1.8'
+                            solicitante: pad.formData?.solicitante || pad.solicitante || 'Operario',
+                            alturaMetros: pad.formData?.alturaAproximada || pad.alturaMetros || '1.8'
                         });
                     });
                 }
@@ -1159,12 +1174,12 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
             { id: 'matriz_ipevar', name: 'Matriz Bio-IPEVAR (GTC-45)', category: 'Riesgos', count: totalHazards, unit: 'peligros evaluados', status: 'connected' },
             { id: 'analisis_vulnerabilidad', name: 'Plan de Emergencias & Vulnerabilidad', category: 'Riesgos', count: countAmenazas, unit: 'amenazas analizadas', status: 'connected' },
             { id: 'ergonomia_owas', name: 'Ergonomía OWAS & LIVA', category: 'Operación', count: totalOwas, unit: 'posturas evaluadas', status: 'connected' },
-            { id: 'permisos_alturas', name: 'Permisos de Alto Riesgo (Alturas/Caliente)', category: 'Operación', count: totalHeights, unit: 'permisos tramitados', status: 'connected' },
+            { id: 'permisos_alturas', name: 'Permisos de Alto Riesgo (Alturas/Caliente)', category: 'Operación', count: totalAlturasActive, unit: 'permisos tramitados', status: 'connected' },
             { id: 'sustancias_quimicas', name: 'Sustancias Químicas & FDS (SGA)', category: 'Operación', count: countChemicals, unit: 'productos químicos', status: 'connected' },
             { id: 'seguridad_vial', name: 'Seguridad Vial PESV & Flota', category: 'Operación', count: countVehicles, unit: 'vehículos en flota', status: 'connected' },
             { id: 'control_epp', name: 'Dotación & Control de EPP', category: 'Operación', count: countEppDocs, unit: 'registros de dotación', status: 'connected' },
             { id: 'analisis_ats', name: 'Análisis de Trabajo Seguro (ATS)', category: 'Operación', count: countAts, unit: 'formatos ATS', status: 'connected' },
-            { id: 'reportes_actos', name: 'Reportes de Actos & Condiciones', category: 'Operación', count: totalActs, unit: 'tarjetas de campo', status: 'connected' },
+            { id: 'reportes_actos', name: 'Reportes de Actos & Condiciones', category: 'Operación', count: totalActsConds, unit: 'tarjetas de campo', status: 'connected' },
             { id: 'percepcion_miedo', name: 'Percepción & Miedo (Voz IPEVAR)', category: 'Operación', count: totalMiedo, unit: 'percepciones recogidas', status: 'connected' },
             { id: 'estadisticas_atel', name: 'Estadísticas ATEL (Resolución 0312)', category: 'Forense', count: totalATEL, unit: 'eventos registrados', status: 'connected' },
             { id: 'investigaciones_atel', name: 'Investigación Forense (Res. 1401 GEMA)', category: 'Forense', count: countInvestigations, unit: 'árboles de causas', status: 'connected' },
