@@ -60,6 +60,56 @@ export interface LiveEditorHandle {
   getHTML: () => string;
 }
 
+/**
+ * Garantiza que cualquier tabla HTML quede envuelta dentro de un contenedor .table-responsive
+ * con scroll horizontal interno, evitando que desborde los recuadros internos o la hoja de papel.
+ */
+function wrapTablesInResponsiveContainer(html: string): string {
+  if (!html || typeof html !== 'string' || !html.includes('<table')) return html;
+  if (typeof window === 'undefined' || typeof DOMParser === 'undefined') return html;
+
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const tables = doc.querySelectorAll('table');
+    let changed = false;
+
+    tables.forEach((table) => {
+      const parent = table.parentElement;
+      const isAlreadyWrapped =
+        parent &&
+        (parent.classList.contains('table-responsive') ||
+          parent.classList.contains('table-container') ||
+          parent.classList.contains('table-wrapper'));
+
+      if (!isAlreadyWrapped) {
+        changed = true;
+        const wrapper = doc.createElement('div');
+        wrapper.className = 'table-responsive';
+        wrapper.setAttribute(
+          'style',
+          'width: 100%; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 14px 0; border-radius: 10px; border: 1px solid #e2e8f0; box-sizing: border-box;',
+        );
+
+        table.style.margin = '0';
+        table.style.border = 'none';
+        table.style.borderRadius = '0';
+        table.style.width = '100%';
+
+        table.parentNode?.insertBefore(wrapper, table);
+        wrapper.appendChild(table);
+      }
+    });
+
+    if (changed) {
+      return doc.body.innerHTML;
+    }
+  } catch (err) {
+    console.error('[LiveEditor] wrapTablesInResponsiveContainer error:', err);
+  }
+  return html;
+}
+
 const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
   (
     {
@@ -464,7 +514,8 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
       setHTML: (html: string) => {
         if (editorRef.current) {
           isSyncingRef.current = true;
-          const safeHtml = html.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+          const stripped = html.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+          const safeHtml = wrapTablesInResponsiveContainer(stripped);
           editorRef.current.innerHTML = safeHtml;
           setContent(safeHtml);
           setTimeout(() => {
@@ -474,6 +525,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
       },
       insertHTML: (html: string) => {
         if (!editorRef.current) return;
+        const wrappedHtml = wrapTablesInResponsiveContainer(html);
         editorRef.current.focus();
         const sel = window.getSelection();
         if (sel && sel.rangeCount > 0) {
@@ -483,7 +535,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
             range.deleteContents();
 
             const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = html;
+            tempDiv.innerHTML = wrappedHtml;
 
             const frag = document.createDocumentFragment();
             let node;
@@ -509,7 +561,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
           }
         }
         // Fallback: append if selection not inside editor
-        editorRef.current.innerHTML += html;
+        editorRef.current.innerHTML += wrappedHtml;
         const newContent = editorRef.current.innerHTML;
         setContent(newContent);
         onUpdate(newContent);
@@ -532,10 +584,11 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
     useEffect(() => {
       // Set content ONLY once when the component first mounts and has content
       if (!initializedRef.current && editorRef.current && initialContent) {
-        const safeHtml = initialContent.replace(
+        const stripped = initialContent.replace(
           /<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi,
           '',
         );
+        const safeHtml = wrapTablesInResponsiveContainer(stripped);
         editorRef.current.innerHTML = safeHtml;
         initializedRef.current = true;
       } else if (!initializedRef.current && editorRef.current) {
@@ -1627,18 +1680,35 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
                     margin-top: 10px;
                     margin-bottom: 4px;
                 }
+                /* Recuadros internos y tarjetas de sección: contener siempre el desbordamiento horizontal */
+                .live-editor-content div {
+                    box-sizing: border-box;
+                    max-width: 100%;
+                }
+                .live-editor-content div[style*="border"],
+                .live-editor-content div[style*="padding"],
+                .live-editor-content .seccion-card,
+                .live-editor-content .report-section {
+                    max-width: 100% !important;
+                    box-sizing: border-box !important;
+                    overflow-x: auto !important;
+                }
                 .live-editor-content .table-responsive,
-                .live-editor-content .table-container {
-                    width: 100%;
-                    overflow-x: auto;
-                    -webkit-overflow-scrolling: touch;
-                    margin: 16px 0;
-                    border-radius: 10px;
-                    border: 1px solid #e2e8f0;
+                .live-editor-content .table-container,
+                .live-editor-content .table-wrapper {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    overflow-x: auto !important;
+                    -webkit-overflow-scrolling: touch !important;
+                    margin: 16px 0 !important;
+                    border-radius: 10px !important;
+                    border: 1px solid #e2e8f0 !important;
+                    box-sizing: border-box !important;
+                    display: block !important;
                 }
                 .live-editor-content table {
                     width: 100% !important;
-                    min-width: 720px;
+                    max-width: 100% !important;
                     border-collapse: separate;
                     border-spacing: 0;
                     margin: 12px 0;
@@ -1647,11 +1717,25 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
                     border: 1px solid #e2e8f0;
                     table-layout: auto;
                     word-break: normal !important;
+                    box-sizing: border-box !important;
                 }
-                .live-editor-content .table-responsive table {
+                .live-editor-content .table-responsive table,
+                .live-editor-content .table-container table,
+                .live-editor-content .table-wrapper table {
                     margin: 0 !important;
                     border: none !important;
                     border-radius: 0 !important;
+                    min-width: 720px;
+                    display: table !important;
+                }
+                /* Salvaguarda para tablas no envueltas: scroll block sin desbordar el recuadro */
+                .live-editor-content > table,
+                .live-editor-content div:not(.table-responsive):not(.table-container):not(.table-wrapper) > table {
+                    display: block !important;
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    overflow-x: auto !important;
+                    -webkit-overflow-scrolling: touch !important;
                 }
                 .live-editor-content table th {
                     background-color: #004d99;
@@ -1769,7 +1853,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
                     width: 100% !important;
                     box-sizing: border-box !important;
                     margin: 0 auto;
-                    overflow-x: auto;
+                    overflow-x: hidden !important;
                 }
                 @media (max-width: 640px) {
                     .live-editor-content.paper-mode {

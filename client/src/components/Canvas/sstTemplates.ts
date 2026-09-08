@@ -31665,7 +31665,7 @@ Consta de:
         {
             "id": 3,
             "equipment": "Material Didáctico e Instructivos Físicos",
-            "desc": "Folletos, cartillas de seguridad y guías ilustradas de riesgos laborales.",
+            "desc": "Folletos, guías técnicas de seguridad y manuales ilustrados de riesgos laborales.",
             "criticality": "Baja"
         }
     ],

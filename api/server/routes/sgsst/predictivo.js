@@ -34,12 +34,34 @@ async function getApiKey(userId) {
 
 // ─── HELPER: Clean HTML Output (Same as estadisticas.js) ────────────────────
 function cleanHtmlOutput(text) {
-    return text.replace(/```html\n?/g, '').replace(/```\n?/g, '')
+    let cleaned = text.replace(/```html\n?/g, '').replace(/```\n?/g, '')
         .replace(/<!DOCTYPE[^>]*>/gi, '')
         .replace(/<html[^>]*>/gi, '').replace(/<\/html>/gi, '')
         .replace(/<head>[\s\S]*?<\/head>/gi, '')
         .replace(/<body[^>]*>/gi, '').replace(/<\/body>/gi, '')
         .trim();
+
+    // ── Reemplazos estrictos de terminología 8M ──
+    cleaned = cleaned
+        .replace(/Factor(?:es)?\s*8-?M/gi, 'Dimensión Causal Operativa')
+        .replace(/análisis\s*8-?M/gi, 'análisis causal integral (Res. 1401 / GEMA)')
+        .replace(/metodología\s*8-?M/gi, 'metodología causal integral (Res. 1401 / GEMA)')
+        .replace(/modelo\s*8-?M/gi, 'modelo causal integral (Res. 1401 / GEMA)')
+        .replace(/causas?\s*8-?M/gi, 'causas operacionales (GEMA / Res. 1401)')
+        .replace(/\b8-?M\b/g, 'GEMA / Res. 1401');
+
+    // ── Reemplazos estrictos de término informal "cartilla(s)" ──
+    cleaned = cleaned
+        .replace(/cartillas?\s+de\s+seguridad/gi, (m) => m.toLowerCase().startsWith('cartillas') ? 'guías técnicas de seguridad' : 'guía técnica de seguridad')
+        .replace(/cartillas?\s+formativas?/gi, (m) => m.toLowerCase().startsWith('cartillas') ? 'guías formativas de prevención' : 'guía formativa de prevención')
+        .replace(/cartillas?\s+informativas?/gi, (m) => m.toLowerCase().startsWith('cartillas') ? 'guías técnicas informativas' : 'guía técnica informativa')
+        .replace(/cartillas?\s+educativas?/gi, (m) => m.toLowerCase().startsWith('cartillas') ? 'manuales pedagógicos de formación' : 'manual pedagógico de formación')
+        .replace(/cartillas?\s+técnicas?/gi, (m) => m.toLowerCase().startsWith('cartillas') ? 'fichas técnicas de seguridad' : 'ficha técnica de seguridad')
+        .replace(/cartillas?\s+operativas?/gi, (m) => m.toLowerCase().startsWith('cartillas') ? 'protocolos operativos estandarizados' : 'protocolo operativo estandarizado')
+        .replace(/\bcartillas\b/gi, 'guías técnicas de prevención')
+        .replace(/\bcartilla\b/gi, 'guía técnica de prevención');
+
+    return cleaned;
 }
 
 // ── Helper: Obtener Empresa Activa
@@ -907,7 +929,23 @@ router.post('/generate-report', requireJwtAuth, async (req, res) => {
 
         const promptText = `Eres un Experto Consultor Estratégico Senior en Seguridad y Salud en el Trabajo (SGSST) y Científico de Datos en Prevención Laboral en Colombia.
 Dominas la doctrina del **Modelo de Análisis Causal de Siniestralidad y Factores Operacionales (Resolución 1401 de 2007 / Metodología GEMA - Gente, Equipos, Materiales y Ambiente)** y el **Modelo Predictivo de Prevención (Random Forest & XGBoost con histórico de siniestralidad)**, integrados de forma pionera con la **Huella Biocéntrica (Hito 1)** y los **9 Dominios de la Matriz Bioindividual (Hito 2)** de WAPPY.
-REGLA ESTRICTA: NO menciones "8M", "Atenea", "Modelo Atenea" ni "Colmena" en ninguna parte de tu respuesta. Usa exclusivamente terminología técnico-normativa oficial SG-SST en Colombia (Resolución 1401 de 2007, Decreto 1072 de 2015, Resolución 0312 de 2019).
+
+═══════════════════════════════════════════════════════════════
+       DIRECTIVAS ESTRICTAS DE TERMINOLOGÍA (CERO TOLERANCIA)
+═══════════════════════════════════════════════════════════════
+1. PROHIBIDO USAR EL TÉRMINO "8M", "8-M", "ANÁLISIS 8M" O "FACTOR 8M".
+   - En su lugar, usa SIEMPRE: "Metodología de Causalidad Operacional (GEMA / Res. 1401 de 2007)", "Factores Causales Operacionales (Gente, Equipos, Materiales, Ambiente)" o "Dimensión Causal Operativa".
+   - En la tabla de la SECCIÓN 6 (PAC 5W2H), la 3ª columna DEBE titularse obligatoriamente: "Dimensión Causal Operativa" (NUNCA "Factor 8M").
+   - En la introducción de la SECCIÓN 6, habla de "neutralizar las causas básicas e inmediatas identificadas en el análisis causal operacional (GEMA / Res. 1401 de 2007)" (NUNCA "análisis 8M").
+2. PROHIBIDO USAR LA PALABRA "CARTILLA" O "CARTILLAS".
+   - En su lugar, usa SIEMPRE terminología técnica superior y formal:
+     * "Guías Técnicas de Prevención"
+     * "Protocolos Operativos Estandarizados (POE)"
+     * "Fichas Técnicas de Seguridad"
+     * "Manuales de Estándares Seguros"
+     * "Material Pedagógico de Formación Ocupacional"
+3. PROHIBIDO MENCIONAR MARCAS EXTERNAS: "Colmena", "Atenea", "Modelo Atenea", "Tablero 04".
+Usa exclusivamente terminología técnico-normativa oficial SG-SST en Colombia (Resolución 1401 de 2007, Decreto 1072 de 2015, Resolución 0312 de 2019).
 
 Datos Reales del Ecosistema de la Empresa:
 ${fullContext}
@@ -929,7 +967,7 @@ Debes cruzar de forma científica y matemática:
 ═══════════════════════════════════════════════════════════════
 
 ──── SECCIÓN 1: CUADRO DE MANDO PREDICTIVO & ENSAMBLE ML ────
-Genera una tabla visual elegante (CSS inline, fondo blanco con encabezado teal #0f766e) que consolide:
+Genera una tabla visual elegante envuelta en contenedor responsivo que consolide:
 - Riesgo Global Pronosticado (%)
 - Nivel de Confiabilidad del Modelo ML (94% a 1 mes / 86% a 12 meses)
 - Dominio Bioindividual Más Amenazado (de los 9 dominios)
@@ -957,9 +995,11 @@ Desglosa la solución técnica estructurada de derecha a izquierda por Jerarquí
 - ¿Cómo en el Individuo? (Aptitud, capacitación y EPP).
 
 ──── SECCIÓN 6: PLAN DE ACCIÓN CONJUNTA (PAC 5W2H) ────
-Tabla detallada con columnas:
-| # | Dominio Bioindividual | Dimensión Causal Operacional | ¿Qué hacer? (Medida) | ¿Cómo hacerlo? | Responsable | Plazo (Fechas) | Presupuesto Estimado |
-- Mínimo 6 a 8 acciones concretas, priorizando las causas suficientes.
+Plan estratégico de intervención diseñado para neutralizar las causas básicas e inmediatas identificadas en el análisis causal operacional (GEMA / Res. 1401 de 2007) y proteger los dominios bioindividuales vulnerables.
+Tabla detallada con columnas exactas:
+| # | Dominio Bioindividual | Dimensión Causal Operativa | ¿Qué hacer? (Medida) | ¿Cómo hacerlo? | Responsable | Plazo (Fechas) | Presupuesto Estimado |
+- Mínimo 6 a 8 acciones concretas, priorizando las causas suficientes. En la 3ª columna coloca dimensiones GEMA (Gente, Equipos, Materiales, Ambiente, Procedimientos). JAMÁS coloques "Factor 8M".
+- Recuerda que todo material educativo debe denominarse "Guía Técnica de Prevención", "Ficha Técnica de Seguridad" o "Protocolo Operativo", NUNCA "cartilla".
 
 ──── SECCIÓN 7: BALANCE FINANCIERO, DÍAS CARGADOS & RESPONSABILIDAD LEGAL ────
 - Cálculo de Severidad: Días de Incapacidad Temporal + Días Cargados por PCL (6.000 días base).
@@ -976,8 +1016,11 @@ Tabla detallada con columnas:
 - **PROHIBIDO INCLUIR FIRMAS.** El sistema añade el bloque oficial de firmas automáticamente.
 - **CSS INLINE OBLIGATORIO.** Atributos \`style\` en todos los elementos.
 - **COLORES EXPLÍCITOS:** Cada fondo debe tener su color de texto definido (\`color: #1e293b;\` para texto oscuro, \`color: #ffffff;\` para blanco).
-- **TABLAS:** \`<table style="width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; border: 1px solid #cbd5e1; margin-bottom: 20px;">\`. TH con \`background-color: #0f766e; color: #ffffff; padding: 12px;\`. TD con \`padding: 10px; border-bottom: 1px solid #e2e8f0; color: #1e293b;\`.
-- **CONTENEDORES:** Envolver las secciones en divs con \`background-color: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; margin-bottom: 24px;\`.
+- **TABLAS RESPONSIVAS DENTRO DEL RECUADRO:** Toda tabla debe ir OBLIGATORIAMENTE dentro de un div con clase \`table-responsive\`:
+  \`<div class="table-responsive" style="width: 100%; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 10px; border: 1px solid #cbd5e1; margin: 16px 0; box-sizing: border-box;"><table style="width: 100%; min-width: 720px; border-collapse: separate; border-spacing: 0;">...\`
+  TH con \`background-color: #0f766e; color: #ffffff; padding: 12px; white-space: nowrap;\`. TD con \`padding: 10px; border-bottom: 1px solid #e2e8f0; color: #1e293b;\`.
+  Esto asegura que las tablas anchas corran hacia la derecha de forma fluida DENTRO de su recuadro interno sin desbordar los bordes de la tarjeta.
+- **CONTENEDORES:** Envolver las secciones en divs con \`background-color: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; margin-bottom: 24px; max-width: 100%; box-sizing: border-box; overflow-x: auto;\`.
 - NO incluyas título H1 inicial (ya está en el encabezado oficial).`;
 
         const personalization = req.user?.personalization?.geminiModels;
