@@ -1490,36 +1490,36 @@ ${activeProtocol.reportMatrixHeader}
             <h3>4. Matriz de Identificación de Peligros y Valoración de Riesgos (GTC 45)</h3>
             <p>La siguiente matriz ha sido construida con metodología GTC 45 (Guía Técnica Colombiana), evaluando cada peligro identificado durante la inspección en vivo. El nivel de riesgo se obtiene multiplicando Nivel de Deficiencia (ND) × Nivel de Exposición (NE) = Nivel de Probabilidad (NP), y luego NP × Nivel de Consecuencia (NC) = Nivel de Riesgo (NR).</p>
             <div class="table-responsive" style="overflow-x: auto; width: 100%; margin: 16px 0; -webkit-overflow-scrolling: touch;">
-            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; min-width: 900px; text-align: left; font-size: 0.88em;">
+            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; table-layout: fixed; text-align: left; font-size: 0.82em;">
               <thead style="background-color: #004d99; color: white;">
                 <tr>
-                    <th style="padding: 10px 10px; white-space: nowrap;">#</th>
-                    <th style="padding: 10px 10px; white-space: nowrap;">Proceso / Zona</th>
-                    <th style="padding: 10px 10px; white-space: nowrap;">Peligro (Descripción Técnica)</th>
-                    <th style="padding: 10px 10px; white-space: nowrap;">Clasificación GTC 45</th>
-                    <th style="padding: 10px 10px; white-space: nowrap;">Efectos Posibles para la Salud</th>
-                    <th style="padding: 10px 10px; text-align: center; white-space: nowrap;">ND</th>
-                    <th style="padding: 10px 10px; text-align: center; white-space: nowrap;">NE</th>
-                    <th style="padding: 10px 10px; text-align: center; white-space: nowrap;">NC</th>
-                    <th style="padding: 10px 10px; text-align: center; white-space: nowrap;">NR</th>
-                    <th style="padding: 10px 10px; white-space: nowrap;">Nivel de Riesgo</th>
-                    <th style="padding: 10px 10px; white-space: nowrap;">Aceptabilidad</th>
+                    <th style="padding: 8px 4px; width: 4%; text-align: center; word-break: break-word;">#</th>
+                    <th style="padding: 8px 5px; width: 11%; word-break: break-word;">Proceso / Zona</th>
+                    <th style="padding: 8px 5px; width: 15%; word-break: break-word;">Peligro (Descripción)</th>
+                    <th style="padding: 8px 5px; width: 11%; word-break: break-word;">Clasificación GTC 45</th>
+                    <th style="padding: 8px 5px; width: 14%; word-break: break-word;">Efectos Posibles</th>
+                    <th style="padding: 8px 3px; width: 5%; text-align: center; word-break: break-word;">ND</th>
+                    <th style="padding: 8px 3px; width: 5%; text-align: center; word-break: break-word;">NE</th>
+                    <th style="padding: 8px 3px; width: 5%; text-align: center; word-break: break-word;">NC</th>
+                    <th style="padding: 8px 3px; width: 6%; text-align: center; word-break: break-word;">NR</th>
+                    <th style="padding: 8px 5px; width: 13%; word-break: break-word;">Nivel Riesgo</th>
+                    <th style="padding: 8px 5px; width: 11%; word-break: break-word;">Aceptabilidad</th>
                 </tr>
               </thead>
               <tbody>
                 <!-- OBLIGATORIO: Genera al menos 5 filas. Máximo las que el entorno requiera. Para cada peligro: ND (1-10), NE (1-4), NC (10-100), NR = ND×NE×NC, Nivel: I(>600 Crítico), II(200-600 Alto), III(70-200 Medio), IV(<70 Bajo) -->
                 <tr style="background:#fff0f0;">
-                    <td style="padding: 8px; font-weight:bold; text-align: center; white-space: nowrap;">1</td>
-                    <td style="padding: 8px;">[Zona/Proceso]</td>
-                    <td style="padding: 8px;">[Descripción técnica del peligro 1]</td>
-                    <td style="padding: 8px;">[Ej: Biomecánico / Físico / Psicosocial / Químico / Locativo / Eléctrico / Tránsito / Biológico]</td>
-                    <td style="padding: 8px;">[Efectos en salud: enfermedades, lesiones posibles]</td>
-                    <td style="padding: 8px; text-align:center; white-space: nowrap;">[ND]</td>
-                    <td style="padding: 8px; text-align:center; white-space: nowrap;">[NE]</td>
-                    <td style="padding: 8px; text-align:center; white-space: nowrap;">[NC]</td>
-                    <td style="padding: 8px; text-align:center; font-weight:bold; white-space: nowrap;">[NR]</td>
-                    <td style="padding: 8px; font-weight:bold; color:red; white-space: nowrap;">I - CRÍTICO</td>
-                    <td style="padding: 8px; color:red; font-weight:bold; white-space: nowrap;">No aceptable</td>
+                    <td style="padding: 6px 4px; font-weight:bold; text-align: center;">1</td>
+                    <td style="padding: 6px 5px; word-break: break-word;">[Zona/Proceso]</td>
+                    <td style="padding: 6px 5px; word-break: break-word;">[Descripción técnica del peligro 1]</td>
+                    <td style="padding: 6px 5px; word-break: break-word;">[Ej: Biomecánico / Físico / Psicosocial / Químico / Locativo]</td>
+                    <td style="padding: 6px 5px; word-break: break-word;">[Efectos en salud: lesiones posibles]</td>
+                    <td style="padding: 6px 3px; text-align:center;">[ND]</td>
+                    <td style="padding: 6px 3px; text-align:center;">[NE]</td>
+                    <td style="padding: 6px 3px; text-align:center;">[NC]</td>
+                    <td style="padding: 6px 3px; text-align:center; font-weight:bold;">[NR]</td>
+                    <td style="padding: 6px 5px; font-weight:bold; color:red; word-break: break-word;">I - CRÍTICO</td>
+                    <td style="padding: 6px 5px; color:red; font-weight:bold; word-break: break-word;">No aceptable</td>
                 </tr>
                 <!-- Agrega mínimo 4 filas más con el mismo formato -->
               </tbody>
@@ -1529,28 +1529,28 @@ ${activeProtocol.reportMatrixHeader}
             <h3>5. Medidas de Intervención por Jerarquía de Controles (ISO 45001 / GTC 45)</h3>
             <p>Las medidas de control se proponen siguiendo estrictamente la Jerarquía de Controles establecida en la ISO 45001 y la GTC 45: Eliminación → Sustitución → Controles de Ingeniería → Controles Administrativos → Elementos de Protección Personal (EPP).</p>
             <div class="table-responsive" style="overflow-x: auto; width: 100%; margin: 16px 0; -webkit-overflow-scrolling: touch;">
-            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; min-width: 760px; text-align: left; font-size: 0.88em;">
+            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; table-layout: fixed; text-align: left; font-size: 0.85em;">
               <thead style="background-color: #004d99; color: white;">
                 <tr>
-                    <th style="padding: 10px 10px; white-space: nowrap;">Peligro / Riesgo</th>
-                    <th style="padding: 10px 10px; white-space: nowrap;">Eliminación / Sustitución</th>
-                    <th style="padding: 10px 10px; white-space: nowrap;">Controles de Ingeniería</th>
-                    <th style="padding: 10px 10px; white-space: nowrap;">Controles Administrativos</th>
-                    <th style="padding: 10px 10px; white-space: nowrap;">EPP Requerido</th>
-                    <th style="padding: 10px 10px; white-space: nowrap;">Responsable</th>
-                    <th style="padding: 10px 10px; white-space: nowrap;">Plazo</th>
+                    <th style="padding: 8px 6px; width: 15%; word-break: break-word;">Peligro / Riesgo</th>
+                    <th style="padding: 8px 6px; width: 15%; word-break: break-word;">Eliminación / Sustitución</th>
+                    <th style="padding: 8px 6px; width: 15%; word-break: break-word;">Controles Ingeniería</th>
+                    <th style="padding: 8px 6px; width: 16%; word-break: break-word;">Controles Admin</th>
+                    <th style="padding: 8px 6px; width: 15%; word-break: break-word;">EPP Requerido</th>
+                    <th style="padding: 8px 6px; width: 13%; word-break: break-word;">Responsable</th>
+                    <th style="padding: 8px 6px; width: 11%; word-break: break-word;">Plazo</th>
                 </tr>
               </thead>
               <tbody>
                 <!-- Una fila por cada peligro identificado en la sección anterior -->
                 <tr>
-                    <td style="padding: 8px;">[Peligro 1]</td>
-                    <td style="padding: 8px;">[Medida de eliminación/sustitución concreta]</td>
-                    <td style="padding: 8px;">[Control de ingeniería específico]</td>
-                    <td style="padding: 8px;">[Procedimiento, capacitación, señalización]</td>
-                    <td style="padding: 8px;">[EPP específico: tipo, norma técnica]</td>
-                    <td style="padding: 8px;">[Área o cargo responsable]</td>
-                    <td style="padding: 8px; white-space: nowrap;">[Inmediato / 8 días / 30 días]</td>
+                    <td style="padding: 6px 6px; word-break: break-word;">[Peligro 1]</td>
+                    <td style="padding: 6px 6px; word-break: break-word;">[Medida de eliminación/sustitución]</td>
+                    <td style="padding: 6px 6px; word-break: break-word;">[Control de ingeniería específico]</td>
+                    <td style="padding: 6px 6px; word-break: break-word;">[Procedimiento, capacitación]</td>
+                    <td style="padding: 6px 6px; word-break: break-word;">[EPP específico: tipo, norma]</td>
+                    <td style="padding: 6px 6px; word-break: break-word;">[Área o cargo responsable]</td>
+                    <td style="padding: 6px 6px; word-break: break-word;">[Inmediato / 8 días]</td>
                 </tr>
               </tbody>
             </table>
@@ -1714,17 +1714,21 @@ En la sección "4.1 Matriz Ergonómica Comparativa Multifase", en la columna "Te
                     const telemSummary = phaseData?.telemetry?.summary || '';
 
                     return `
-                    <div style="flex:1 1 calc(33.333% - 16px); max-width:300px; min-width:200px; text-align:center; margin-bottom:12px; box-sizing:border-box;">
-                        <img src="data:image/jpeg;base64,${b64}" alt="Evidencia Fase ${idx+1}" style="width:100%; height:240px; object-fit:contain; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.05);" />
-                        <p style="font-size:0.75em; color:#0f766e; font-weight:700; margin-top:6px; line-height:1.3;">${label}</p>
+                    <td style="width:33.333%; padding:6px; vertical-align:top; text-align:center; border:none; background:transparent;">
+                        <div style="background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0; padding:4px; box-shadow:0 2px 6px rgba(0,0,0,0.04);">
+                            <img src="data:image/jpeg;base64,${b64}" alt="Evidencia Fase ${idx+1}" style="width:100%; max-height:220px; object-fit:contain; border-radius:6px; display:block; margin:0 auto;" />
+                        </div>
+                        <p style="font-size:0.78em; color:#0f766e; font-weight:700; margin-top:8px; margin-bottom:2px; line-height:1.3;">${label}</p>
                         ${telemSummary ? `<p style="font-size:0.7em; color:#475569; margin-top:2px; font-family:monospace; line-height:1.2;">${telemSummary}</p>` : ''}
-                    </div>`;
+                    </td>`;
                 }).join('');
 
                 evidenceHtml = `
                     <div style="margin-bottom:24px;">
                         <h3 style="color:#0f766e; font-size:1.1em; text-transform:uppercase; letter-spacing:1px; border-left:4px solid #14b8a6; padding-left:10px; margin-bottom:12px;">${sectionTitle}</h3>
-                        <div style="display:flex; flex-wrap:wrap; gap:16px; margin-top:12px;">${imgItems}</div>
+                        <table border="0" style="width:100%; border:none; table-layout:fixed; border-collapse:collapse; margin-top:12px;">
+                            <tr>${imgItems}</tr>
+                        </table>
                     </div>`;
             }
 
@@ -1736,14 +1740,14 @@ ${kpiDiv}
 <style>
 .ai-report-content h2, .ai-report-content h3 { color: #0f766e; margin-top: 24px; margin-bottom: 12px; font-weight: 700; border-bottom: 1px solid #ccfbf1; padding-bottom: 6px; }
 .ai-report-content p, .ai-report-content li { color: #334155; margin-bottom: 10px; font-size: 0.95em; }
-.ai-report-content table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.88em; }
-.ai-report-content th { background-color: #0f766e; color: #ffffff; padding: 10px 8px; text-align: left; }
-.ai-report-content td { padding: 8px; border-bottom: 1px solid #e2e8f0; color: #1e293b; }
+.ai-report-content table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 16px 0; font-size: 0.85em; }
+.ai-report-content th { background-color: #0f766e; color: #ffffff; padding: 8px 6px; text-align: left; word-break: break-word; }
+.ai-report-content td { padding: 6px; border-bottom: 1px solid #e2e8f0; color: #1e293b; word-break: break-word; }
 .ai-report-content tr:nth-child(even) td { background-color: #f8fafc; }
 </style>
 <div style="font-family:'Segoe UI',Arial,sans-serif; max-width:900px; margin:0 auto; color:#111827; background-color:#f9fafb; border-radius:16px; overflow:hidden; border:1px solid #e5e7eb; box-shadow:0 10px 15px -3px rgba(0,0,0,0.05);">
   <!-- HEADER (WAPPY PREMIUM EMERALD-TEAL-CYAN DEGRADADO) -->
-  <div style="background:linear-gradient(135deg,#064e3b 0%,#0f766e 60%,#0891b2 100%); padding:32px; position:relative; overflow:hidden; border-bottom:3px solid #14b8a6;">
+  <div style="background-color:#0f766e; background:linear-gradient(135deg,#064e3b 0%,#0f766e 60%,#0891b2 100%); -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important; padding:32px; position:relative; overflow:hidden; border-bottom:3px solid #14b8a6;">
     <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; position:relative; z-index:10;">
       <div>
         <div style="color:#22d3ee; font-size:0.75em; font-weight:800; letter-spacing:4px; text-transform:uppercase; margin-bottom:6px; text-shadow:0 0 10px rgba(34,211,238,0.3); display:flex; align-items:center; gap:8px;">
@@ -1764,7 +1768,7 @@ ${kpiDiv}
         </div>
       </div>
       <div>
-        <div style="background:rgba(255,255,255,0.07); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.15); border-radius:12px; padding:12px 20px; min-width:180px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
+        <div style="background:rgba(255,255,255,0.12); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; border:1px solid rgba(255,255,255,0.25); border-radius:12px; padding:12px 20px; min-width:180px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
           <div style="color:#22d3ee; font-size:0.65em; font-weight:800; letter-spacing:3px; text-transform:uppercase; margin-bottom:4px;">RADICADO</div>
           <div style="color:#ffffff; font-size:1.25em; font-weight:900; font-family:monospace; letter-spacing:1px;">${radicadoId}</div>
           <div style="color:#e2e8f0; font-size:0.75em; margin-top:4px; font-weight:500;">
@@ -1821,25 +1825,29 @@ ${kpiDiv}
             // Strip any 4+ space indentation so markdown engines never treat tags as code blocks
             reportHtml = finalWrappedHtml.replace(/^[ \t]{4,}/gm, '');
 
-            // Ensure every <table> is wrapped in a responsive overflow container and headers do not break letter-by-letter
+            // Ensure every <table> has table-layout: fixed, width: 100%, and responsive wrapping without overflow clipping
             if (reportHtml && typeof reportHtml === 'string') {
                 reportHtml = reportHtml.replace(/(?:<div[^>]*class=["'][^"']*table-responsive[^"']*["'][^>]*>\s*)?(<table[\s\S]*?<\/table>)(?:\s*<\/div>)?/gi, (match, tableContent) => {
                     let cleanTable = tableContent;
-                    if (!cleanTable.includes('min-width')) {
-                        cleanTable = cleanTable.replace(/<table\b([^>]*)>/i, (m, attrs) => {
-                            if (/style=["']/.test(attrs)) {
-                                return `<table ${attrs.replace(/style=["']([^"']*)["']/, 'style="min-width: 760px; width: 100%; $1"')}>`;
-                            } else {
-                                return `<table style="min-width: 760px; width: 100%;" ${attrs}>`;
-                            }
-                        });
-                    }
-                    // Make sure th has white-space: nowrap
-                    cleanTable = cleanTable.replace(/<th\b([^>]*)>/gi, (m, attrs) => {
+                    // Strip any hardcoded min-width that exceeds printable width
+                    cleanTable = cleanTable.replace(/min-width:\s*\d+px;?/gi, '');
+                    // Strip any white-space: nowrap that breaks print/PDF layouts
+                    cleanTable = cleanTable.replace(/white-space:\s*nowrap;?/gi, '');
+                    
+                    // Ensure table has width: 100% and table-layout: fixed
+                    cleanTable = cleanTable.replace(/<table\b([^>]*)>/i, (m, attrs) => {
                         if (/style=["']/.test(attrs)) {
-                            return `<th ${attrs.replace(/style=["']([^"']*)["']/, 'style="white-space: nowrap; word-break: normal; $1"')}>`;
+                            return `<table ${attrs.replace(/style=["']([^"']*)["']/, 'style="width: 100%; table-layout: fixed; $1"')}>`;
                         } else {
-                            return `<th style="white-space: nowrap; word-break: normal;" ${attrs}>`;
+                            return `<table style="width: 100%; table-layout: fixed;" ${attrs}>`;
+                        }
+                    });
+                    // Ensure th & td wrap words gracefully
+                    cleanTable = cleanTable.replace(/<(th|td)\b([^>]*)>/gi, (m, tag, attrs) => {
+                        if (/style=["']/.test(attrs)) {
+                            return `<${tag} ${attrs.replace(/style=["']([^"']*)["']/, 'style="word-break: break-word; overflow-wrap: break-word; $1"')}>`;
+                        } else {
+                            return `<${tag} style="word-break: break-word; overflow-wrap: break-word;" ${attrs}>`;
                         }
                     });
                     return `<div class="table-responsive" style="overflow-x: auto; width: 100%; margin: 16px 0; -webkit-overflow-scrolling: touch;">${cleanTable}</div>`;

@@ -70,7 +70,19 @@ const DEFAULT_SIGNATURE_BLOCK = `
 
 /** Append default signature footer only if the document doesn't already have one */
 function appendSignatureIfMissing(html: string): string {
-  if (!html || html.includes('signature-placeholder') || html.includes('RESPONSABLE SST')) return html;
+  if (!html) return html;
+  if (
+    html.includes('signature-placeholder') ||
+    html.includes('RESPONSABLE SST') ||
+    /responsable\s+(sg-)?sst/i.test(html) ||
+    /representante\s+legal/i.test(html) ||
+    /firmas?\s+y\s+responsabilidades/i.test(html) ||
+    /evaluador\s+t[eé]cnico/i.test(html) ||
+    /firma:?\s*_{3,}/i.test(html) ||
+    html.includes('Licencia No.')
+  ) {
+    return html;
+  }
   return html + DEFAULT_SIGNATURE_BLOCK;
 }
 

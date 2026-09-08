@@ -165,11 +165,43 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${fileName}</title>
     <style>
+        * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+        }
         @media print {
-            body { margin: 0; padding: 0; background: #fff; }
-            .report-wrapper { padding: 0; width: 100%; border: none !important; box-shadow: none !important; }
-            @page { margin: 1.5cm; size: A4; }
-            table { page-break-inside: avoid; }
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+            body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
+            .report-wrapper { padding: 0 !important; max-width: 100% !important; width: 100% !important; border: none !important; box-shadow: none !important; }
+            .report-container { max-width: 100% !important; width: 100% !important; box-shadow: none !important; }
+            @page { margin: 1cm; size: A4 portrait; }
+            .table-responsive {
+                overflow: visible !important;
+                width: 100% !important;
+                border: none !important;
+                margin: 10px 0 !important;
+            }
+            table {
+                page-break-inside: auto !important;
+                table-layout: fixed !important;
+                width: 100% !important;
+                min-width: 0 !important;
+                font-size: 7.5pt !important;
+            }
+            tr { page-break-inside: avoid !important; }
+            th, td {
+                white-space: normal !important;
+                word-break: break-word !important;
+                overflow-wrap: break-word !important;
+                padding: 4px 4px !important;
+                font-size: 7.5pt !important;
+            }
             h1, h2, h3 { page-break-after: avoid; }
         }
         html, body {
@@ -201,8 +233,8 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
             border-collapse: collapse;
             border-spacing: 0;
             margin: 15px 0;
-            font-size: 0.9em;
-            table-layout: auto;
+            font-size: 0.85em;
+            table-layout: fixed;
         }
         .table-responsive {
             width: 100%;
@@ -212,16 +244,15 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
             margin: 15px 0;
             -webkit-overflow-scrolling: touch;
         }
-        @media screen and (max-width: 600px) {
-            table { min-width: 600px; }
-        }
         th {
             background-color: #004d99;
             color: white;
-            padding: 10px 8px;
+            padding: 8px 6px;
             text-align: left;
             font-weight: 600;
             border: 1px solid #003580;
+            word-break: break-word;
+            overflow-wrap: break-word;
         }
         .checklist-mode th:nth-child(1) { width: 38px; }
         .checklist-mode th:nth-child(2) { width: 14%; }
@@ -229,10 +260,10 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
         .checklist-mode th:nth-child(4) { width: 10%; }
         .checklist-mode th:nth-child(5) { width: 15%; }
         td {
-            padding: 10px 8px;
+            padding: 8px 6px;
             border: 1px solid #ddd;
             vertical-align: top;
-            word-wrap: break-word;
+            word-break: break-word;
             overflow-wrap: break-word;
         }
         tr:nth-child(even) { background-color: #f8f9fa; }
@@ -240,7 +271,7 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
 </head>
 <body class="${reportType === 'checklist' ? 'checklist-mode' : ''}">
     <div class="report-wrapper">
-        ${content.replace(/<table/g, '<div class="table-responsive"><table').replace(/<\/table>/g, '</table></div>')}
+        ${content.includes('table-responsive') ? content : content.replace(/<table/g, '<div class="table-responsive"><table').replace(/<\/table>/g, '</table></div>')}
     </div>
 </body>
 </html>`;
@@ -461,20 +492,22 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
       // Always force these for Word correctness
       const forced: Record<string, string> = {
         width: '100%',
+        'table-layout': 'fixed',
+        'mso-table-layout-alt': 'fixed',
         'border-collapse': 'collapse',
         'border-spacing': '0',
         'font-family': 'Calibri,Arial,sans-serif',
-        'font-size': '10pt',
+        'font-size': '8.5pt',
         margin: '8pt 0',
         'mso-border-alt': 'solid #CCCCCC .5pt',
-        // Remove border-radius (Word doesn't support it)
       };
       const merged = mergeStyles(existing, forced);
-      // Remove unsupported Word properties
+      // Remove unsupported Word properties and print-breaking styles
       delete merged['border-radius'];
       delete merged['border-spacing'];
       delete merged['box-shadow'];
       delete merged['overflow'];
+      delete merged['min-width'];
       table.setAttribute('style', serializeStyle(merged));
       table.setAttribute('border', '1');
       table.setAttribute('cellspacing', '0');
@@ -488,12 +521,14 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
       const wordAdditions: Record<string, string> = {
         'font-family': 'Calibri,Arial,sans-serif',
         'font-weight': 'bold',
-        padding: '6pt 8pt',
+        'font-size': '8.5pt',
+        padding: '5pt 4pt',
         border: '1pt solid #CCCCCC',
         'mso-background-source': 'auto',
         'mso-pattern': 'auto',
         'vertical-align': 'middle',
         'text-align': 'left',
+        'word-break': 'break-word',
       };
       // Merge: editor styles win for color/background, Word additions fill gaps
       const merged = mergeStyles(wordAdditions, existing);
@@ -513,6 +548,9 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
       // Remove unsupported properties
       delete merged['border-radius'];
       delete merged['box-shadow'];
+      delete merged['white-space'];
+      delete merged['min-width'];
+      merged['word-break'] = 'break-word';
       th.setAttribute('style', serializeStyle(merged));
     });
 
@@ -521,11 +559,11 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
       const existing = parseStyle(td.getAttribute('style') || '');
       const wordAdditions: Record<string, string> = {
         'font-family': 'Calibri,Arial,sans-serif',
-        'font-size': '10pt',
-        padding: '5pt 8pt',
+        'font-size': '8pt',
+        padding: '4pt 4pt',
         border: '1pt solid #DDDDDD',
         'vertical-align': 'top',
-        'word-wrap': 'break-word',
+        'word-break': 'break-word',
       };
       // Editor styles win (background-color, color, width, etc.)
       const merged = mergeStyles(wordAdditions, existing);
@@ -541,6 +579,9 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
       delete merged['border-radius'];
       delete merged['box-shadow'];
       delete merged['transition'];
+      delete merged['white-space'];
+      delete merged['min-width'];
+      merged['word-break'] = 'break-word';
       td.setAttribute('style', serializeStyle(merged));
     });
 
