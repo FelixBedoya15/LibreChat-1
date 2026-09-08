@@ -1173,8 +1173,8 @@ REGLAS DE INTERACCIÓN EN VIVO:
             }
             logger.info(`[VoiceSession] Starting transcription correction for: "${userText}"`);
 
-            // Use Gemini 3.5 Flash for high performance voice transcription corrections
-            const correctionModelName = 'gemini-3.5-flash';
+            // Use Gemini 3.5 Flash Lite for high performance voice transcription corrections
+            const correctionModelName = 'gemini-3.5-flash-lite';
 
             const prompt = `
             Eres un corrector ortográfico y gramatical experto en español, especializado en Seguridad y Salud en el Trabajo (SST/HSE).
@@ -1259,8 +1259,8 @@ REGLAS DE INTERACCIÓN EN VIVO:
                 data: { status: 'generating_report', message: 'Generando informe técnico...' }
             });
 
-            // Use Gemini 3.5 Flash as the default model accompanying Live reports
-            const reportModelName = 'gemini-3.5-flash';
+            // Use Gemini 3.7 Flash as the primary model for reports (with fallback scale down to 3.6, 3.5, 3.5-lite)
+            const reportModelName = SGSST_FALLBACK_MODELS[0];
             logger.info(`[VoiceSession] Report model (with key+model rotation): ${reportModelName}`);
 
             const currentDate = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
