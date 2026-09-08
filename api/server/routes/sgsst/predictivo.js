@@ -273,6 +273,35 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
                 });
             }
 
+            // Helper de detección de anomalías clínicas reales
+            const detectActualHealthIssue = (condStr, fit) => {
+                const text = String(condStr || '').toLowerCase().trim();
+                if (!text || text === 'ninguna' || text === 'ninguno' || text === 'apto' || text === 'apto / sin restricciones' || text === 'sin restricciones' || text === 'sin patologías' || text === 'normal') {
+                    if (fit !== undefined && fit !== null && fit < 60) {
+                        return { hasIssue: true, condition: 'Bajo FIT Score (< 60%)' };
+                    }
+                    return { hasIssue: false, condition: 'Apto' };
+                }
+                const parts = text.split(/;|,/).map(p => p.trim()).filter(Boolean);
+                const isAllNegative = parts.every(p => 
+                    p === 'ninguna' || p === 'ninguno' || p.startsWith('apto') || p === 'sin restricciones' || p === 'normal' || p === 'sin patologias' || p === 'sin patologías'
+                );
+                if (isAllNegative) {
+                    if (fit !== undefined && fit !== null && fit < 60) {
+                        return { hasIssue: true, condition: 'Bajo FIT Score (< 60%)' };
+                    }
+                    return { hasIssue: false, condition: 'Apto' };
+                }
+                const hasDiseaseKeywords = /hernia|lumbalg|tunel|carpian|hipertens|hta|cardio|epilep|vertigo|asma|epoc|diabet|restricci|manguito|rotador|cirug|lesion|fractura|esguince|dolor|cefal|limitacion|reubic/i.test(text);
+                if (hasDiseaseKeywords || (fit !== undefined && fit !== null && fit < 65)) {
+                    return { hasIssue: true, condition: condStr };
+                }
+                return { hasIssue: false, condition: 'Apto' };
+            };
+
+            let sumFitScore = 0;
+            let countFitWorkers = 0;
+
             // Hito 1: Trabajadores SgsstWorker & Perfil Sociodemográfico
             const SgsstWorker = mongoose.models.SgsstWorker;
 
@@ -282,15 +311,19 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
                     totalWorkers = workers.length;
                     workers.forEach(w => {
                         const cargoDisplay = cargoLookupMap[w.perfilId] || w.cargo || (w.perfilId && !w.perfilId.includes('-') ? w.perfilId : 'Operativo');
-                        const hasHealthIssue = (w.condicionesSalud && w.condicionesSalud !== 'Apto / Sin restricciones' && w.condicionesSalud !== 'Apto');
-                        if (w.fitScore < 60 || hasHealthIssue) {
+                        const fitVal = (w.fitScore !== undefined && w.fitScore !== null) ? Number(w.fitScore) : 85;
+                        sumFitScore += fitVal;
+                        countFitWorkers++;
+
+                        const check = detectActualHealthIssue(w.condicionesSalud, fitVal);
+                        if (check.hasIssue) {
                             sickWorkers++;
-                            if (cargoDisplay) criticalAreasMap[cargoDisplay] = (criticalAreasMap[cargoDisplay] || 0) + 1.5;
+                            if (cargoDisplay) criticalAreasMap[cargoDisplay] = (criticalAreasMap[cargoDisplay] || 0) + 2.5;
                             specificWorkerAlerts.push({
                                 nombre: w.nombre || 'Colaborador',
                                 cargo: cargoDisplay,
-                                condicionesSalud: w.condicionesSalud || 'Bajo FIT Score',
-                                fitScore: w.fitScore ?? 0
+                                condicionesSalud: check.condition,
+                                fitScore: fitVal
                             });
                         }
                         // Acumular criticidad en los 9 dominios bioindividuales
@@ -313,15 +346,19 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
                     if (doc?.trabajadores?.length) {
                         totalWorkers = doc.trabajadores.length;
                         doc.trabajadores.forEach(t => {
-                            const hasHealthIssue = (t.diagnosticoMedico && t.diagnosticoMedico !== 'Apto / Sin Hallazgos' && t.diagnosticoMedico !== 'Apto');
-                            if ((t.biocentricScore !== undefined && t.biocentricScore < 60) || hasHealthIssue) {
+                            const fitVal = t.biocentricScore !== undefined ? Number(t.biocentricScore) : 80;
+                            sumFitScore += fitVal;
+                            countFitWorkers++;
+
+                            const check = detectActualHealthIssue(t.diagnosticoMedico, fitVal);
+                            if (check.hasIssue) {
                                 sickWorkers++;
-                                if (t.cargo) criticalAreasMap[t.cargo] = (criticalAreasMap[t.cargo] || 0) + 1.5;
+                                if (t.cargo) criticalAreasMap[t.cargo] = (criticalAreasMap[t.cargo] || 0) + 2.5;
                                 specificWorkerAlerts.push({
                                     nombre: t.nombre || 'Colaborador',
                                     cargo: t.cargo || 'Operativo',
-                                    condicionesSalud: t.diagnosticoMedico || 'Alerta Biocéntrica H1',
-                                    fitScore: t.biocentricScore ?? 50
+                                    condicionesSalud: check.condition,
+                                    fitScore: fitVal
                                 });
                             }
                         });
@@ -449,21 +486,46 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
             logger.error('[Predictivo] DB Aggregation Error:', e.message); 
         }
         
-        let healthRisk = totalWorkers > 0 ? Math.min(100, Math.round((sickWorkers / totalWorkers) * 100 * 2)) : 0;
-        let safetyRisk = totalHazards > 0 ? Math.min(100, Math.round((totalHazardsI_II / totalHazards) * 100 * 1.5)) : 0;
-        if (totalActsConds > 0) safetyRisk = Math.min(100, safetyRisk + (totalActsConds * 5));
-        if (totalATEL > 0) safetyRisk = Math.min(100, safetyRisk + (totalATEL * 12));
-        if (totalAlturasActive > 0) safetyRisk = Math.min(100, safetyRisk + (totalAlturasActive * 8));
-        if (totalIpevarHighMiedo > 0) safetyRisk = Math.min(100, safetyRisk + (totalIpevarHighMiedo * 6));
-        
-        let ergonomicRisk = totalOwas > 0 ? Math.min(100, Math.round((totalOwasHigh / totalOwas) * 100 * 1.5)) : 0;
-        if (ergonomicRisk === 0 && sickWorkers > 0) ergonomicRisk = Math.floor(healthRisk / 2);
-        
+        const avgCompanyFit = countFitWorkers > 0 ? Math.round(sumFitScore / countFitWorkers) : 90;
+
+        // 1. Vulnerabilidad Biomédica (Salud & FIT 360°)
+        // Refleja la brecha real de salud de la población y la proporción de restricciones médicas activas
+        const fitDeficit = Math.max(0, 100 - avgCompanyFit);
+        const restrictionRate = totalWorkers > 0 ? Math.round((sickWorkers / totalWorkers) * 100) : 0;
+        let healthRisk = Math.min(100, Math.max(fitDeficit, restrictionRate));
+        if (healthRisk === 0 && totalWorkers > 0) healthRisk = 5; // Basal fisiológico
+
+        // 2. Exposición Operacional (Entorno & Peligros Físicos)
+        let safetyRisk = 0;
+        if (totalHazards > 0) {
+            safetyRisk += Math.round((totalHazardsI_II / totalHazards) * 35);
+        }
+        if (totalActsConds > 0) safetyRisk += Math.min(25, totalActsConds * 5);
+        if (totalATEL > 0) safetyRisk += Math.min(25, totalATEL * 10);
+        if (totalAlturasActive > 0) safetyRisk += Math.min(20, totalAlturasActive * 5);
+        if (totalIpevarHighMiedo > 0) safetyRisk += Math.min(20, totalIpevarHighMiedo * 5);
+        safetyRisk = Math.min(100, Math.max(totalATEL > 0 ? 10 : 5, safetyRisk));
+
+        // 3. Incompatibilidad Biomecánica & Postural (Carga Física & OWAS)
+        let highDemandCargos = 0;
+        let totalCargosCount = 0;
+        if (cargoProfileDoc?.perfilesList?.length) {
+            totalCargosCount = cargoProfileDoc.perfilesList.length;
+            highDemandCargos = cargoProfileDoc.perfilesList.filter(p => p.exigenciaFisica === 'Alta' || p.exigenciaFisica === 'Muy Alta').length;
+        }
+
+        let ergonomicRisk = 0;
+        if (totalOwas > 0) {
+            ergonomicRisk = Math.min(100, Math.round((totalOwasHigh / totalOwas) * 100));
+        } else if (totalCargosCount > 0 && highDemandCargos > 0) {
+            ergonomicRisk = Math.min(30, Math.round((highDemandCargos / totalCargosCount) * 25));
+        } else {
+            ergonomicRisk = 8; // Posturas en control basal
+        }
+
         let overallRisk = Math.min(100, Math.round((healthRisk + safetyRisk + ergonomicRisk) / 3));
         if (overallRisk === 0 && (totalWorkers > 0 || totalHazards > 0)) {
-            overallRisk = 12;
-            safetyRisk = 15;
-            healthRisk = 10;
+            overallRisk = 8;
         }
 
         let criticalArea = "SISTEMA GENERAL";
@@ -488,9 +550,15 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
         }
 
         // Estimación cuantitativa ML (Random Forest + XGBoost)
-        const expectedMonthlyAccidents = overallRisk >= 70 ? Math.max(2, Math.round(totalWorkers * 0.08)) : overallRisk >= 40 ? 1 : 0;
-        const expectedYearlyDaysLost = (totalATEL * 14) + (overallRisk >= 50 ? 45 : 12);
-        const expectedDaysCharged = totalATEL > 0 ? (totalATEL * 600) : (overallRisk >= 60 ? 300 : 0); // Base 6.000 días PCL
+        const expectedMonthlyAccidents = overallRisk >= 70 ? Math.max(2, Math.round(totalWorkers * 0.08)) 
+            : overallRisk >= 40 ? 1 
+            : (totalATEL > 0 && overallRisk >= 25) ? 1 
+            : 0;
+        const totalProjectedYearly = overallRisk >= 70 ? Math.round(totalWorkers * 0.4) 
+            : overallRisk >= 40 ? 6 
+            : Math.max(1, totalATEL);
+        const expectedYearlyDaysLost = Math.round(totalProjectedYearly * 12);
+        const expectedDaysCharged = (totalATEL > 0 && overallRisk >= 50) ? (totalATEL * 600) : 0; // Base 6.000 días PCL
 
         // Construcción de acciones 100% DINÁMICAS basadas en los datos reales del usuario
         let dynamicActions = [];
@@ -620,35 +688,35 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
         }
 
         // ── Distribución de Tipos de Lesión (Treemap & Donas) ──
-        const totalProjectedYearly = timeSeries
+        const totalVolumeYearly = timeSeries
             .filter(t => t.type !== 'historical')
-            .reduce((sum, t) => sum + t.count, 0) || Math.max(8, expectedMonthlyAccidents * 10);
+            .reduce((sum, t) => sum + t.count, 0) || Math.max(1, totalProjectedYearly);
 
         const lesionDistribution = [
-            { id: 'golpe', name: 'Golpe o Contusión', count: Math.max(1, Math.round(totalProjectedYearly * 0.45)), percentage: 45, color: '#0d9488', severity: 'Media-Alta' },
-            { id: 'herida', name: 'Herida Cortante', count: Math.max(1, Math.round(totalProjectedYearly * 0.20)), percentage: 20, color: '#f97316', severity: 'Media' },
-            { id: 'torcedura', name: 'Torcedura / Esguince', count: Math.max(1, Math.round(totalProjectedYearly * 0.15)), percentage: 15, color: '#8b5cf6', severity: 'Baja-Media' },
-            { id: 'luxacion', name: 'Luxación o Fractura', count: Math.max(1, Math.round(totalProjectedYearly * 0.10)), percentage: 10, color: '#ef4444', severity: 'Alta-Crítica' },
-            { id: 'conmocion', name: 'Trauma / Conmoción', count: Math.max(1, Math.round(totalProjectedYearly * 0.05)), percentage: 5, color: '#ec4899', severity: 'Crítica' },
-            { id: 'otros', name: 'Otras Lesiones', count: Math.max(1, Math.round(totalProjectedYearly * 0.05)), percentage: 5, color: '#64748b', severity: 'Leve' }
+            { id: 'golpe', name: 'Golpe o Contusión', count: Math.max(1, Math.round(totalVolumeYearly * 0.45)), percentage: 45, color: '#0d9488', severity: 'Media-Alta' },
+            { id: 'herida', name: 'Herida Cortante', count: Math.max(1, Math.round(totalVolumeYearly * 0.20)), percentage: 20, color: '#f97316', severity: 'Media' },
+            { id: 'torcedura', name: 'Torcedura / Esguince', count: Math.max(1, Math.round(totalVolumeYearly * 0.15)), percentage: 15, color: '#8b5cf6', severity: 'Baja-Media' },
+            { id: 'luxacion', name: 'Luxación o Fractura', count: Math.max(1, Math.round(totalVolumeYearly * 0.10)), percentage: 10, color: '#ef4444', severity: 'Alta-Crítica' },
+            { id: 'conmocion', name: 'Trauma / Conmoción', count: Math.max(1, Math.round(totalVolumeYearly * 0.05)), percentage: 5, color: '#ec4899', severity: 'Crítica' },
+            { id: 'otros', name: 'Otras Lesiones', count: Math.max(1, Math.round(totalVolumeYearly * 0.05)), percentage: 5, color: '#64748b', severity: 'Leve' }
         ];
 
         // ── Distribución Anatómica (Partes del Cuerpo Afectadas) ──
         const anatomyDistribution = [
-            { id: 'manos', name: 'Manos y Muñecas', count: Math.max(1, Math.round(totalProjectedYearly * 0.2857)), percentage: 28.6, color: '#0d9488', tagsLinked: ['Tunel_Carpiano', 'Epicondilitis', 'Restriccion_Hombro'], rolesRisk: ['Operario', 'Mantenimiento', 'Producción', 'Soldador'] },
-            { id: 'multiples', name: 'Ubicaciones Múltiples', count: Math.max(1, Math.round(totalProjectedYearly * 0.1905)), percentage: 19.1, color: '#ec4899', tagsLinked: ['Vertigo', 'Epilepsia', 'Medicamento_SNC'], rolesRisk: ['Alturas', 'Conductor', 'Operador Maquinaria'] },
-            { id: 'espalda', name: 'Columna / Tronco', count: Math.max(1, Math.round(totalProjectedYearly * 0.1428)), percentage: 14.3, color: '#8b5cf6', tagsLinked: ['Lumbalgia', 'Hernia_Discal', 'No_Carga_Peso'], rolesRisk: ['Bodega', 'Cargue y Descargue', 'Operativo'] },
-            { id: 'cabeza', name: 'Cabeza y Ojos', count: Math.max(1, Math.round(totalProjectedYearly * 0.0952)), percentage: 9.5, color: '#f59e0b', tagsLinked: ['Vision_Reducida'], rolesRisk: ['Metalmecánica', 'Construcción', 'Mantenimiento'] },
-            { id: 'torax', name: 'Tórax y Abdomen', count: Math.max(1, Math.round(totalProjectedYearly * 0.0952)), percentage: 9.5, color: '#ef4444', tagsLinked: ['Cardiopatia', 'HTA', 'EPOC'], rolesRisk: ['Producción', 'Operaciones'] },
-            { id: 'pies', name: 'Miembros Inferiores / Pies', count: Math.max(1, Math.round(totalProjectedYearly * 0.0952)), percentage: 9.5, color: '#3b82f6', tagsLinked: ['Restriccion_Rodilla', 'No_Bipedestacion'], rolesRisk: ['Planta', 'Logística', 'Distribución'] },
-            { id: 'otros_seg', name: 'Otros Segmentos', count: Math.max(1, Math.round(totalProjectedYearly * 0.0952)), percentage: 9.5, color: '#64748b', tagsLinked: [], rolesRisk: [] }
+            { id: 'manos', name: 'Manos y Muñecas', count: Math.max(1, Math.round(totalVolumeYearly * 0.2857)), percentage: 28.6, color: '#0d9488', tagsLinked: ['Tunel_Carpiano', 'Epicondilitis', 'Restriccion_Hombro'], rolesRisk: ['Operario', 'Mantenimiento', 'Producción', 'Soldador'] },
+            { id: 'multiples', name: 'Ubicaciones Múltiples', count: Math.max(1, Math.round(totalVolumeYearly * 0.1905)), percentage: 19.1, color: '#ec4899', tagsLinked: ['Vertigo', 'Epilepsia', 'Medicamento_SNC'], rolesRisk: ['Alturas', 'Conductor', 'Operador Maquinaria'] },
+            { id: 'espalda', name: 'Columna / Tronco', count: Math.max(1, Math.round(totalVolumeYearly * 0.1428)), percentage: 14.3, color: '#8b5cf6', tagsLinked: ['Lumbalgia', 'Hernia_Discal', 'No_Carga_Peso'], rolesRisk: ['Bodega', 'Cargue y Descargue', 'Operativo'] },
+            { id: 'cabeza', name: 'Cabeza y Ojos', count: Math.max(1, Math.round(totalVolumeYearly * 0.0952)), percentage: 9.5, color: '#f59e0b', tagsLinked: ['Vision_Reducida'], rolesRisk: ['Metalmecánica', 'Construcción', 'Mantenimiento'] },
+            { id: 'torax', name: 'Tórax y Abdomen', count: Math.max(1, Math.round(totalVolumeYearly * 0.0952)), percentage: 9.5, color: '#ef4444', tagsLinked: ['Cardiopatia', 'HTA', 'EPOC'], rolesRisk: ['Producción', 'Operaciones'] },
+            { id: 'pies', name: 'Miembros Inferiores / Pies', count: Math.max(1, Math.round(totalVolumeYearly * 0.0952)), percentage: 9.5, color: '#3b82f6', tagsLinked: ['Restriccion_Rodilla', 'No_Bipedestacion'], rolesRisk: ['Planta', 'Logística', 'Distribución'] },
+            { id: 'otros_seg', name: 'Otros Segmentos', count: Math.max(1, Math.round(totalVolumeYearly * 0.0952)), percentage: 9.5, color: '#64748b', tagsLinked: [], rolesRisk: [] }
         ];
 
         // ── Distribución por Sedes / Centros de Trabajo ──
         const siteDistribution = [
-            { siteName: 'Planta Principal / Operaciones', historicalCount: Math.round(totalProjectedYearly * 0.65), expectedCount: Math.round(totalProjectedYearly * 0.58), percentage: 58, variationPct: -11, growthNet: -2, trend: 'down' },
-            { siteName: 'Sede Logística / Almacén', historicalCount: Math.round(totalProjectedYearly * 0.20), expectedCount: Math.round(totalProjectedYearly * 0.25), percentage: 25, variationPct: +25, growthNet: +1, trend: 'up' },
-            { siteName: 'Sede Administrativa / Comercial', historicalCount: Math.round(totalProjectedYearly * 0.15), expectedCount: Math.round(totalProjectedYearly * 0.17), percentage: 17, variationPct: +13, growthNet: 0, trend: 'stable' }
+            { siteName: 'Planta Principal / Operaciones', historicalCount: Math.round(totalVolumeYearly * 0.65), expectedCount: Math.round(totalVolumeYearly * 0.58), percentage: 58, variationPct: -11, growthNet: -2, trend: 'down' },
+            { siteName: 'Sede Logística / Almacén', historicalCount: Math.round(totalVolumeYearly * 0.20), expectedCount: Math.round(totalVolumeYearly * 0.25), percentage: 25, variationPct: +25, growthNet: +1, trend: 'up' },
+            { siteName: 'Sede Administrativa / Comercial', historicalCount: Math.round(totalVolumeYearly * 0.15), expectedCount: Math.round(totalVolumeYearly * 0.17), percentage: 17, variationPct: +13, growthNet: 0, trend: 'stable' }
         ];
 
         res.json({
@@ -672,9 +740,15 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
             anatomyDistribution,
             siteDistribution,
             evidence: {
-                healthEvidence: `Huella Biocéntrica H1: ${sickWorkers} trabajadores con baja aptitud o patologías de un total de ${totalWorkers}.`,
-                safetyEvidence: `Núcleo H2/H3: ${totalHazardsI_II} peligros críticos, ${totalActsConds} actos/condiciones abiertas y ${totalATEL} eventos ATEL históricos.`,
-                ergonomicEvidence: `Evaluación H3: ${totalOwasHigh} posturas críticas Nivel 3-4 en OWAS (Dominio Osteomuscular).`
+                healthEvidence: sickWorkers > 0 
+                    ? `Huella Biocéntrica H1: FIT Score promedio en ${avgCompanyFit}%. ${sickWorkers} de ${totalWorkers} colaborador(es) con restricción médica activa.`
+                    : `Huella Biocéntrica H1: FIT Score promedio óptimo en ${avgCompanyFit}%. Plantilla 100% apta sin restricciones.`,
+                safetyEvidence: `Núcleo H2/H3: ${totalHazardsI_II} peligros Nivel I/II, ${totalActsConds} actos/condiciones abiertas y ${totalATEL} evento(s) ATEL histórico(s).`,
+                ergonomicEvidence: totalOwas > 0
+                    ? `Evaluación H3: ${totalOwasHigh} de ${totalOwas} posturas críticas Nivel 3-4 en OWAS.`
+                    : highDemandCargos > 0
+                        ? `Evaluación H3: 0 posturas críticas en OWAS. ${highDemandCargos} cargo(s) con exigencia física alta en seguimiento.`
+                        : `Evaluación H3: Tareas operativas con ergonomía postural controlada.`
             },
             recommendedActions: finalRecommendedActions
         });

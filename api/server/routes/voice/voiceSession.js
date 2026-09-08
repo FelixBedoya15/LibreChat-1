@@ -12,6 +12,7 @@ const { buildSignatureSection } = require('../sgsst/reportHeader');
 const fs = require('fs');
 const path = require('path');
 const SKILLS_DIR = path.resolve(__dirname, '../../../config/skills');
+const { resolveInspectionProtocol, INSPECTION_PROTOCOLS } = require('./inspectionProtocols');
 
 /**
  * Loads and extracts clean technical domain knowledge from agent skills
@@ -2265,8 +2266,7 @@ PAUTAS DE ENCUADRE Y MULTIFASE (GUÍA NATURAL SIN INTERROGATORIOS):
 - Muestreo multifase: Acompaña al usuario en su ciclo de trabajo si pasa de postura habitual a alcances lejanos o fatiga.
 - NUNCA hagas preguntas ni cuestionarios sobre quién graba, qué celular usa o en qué fase está: observa directamente y evalúa.
 
-${skillsContent ? `\nCONOCIMIENTO DE SKILLS DEL FISIOTERAPEUTA:\n${skillsContent}\n` : ''}
-${cleanedInstructions ? `\nINSTRUCCIONES Y NORMATIVIDAD DEL AGENTE:\n${cleanedInstructions.substring(0, 3000)}\n` : ''}
+${cleanedInstructions ? `\nINSTRUCCIONES Y NORMATIVIDAD DEL AGENTE:\n${cleanedInstructions.substring(0, 1500)}\n` : ''}
 GENERACIÓN DEL INFORME TÉCNICO: Cuando el usuario te pida generar, hacer o sacar el informe, reporte o resumen técnico ("haz el informe", "genera el informe", "dame el reporte", "quiero el informe"), DEBES INVOCAR INMEDIATAMENTE la función 'generar_informe_tecnico'. Mientras se procesa, confirma en una sola frase breve: "Listo, procesando las evidencias bajo el método seleccionado para generar el informe técnico ergonómico."`;
         } else {
             domainKnowledge = `
