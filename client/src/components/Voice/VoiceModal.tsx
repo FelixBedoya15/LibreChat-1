@@ -216,175 +216,46 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     }>({ neck: null, trunk: null, arm: null, elbow: null, knee: null });
     const lastStateUpdateRef = useRef<number>(0);
 
-    // Dynamic Cervical (Neck) risk level calculation matching RULA/REBA guidelines
-    const neckInfo = useMemo(() => {
-        if (neckAngle === null) {
-            return {
-                status: '--',
-                colorClass: 'bg-white/5 border-white/10 text-white/80',
-                textClass: 'text-white/40',
-                valColorClass: 'text-white/50'
-            };
-        }
-        if (neckAngle > 25) {
-            return {
-                status: 'Crítico',
-                colorClass: 'bg-red-500/15 border-red-500/30 text-red-200',
-                textClass: 'text-red-400 font-bold animate-pulse',
-                valColorClass: 'text-red-400'
-            };
-        }
-        if (neckAngle > 10) {
-            return {
-                status: 'Moderado',
-                colorClass: 'bg-amber-500/10 border-amber-500/20 text-amber-200',
-                textClass: 'text-amber-400 font-semibold',
-                valColorClass: 'text-amber-400'
-            };
-        }
-        return {
-            status: 'Normal',
-            colorClass: 'bg-emerald-500/5 border-emerald-500/20 text-emerald-100',
-            textClass: 'text-emerald-400 font-medium',
-            valColorClass: 'text-cyan-400'
-        };
-    }, [neckAngle]);
+    const getNeckStatus = (angle: number | null) => {
+        if (angle === null) return { status: '--', colorClass: 'bg-white/5 border-white/10 text-white/80', textClass: 'text-white/40', valColorClass: 'text-white/50' };
+        if (angle > 25) return { status: 'Crítico', colorClass: 'bg-red-500/15 border-red-500/30 text-red-200', textClass: 'text-red-400 font-bold animate-pulse', valColorClass: 'text-red-400' };
+        if (angle > 10) return { status: 'Moderado', colorClass: 'bg-amber-500/10 border-amber-500/20 text-amber-200', textClass: 'text-amber-400 font-semibold', valColorClass: 'text-amber-400' };
+        return { status: 'Normal', colorClass: 'bg-emerald-500/5 border-emerald-500/20 text-emerald-100', textClass: 'text-emerald-400 font-medium', valColorClass: 'text-cyan-400' };
+    };
 
-    // Dynamic Column (Trunk) risk level calculation matching RULA/REBA guidelines
-    const trunkInfo = useMemo(() => {
-        if (trunkAngle === null) {
-            return {
-                status: '--',
-                colorClass: 'bg-white/5 border-white/10 text-white/80',
-                textClass: 'text-white/40',
-                valColorClass: 'text-white/50'
-            };
-        }
-        if (trunkAngle > 25) {
-            return {
-                status: 'Crítico',
-                colorClass: 'bg-red-500/15 border-red-500/30 text-red-200',
-                textClass: 'text-red-400 font-bold animate-pulse',
-                valColorClass: 'text-red-400'
-            };
-        }
-        if (trunkAngle > 0) {
-            return {
-                status: 'Moderado',
-                colorClass: 'bg-amber-500/10 border-amber-500/20 text-amber-200',
-                textClass: 'text-amber-400 font-semibold',
-                valColorClass: 'text-amber-400'
-            };
-        }
-        return {
-            status: 'Normal',
-            colorClass: 'bg-emerald-500/5 border-emerald-500/20 text-emerald-100',
-            textClass: 'text-emerald-400 font-medium',
-            valColorClass: 'text-emerald-400'
-        };
-    }, [trunkAngle]);
+    const getTrunkStatus = (angle: number | null) => {
+        if (angle === null) return { status: '--', colorClass: 'bg-white/5 border-white/10 text-white/80', textClass: 'text-white/40', valColorClass: 'text-white/50' };
+        if (angle > 25) return { status: 'Crítico', colorClass: 'bg-red-500/15 border-red-500/30 text-red-200', textClass: 'text-red-400 font-bold animate-pulse', valColorClass: 'text-red-400' };
+        if (angle > 0) return { status: 'Moderado', colorClass: 'bg-amber-500/10 border-amber-500/20 text-amber-200', textClass: 'text-amber-400 font-semibold', valColorClass: 'text-amber-400' };
+        return { status: 'Normal', colorClass: 'bg-emerald-500/5 border-emerald-500/20 text-emerald-100', textClass: 'text-emerald-400 font-medium', valColorClass: 'text-emerald-400' };
+    };
 
-    // Dynamic Arm Abduction risk level calculation matching RULA/REBA guidelines
-    const armInfo = useMemo(() => {
-        if (armAngle === null) {
-            return {
-                status: '--',
-                colorClass: 'bg-white/5 border-white/10 text-white/80',
-                textClass: 'text-white/40',
-                valColorClass: 'text-white/50'
-            };
-        }
-        if (armAngle > 45) {
-            return {
-                status: 'Crítico',
-                colorClass: 'bg-red-500/15 border-red-500/30 text-red-200',
-                textClass: 'text-red-400 font-bold animate-pulse',
-                valColorClass: 'text-red-400'
-            };
-        }
-        if (armAngle > 20) {
-            return {
-                status: 'Moderado',
-                colorClass: 'bg-amber-500/10 border-amber-500/20 text-amber-200',
-                textClass: 'text-amber-400 font-semibold',
-                valColorClass: 'text-amber-400'
-            };
-        }
-        return {
-            status: 'Normal',
-            colorClass: 'bg-emerald-500/5 border-emerald-500/20 text-emerald-100',
-            textClass: 'text-emerald-400 font-medium',
-            valColorClass: 'text-emerald-400'
-        };
-    }, [armAngle]);
+    const getArmStatus = (angle: number | null) => {
+        if (angle === null) return { status: '--', colorClass: 'bg-white/5 border-white/10 text-white/80', textClass: 'text-white/40', valColorClass: 'text-white/50' };
+        if (angle > 45) return { status: 'Crítico', colorClass: 'bg-red-500/15 border-red-500/30 text-red-200', textClass: 'text-red-400 font-bold animate-pulse', valColorClass: 'text-red-400' };
+        if (angle > 20) return { status: 'Moderado', colorClass: 'bg-amber-500/10 border-amber-500/20 text-amber-200', textClass: 'text-amber-400 font-semibold', valColorClass: 'text-amber-400' };
+        return { status: 'Normal', colorClass: 'bg-emerald-500/5 border-emerald-500/20 text-emerald-100', textClass: 'text-emerald-400 font-medium', valColorClass: 'text-emerald-400' };
+    };
 
-    // Dynamic Elbow Flexion risk level calculation matching RULA guidelines
-    const elbowInfo = useMemo(() => {
-        if (elbowAngle === null) {
-            return {
-                status: '--',
-                colorClass: 'bg-white/5 border-white/10 text-white/80',
-                textClass: 'text-white/40',
-                valColorClass: 'text-white/50'
-            };
-        }
-        if (elbowAngle < 30 || elbowAngle > 130) {
-            return {
-                status: 'Crítico',
-                colorClass: 'bg-red-500/15 border-red-500/30 text-red-200',
-                textClass: 'text-red-400 font-bold animate-pulse',
-                valColorClass: 'text-red-400'
-            };
-        }
-        if ((elbowAngle >= 30 && elbowAngle < 60) || (elbowAngle > 100 && elbowAngle <= 130)) {
-            return {
-                status: 'Moderado',
-                colorClass: 'bg-amber-500/10 border-amber-500/20 text-amber-200',
-                textClass: 'text-amber-400 font-semibold',
-                valColorClass: 'text-amber-400'
-            };
-        }
-        return {
-            status: 'Normal',
-            colorClass: 'bg-emerald-500/5 border-emerald-500/20 text-emerald-100',
-            textClass: 'text-emerald-400 font-medium',
-            valColorClass: 'text-emerald-400'
-        };
-    }, [elbowAngle]);
+    const getElbowStatus = (angle: number | null) => {
+        if (angle === null) return { status: '--', colorClass: 'bg-white/5 border-white/10 text-white/80', textClass: 'text-white/40', valColorClass: 'text-white/50' };
+        if (angle < 30 || angle > 130) return { status: 'Crítico', colorClass: 'bg-red-500/15 border-red-500/30 text-red-200', textClass: 'text-red-400 font-bold animate-pulse', valColorClass: 'text-red-400' };
+        if ((angle >= 30 && angle < 60) || (angle > 100 && angle <= 130)) return { status: 'Moderado', colorClass: 'bg-amber-500/10 border-amber-500/20 text-amber-200', textClass: 'text-amber-400 font-semibold', valColorClass: 'text-amber-400' };
+        return { status: 'Normal', colorClass: 'bg-emerald-500/5 border-emerald-500/20 text-emerald-100', textClass: 'text-emerald-400 font-medium', valColorClass: 'text-emerald-400' };
+    };
 
-    // Dynamic Knee Flexion risk level calculation matching REBA guidelines
-    const kneeInfo = useMemo(() => {
-        if (kneeAngle === null) {
-            return {
-                status: '--',
-                colorClass: 'bg-white/5 border-white/10 text-white/80',
-                textClass: 'text-white/40',
-                valColorClass: 'text-white/50'
-            };
-        }
-        if (kneeAngle > 60) {
-            return {
-                status: 'Crítico',
-                colorClass: 'bg-red-500/15 border-red-500/30 text-red-200',
-                textClass: 'text-red-400 font-bold animate-pulse',
-                valColorClass: 'text-red-400'
-            };
-        }
-        if (kneeAngle > 30) {
-            return {
-                status: 'Moderado',
-                colorClass: 'bg-amber-500/10 border-amber-500/20 text-amber-200',
-                textClass: 'text-amber-400 font-semibold',
-                valColorClass: 'text-amber-400'
-            };
-        }
-        return {
-            status: 'Normal',
-            colorClass: 'bg-emerald-500/5 border-emerald-500/20 text-emerald-100',
-            textClass: 'text-emerald-400 font-medium',
-            valColorClass: 'text-emerald-400'
-        };
-    }, [kneeAngle]);
+    const getKneeStatus = (angle: number | null) => {
+        if (angle === null) return { status: '--', colorClass: 'bg-white/5 border-white/10 text-white/80', textClass: 'text-white/40', valColorClass: 'text-white/50' };
+        if (angle > 60) return { status: 'Crítico', colorClass: 'bg-red-500/15 border-red-500/30 text-red-200', textClass: 'text-red-400 font-bold animate-pulse', valColorClass: 'text-red-400' };
+        if (angle > 30) return { status: 'Moderado', colorClass: 'bg-amber-500/10 border-amber-500/20 text-amber-200', textClass: 'text-amber-400 font-semibold', valColorClass: 'text-amber-400' };
+        return { status: 'Normal', colorClass: 'bg-emerald-500/5 border-emerald-500/20 text-emerald-100', textClass: 'text-emerald-400 font-medium', valColorClass: 'text-emerald-400' };
+    };
+
+    const neckInfo = useMemo(() => getNeckStatus(neckAngle), [neckAngle]);
+    const trunkInfo = useMemo(() => getTrunkStatus(trunkAngle), [trunkAngle]);
+    const armInfo = useMemo(() => getArmStatus(armAngle), [armAngle]);
+    const elbowInfo = useMemo(() => getElbowStatus(elbowAngle), [elbowAngle]);
+    const kneeInfo = useMemo(() => getKneeStatus(kneeAngle), [kneeAngle]);
 
     const sessionOptions = useMemo(() => ({
         conversationId,
@@ -405,14 +276,14 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                 setLastUserTranscript(text);
                 if (transcriptTimeoutRef.current) clearTimeout(transcriptTimeoutRef.current);
             } else if (text) {
-                // AI text response: check for phase advancement cues spoken by AI
+                // AI text response: check for explicit phase advancement commands spoken by AI
                 const lower = text.toLowerCase();
                 let targetIdx: number | null = null;
-                if (/(?:paso|fase)\s*2\b|alcance|mayor esfuerzo|segund[oa] fase/i.test(lower)) {
+                if (/(?:pasemos|vamos|avancemos|iniciemos|comencemos|pasa|pasar|ve\s+al|cambiemos)\s+(?:al\s+|a\s+la\s+)?(?:paso|fase)\s*2\b/i.test(lower)) {
                     targetIdx = 1;
-                } else if (/(?:paso|fase)\s*3\b|fatiga|cansad[oa]|colapso|tercer[oa] fase/i.test(lower)) {
+                } else if (/(?:pasemos|vamos|avancemos|iniciemos|comencemos|pasa|pasar|ve\s+al|cambiemos)\s+(?:al\s+|a\s+la\s+)?(?:paso|fase)\s*3\b/i.test(lower)) {
                     targetIdx = 2;
-                } else if (/(?:paso|fase)\s*1\b|postura habitual|línea base|primer[oa] fase/i.test(lower)) {
+                } else if (/(?:regresemos|volver|volvamos|reiniciemos)\s+(?:al\s+|a\s+la\s+)?(?:paso|fase)\s*1\b/i.test(lower)) {
                     targetIdx = 0;
                 }
 
@@ -421,6 +292,20 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                     // Secure capture of current phase before advancing
                     capturePhaseEvidenceRef.current?.(currentPhaseIndexRef.current, true);
                     setCurrentPhaseIndex(targetIdx);
+                }
+            }
+        },
+        onWappyAction: (action: { id: string; name: string; args: any }) => {
+            console.log('[VoiceModal] Action received:', action);
+            if (action.name === 'cambiar_fase_evaluacion') {
+                const requestedPhase = Number(action.args?.fase);
+                if (requestedPhase >= 1 && requestedPhase <= 3) {
+                    const targetIdx = requestedPhase - 1;
+                    if (targetIdx !== currentPhaseIndexRef.current) {
+                        console.log(`[VoiceModal] Wappy action changed phase to: ${targetIdx + 1}`);
+                        capturePhaseEvidenceRef.current?.(currentPhaseIndexRef.current, true);
+                        setCurrentPhaseIndex(targetIdx);
+                    }
                 }
             }
         },
@@ -1183,20 +1068,20 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
 
         const base64 = dataUrl.split(',')[1];
 
-        // Gather real MediaPipe angles
+        // Gather real MediaPipe angles from ref (up to date without triggering re-renders)
         const currentAngles = anglesRef.current || {};
-        const nAngle = currentAngles.neck ?? neckAngle;
-        const tAngle = currentAngles.trunk ?? trunkAngle;
-        const aAngle = currentAngles.arm ?? armAngle;
-        const eAngle = currentAngles.elbow ?? elbowAngle;
-        const kAngle = currentAngles.knee ?? kneeAngle;
+        const nAngle = currentAngles.neck ?? null;
+        const tAngle = currentAngles.trunk ?? null;
+        const aAngle = currentAngles.arm ?? null;
+        const eAngle = currentAngles.elbow ?? null;
+        const kAngle = currentAngles.knee ?? null;
 
         let telemetryParts: string[] = [];
-        if (nAngle !== null) telemetryParts.push(`Flexión Cervical: ${nAngle}° (${neckInfo.status})`);
-        if (tAngle !== null) telemetryParts.push(`Flexión de Tronco: ${tAngle}° (${trunkInfo.status})`);
-        if (aAngle !== null) telemetryParts.push(`Abducción de Brazo: ${aAngle}° (${armInfo.status})`);
-        if (eAngle !== null) telemetryParts.push(`Flexión de Codo: ${eAngle}° (${elbowInfo.status})`);
-        if (kAngle !== null) telemetryParts.push(`Flexión de Rodilla: ${kAngle}° (${kneeInfo.status})`);
+        if (nAngle !== null) telemetryParts.push(`Flexión Cervical: ${nAngle}° (${getNeckStatus(nAngle).status})`);
+        if (tAngle !== null) telemetryParts.push(`Flexión de Tronco: ${tAngle}° (${getTrunkStatus(tAngle).status})`);
+        if (aAngle !== null) telemetryParts.push(`Abducción de Brazo: ${aAngle}° (${getArmStatus(aAngle).status})`);
+        if (eAngle !== null) telemetryParts.push(`Flexión de Codo: ${eAngle}° (${getElbowStatus(eAngle).status})`);
+        if (kAngle !== null) telemetryParts.push(`Flexión de Rodilla: ${kAngle}° (${getKneeStatus(kAngle).status})`);
 
         let telemetryText = '';
         if (isBiomechanicsAgent) {
@@ -1234,16 +1119,6 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         isScreenSharing, 
         captureSnapshot, 
         sendEvidenceImage, 
-        neckAngle,
-        neckInfo.status,
-        trunkAngle,
-        trunkInfo.status,
-        armAngle,
-        armInfo.status,
-        elbowAngle,
-        elbowInfo.status,
-        kneeAngle,
-        kneeInfo.status,
         isBiomechanicsAgent
     ]);
 
@@ -1251,19 +1126,19 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         capturePhaseEvidenceRef.current = capturePhaseEvidence;
     }, [capturePhaseEvidence]);
 
-    // Auto-capture stabilization timer: captures each phase after ~4.5 seconds if not yet captured
+    // Auto-capture stabilization timer: captures each phase after ~5 seconds if not yet captured
     useEffect(() => {
         if (!isCameraOn && !isScreenSharing) return;
 
         const timer = setTimeout(() => {
             if (!autoCapturedPhasesRef.current.has(currentPhaseIndex)) {
                 console.log(`[VoiceModal] Auto-capturing stabilized posture for phase ${currentPhaseIndex}`);
-                capturePhaseEvidence(currentPhaseIndex, true);
+                capturePhaseEvidenceRef.current?.(currentPhaseIndex, true);
             }
-        }, 4500);
+        }, 5000);
 
         return () => clearTimeout(timer);
-    }, [currentPhaseIndex, isCameraOn, isScreenSharing, capturePhaseEvidence]);
+    }, [currentPhaseIndex, isCameraOn, isScreenSharing]);
 
     const handleManualCapture = useCallback(() => {
         if (!isCameraOn && !isScreenSharing) return;

@@ -450,9 +450,13 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                         message.data.evaluatedFrames
                     );
                     
-                    // Force state back to ready to unfreeze UI
-                    setStatus('ready');
-                    optionsRef.current.onStatusChange?.('turn_complete');
+                    // Unfreeze state and microphone cleanly
+                    isAutoMutedRef.current = false;
+                    isPlayingAudioRef.current = false;
+                    serverFinishedRef.current = true;
+                    statusRef.current = 'listening';
+                    setStatus('listening');
+                    optionsRef.current.onStatusChange?.('listening');
                 }
                 break;
 
@@ -467,12 +471,15 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             case 'status':
                 const newStatus = message.data.status;
                 setStatus(newStatus);
+                statusRef.current = newStatus;
                 optionsRef.current.onStatusChange?.(newStatus);
 
                 if (newStatus === 'listening' || newStatus === 'turn_complete') {
                     serverFinishedRef.current = true;
                     if (!isPlayingAudioRef.current) {
                         isAutoMutedRef.current = false;
+                        statusRef.current = 'listening';
+                        setStatus('listening');
                         if (autoMuteTimeoutRef.current) {
                             clearTimeout(autoMuteTimeoutRef.current);
                             autoMuteTimeoutRef.current = null;
@@ -614,6 +621,9 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         if (!isPlaying && serverFinishedRef.current) {
             console.log('[VoiceSession] Playback finished and server is done - unmuting microphone');
             isAutoMutedRef.current = false;
+            statusRef.current = 'listening';
+            setStatus('listening');
+            optionsRef.current.onStatusChange?.('listening');
             if (autoMuteTimeoutRef.current) {
                 clearTimeout(autoMuteTimeoutRef.current);
                 autoMuteTimeoutRef.current = null;

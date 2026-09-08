@@ -277,7 +277,7 @@ REGLAS DE INTERACCIÓN EN VIVO:
             // Herramientas nativas para agentes SST y Fisioterapeuta Laboral
             const reportTool = {
                 name: "generar_informe_tecnico",
-                description: "Genera inmediatamente el informe técnico ergonómico o de riesgos SST con las evidencias fotográficas y mediciones recopiladas en vivo. DEBES llamar obligatoriamente a esta función siempre que el usuario te pida directa o indirectamente hacer, compilar, crear, generar o entregar el informe, reporte o resumen técnico (ej: 'haz el informe', 'genera el informe', 'dame el reporte ergonómico', 'quiero el informe').",
+                description: "Genera el informe técnico ergonómico o de riesgos SST con las evidencias fotográficas y mediciones recopiladas en vivo. DEBES llamar a esta función cuando se hayan completado las 3 fases de la evaluación O cuando el usuario te pida expresamente hacer o generar el informe ('haz el informe', 'genera el reporte'). NUNCA la llames durante el saludo o en los pasos 1 y 2.",
                 parameters: {
                     type: "object",
                     properties: {
@@ -289,9 +289,24 @@ REGLAS DE INTERACCIÓN EN VIVO:
                 }
             };
 
+            const phaseTool = {
+                name: "cambiar_fase_evaluacion",
+                description: "Avanza o cambia la fase actual de la evaluación en la pantalla del usuario (Fase 1: Postura Habitual, Fase 2: Alcance Máximo/Cargas, Fase 3: Fatiga/Deslizamiento). Invócala cuando le indiques al usuario pasar a la siguiente fase de la evaluación.",
+                parameters: {
+                    type: "object",
+                    properties: {
+                        fase: {
+                            type: "number",
+                            description: "Número de fase destino (1, 2 o 3)"
+                        }
+                    },
+                    required: ["fase"]
+                }
+            };
+
             this.liveConfig.tools = [
                 {
-                    functionDeclarations: [reportTool]
+                    functionDeclarations: [reportTool, phaseTool]
                 }
             ];
         }
@@ -482,11 +497,12 @@ REGLAS DE INTERACCIÓN EN VIVO:
             });
 
             // Fast-track real-time voice report trigger (only on explicit user command to generate report)
-            if (!this.isGeneratingReport) {
+            // Fast-track real-time voice report trigger (only on explicit user command to generate report)
+            if (!this.isGeneratingReport && this.conversationTurns && this.conversationTurns.length >= 1) {
                 const userReportRegex = /\b(genera(r)?|haz|compil(a|ar)|dame|quiero|entreg(a|ar)|sacar?)\s+(el\s+|un\s+)?(informe|reporte)\b/i;
                 const phoneticApproxRegex = /\b(general)\s+(el\s+|al\s+)?(informe|reporte)\b/i;
-                if (userReportRegex.test(this.userTranscriptionText) || phoneticApproxRegex.test(this.userTranscriptionText)) {
-                    logger.info(`[VoiceSession] Real-time voice trigger matched in user transcription: "${this.userTranscriptionText}"`);
+                if (userReportRegex.test(cleanText) || phoneticApproxRegex.test(cleanText)) {
+                    logger.info(`[VoiceSession] Real-time voice trigger matched in user transcription: "${cleanText}"`);
                     this.isGeneratingReport = true;
                     this.sendToClient({
                         type: 'status',
@@ -540,8 +556,44 @@ REGLAS DE INTERACCIÓN EN VIVO:
 
             if (toolCall.functionCalls) {
                 for (const fc of toolCall.functionCalls) {
+                    // Manejo de cambio de fase interactiva
+                    if (fc.name === 'cambiar_fase_evaluacion') {
+                        const targetPhase = fc.args?.fase || 2;
+                        logger.info(`[VoiceSession] Gemini invoked tool "${fc.name}" with phase: ${targetPhase}`);
+                        this.sendToClient({
+                            type: 'wappy_action',
+                            data: {
+                                id: fc.id,
+                                name: fc.name,
+                                args: fc.args
+                            }
+                        });
+                        if (this.geminiClient) {
+                            this.geminiClient.sendToolResponse([{
+                                id: fc.id,
+                                name: fc.name,
+                                response: { result: `Fase ${targetPhase} activada en la pantalla del usuario con éxito.` }
+                            }]);
+                        }
+                        continue;
+                    }
+
                     // Manejo directo de herramienta nativa de informe
                     if (fc.name === 'generar_informe_tecnico' || fc.name === 'generar_informe_ergonomico') {
+                        const phaseCount = this.phaseEvidences ? Object.keys(this.phaseEvidences).length : 0;
+                        const turnCount = this.conversationTurns ? this.conversationTurns.length : 0;
+                        if (turnCount < 2 && phaseCount === 0) {
+                            logger.warn(`[VoiceSession] Gemini prematurely called "${fc.name}" on turn ${turnCount} with 0 phases. Rejecting premature call.`);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: "Aún no se puede compilar el informe técnico porque recién estamos iniciando la evaluación de campo. Continúa guiando al usuario en el Paso 1 (Postura Habitual)." }
+                                }]);
+                            }
+                            continue;
+                        }
+
                         logger.info(`[VoiceSession] Gemini invoked native tool "${fc.name}"! Triggering report generation...`);
                         
                         this.sendToClient({
@@ -605,6 +657,7 @@ REGLAS DE INTERACCIÓN EN VIVO:
                 this.aiSpeakingTimeout = null;
             }
             this.sendToClient({ type: 'status', data: { status: 'turn_complete' } });
+            this.sendToClient({ type: 'status', data: { status: 'listening' } });
             await this.saveCurrentTurn('TurnComplete');
             logger.info('[VoiceSession] ========== END TURN ==========');
         });
@@ -867,11 +920,6 @@ REGLAS DE INTERACCIÓN EN VIVO:
                             });
                         }
 
-                        // Always notify client that conversation was updated, so it can invalidate cache/refresh chat feed
-                        this.sendToClient({
-                            type: 'conversationUpdated',
-                            data: { conversationId: this.conversationId }
-                        });
                     } catch (saveError) {
                         logger.error('[VoiceSession] Error processing evidence image in chat DB:', saveError);
                     }
@@ -2092,10 +2140,12 @@ ${kpiDiv}
             // Check BOTH user voice request (including common phonetic STT variations) AND AI keywords
             const userReportRegex = /\b(genera(r)?|haz|compil(a|ar)|dame|quiero|entreg(a|ar)|sacar?)\s+(el\s+|un\s+)?(informe|reporte)\b/i;
             const phoneticApproxRegex = /\b(general)\s+(el\s+|al\s+)?(informe|reporte)\b/i;
-            const aiReportRegex = /\b(procedo a generar|voy a compilar|generando el informe t[eé]cnico|informe técnico compilado)\b/i;
+            // ONLY match current active compilation phrase, NEVER future promises ("voy a", "procedo a")
+            const aiReportRegex = /\b(estoy\s+compilando|generando\s+el\s+informe\s+t[eé]cnico|informe técnico compilado y en pantalla)\b/i;
 
             const userRequested = userReportRegex.test(currentUserText) || phoneticApproxRegex.test(currentUserText);
-            const aiConfirmed = aiReportRegex.test(currentAiText) || aiReportRegex.test(this.aiTranscriptionBuffer);
+            // Require at least 2 turns for AI keyword confirmation to prevent greeting false positives
+            const aiConfirmed = (this.conversationTurns && this.conversationTurns.length >= 2) && (aiReportRegex.test(currentAiText) || aiReportRegex.test(this.aiTranscriptionBuffer));
             const shouldGenerateReport = userRequested || aiConfirmed;
 
             logger.info(`[VoiceSession] Report trigger check. userRequested: ${userRequested} ("${currentUserText}"), aiConfirmed: ${aiConfirmed}, trigger: ${shouldGenerateReport}`);
@@ -2383,7 +2433,7 @@ PAUTAS DE ENCUADRE Y MULTIFASE:
 - CERO INTERROGATORIOS: No preguntes quién graba ni qué dispositivo usa ni hagas cuestionarios de empresa. Observa directamente y evalúa.
 
 ${cleanedInstructions ? `\nINSTRUCCIONES Y NORMATIVIDAD DEL AGENTE:\n${cleanedInstructions.substring(0, 1500)}\n` : ''}
-GENERACIÓN DEL INFORME TÉCNICO: Cuando el usuario te pida generar, hacer o sacar el informe, reporte o resumen técnico ("haz el informe", "genera el informe", "dame el reporte", "quiero el informe", "sí, hazlo"), DEBES INVOCAR INMEDIATAMENTE la función 'generar_informe_tecnico'. Mientras se procesa, confirma en una sola frase breve: "Listo, procesando las evidencias bajo el método seleccionado para generar el informe técnico ergonómico."`;
+GENERACIÓN DEL INFORME TÉCNICO: Cuando el usuario te pida generar, hacer o sacar el informe, reporte o resumen técnico ("haz el informe", "genera el informe", "dame el reporte", "quiero el informe"), DEBES INVOCAR la función 'generar_informe_tecnico'. Mientras se procesa, confirma en una sola frase breve: "Listo, procesando las evidencias bajo el método seleccionado para generar el informe técnico ergonómico." NUNCA invoques 'generar_informe_tecnico' durante el saludo inicial ni antes de evaluar los puestos.`;
         } else {
             domainKnowledge = `
 ROL: Eres el asistente especialista "${agentObj?.name || agentProtocol.title}" de WAPPY IA.
@@ -2406,12 +2456,12 @@ ${domainKnowledge}
 
 [DIRECTIVAS DE INTERACCIÓN EN VIVO POR VOZ Y VIDEO]:
 1. **IDIOMA EXCLUSIVO: ESPAÑOL.** El usuario y tú se comunican SIEMPRE en español de Colombia/Latinoamérica. NUNCA respondas, transcribas ni traduzcas en árabe, inglés ni ningún otro idioma. Todo lo que dice el usuario está en español.
-2. **SALUDO INICIAL Y LIDERAZGO:** En tu primera respuesta saluda cordialmente en 1 o 2 frases y TOMA EL LIDERAZGO proponiendo de inmediato iniciar el Paso 1 de la evaluación de campo.
-3. **CONDUCE LA EVALUACIÓN PASO A PASO:** Guía activamente al usuario por las fases de campo: Paso 1 (Postura Habitual), Paso 2 (Alcance Crítico) y Paso 3 (Fatiga / Deslizamiento). NO seas un asistente pasivo que solo espera preguntas.
+2. **SALUDO INICIAL Y LIDERAZGO:** En tu primera respuesta saluda cordialmente en 1 o 2 frases y TOMA EL LIDERAZGO proponiendo de inmediato iniciar el Paso 1 de la evaluación de campo. NUNCA invoques herramientas de informe en el saludo.
+3. **CONDUCE LA EVALUACIÓN PASO A PASO:** Guía activamente al usuario por las fases de campo: Paso 1 (Postura Habitual), Paso 2 (Alcance Crítico / Carga) y Paso 3 (Fatiga / Deslizamiento). Al indicarle al usuario pasar al siguiente paso, invoca la herramienta 'cambiar_fase_evaluacion' con el número de fase (1, 2 o 3). NO seas un asistente pasivo que solo espera preguntas.
 4. **RETROALIMENTACIÓN BIOMECÁNICA PRECISA:** Menciona los ángulos articulares medidos en cámara (cuello, tronco, brazos) y brinda correcciones físicas inmediatas.
 5. **CERO CUESTIONARIOS ADMINISTRATIVOS:** Prohibido preguntar por ARL, tamaño de empresa o porcentajes de implementación. Céntrate en la observación de campo.
 6. **RESPUESTAS HABLADAS CONCISAS:** Respuestas habladas claras y pedagógicas (2 a 4 oraciones por turno). Sin formato Markdown ni HTML en voz.
-7. **GENERACIÓN DE INFORME:** Al concluir las 3 fases o cuando el usuario lo solicite ("haz el informe", "genera el reporte", "dame el informe", "sí, hazlo"), invoca INMEDIATAMENTE la herramienta 'generar_informe_tecnico'.
+7. **GENERACIÓN DE INFORME:** NUNCA generes el informe durante el saludo ni en los pasos 1 o 2. Solo debes invocar 'generar_informe_tecnico' al concluir las 3 fases O cuando el usuario te ordene explícitamente generar el informe ('haz el informe', 'genera el reporte', 'dame el informe').
 `.trim();
         
         // Pass the array of keys to VoiceSession
