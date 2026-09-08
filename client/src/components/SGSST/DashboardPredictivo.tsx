@@ -64,6 +64,15 @@ interface ForecastData {
     lesionDistribution?: LesionItem[];
     anatomyDistribution?: AnatomyItem[];
     siteDistribution?: SiteItem[];
+    activeCompany?: {
+        id?: string;
+        name?: string;
+        nit?: string;
+        arl?: string;
+        riskLevel?: string;
+        workerCount?: number;
+        sedesCount?: number;
+    };
     domainRiskScores?: Record<string, number>;
     indicators: {
         healthRisk: number;
@@ -827,6 +836,12 @@ const DashboardPredictivo = () => {
                                     <span className="h-1.5 w-1.5 rounded-full bg-pink-400 animate-ping" />
                                     🧠 Hito 07 · El Pináculo de WAPPY
                                 </span>
+                                {forecast?.activeCompany?.name && (
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-teal-500/20 text-teal-200 border border-teal-400/30 shadow-sm backdrop-blur-md">
+                                        <Building2 className="w-3 h-3 text-teal-300" />
+                                        <span>Empresa Activa: <strong className="text-white">{forecast.activeCompany.name}</strong>{forecast.activeCompany.nit ? ` · NIT: ${forecast.activeCompany.nit}` : ''}</span>
+                                    </span>
+                                )}
                             </div>
                             <p className="text-teal-100/80 text-xs max-w-2xl leading-relaxed font-medium">
                                 Cúspide de analítica predictiva y Machine Learning. Pronóstico estocástico de siniestralidad a 1 y 12 meses, radar anatómico de lesiones y prescripción proactiva de controles para proteger la vida de cada colaborador.

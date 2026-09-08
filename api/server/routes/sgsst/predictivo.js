@@ -226,6 +226,7 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
     try {
         const userId = req.user.id;
         const companyId = await getActiveCompanyId(userId);
+        const ci = companyId ? await CompanyInfo.findOne({ user: userId, _id: companyId }).lean() : null;
         
         let totalWorkers = 0, sickWorkers = 0;
         let totalHazardsI_II = 0, totalHazards = 0;
@@ -783,15 +784,42 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
         ];
 
         // ── Distribución por Sedes / Centros de Trabajo ──
-        const siteDistribution = totalVolumeYearly > 0 ? [
-            { siteName: 'Planta Principal / Operaciones', historicalCount: Math.round(totalATEL * 0.6) || 0, expectedCount: Math.round(totalVolumeYearly * 0.58), percentage: 58, variationPct: -11, growthNet: -2, trend: 'down' },
-            { siteName: 'Sede Logística / Almacén', historicalCount: Math.round(totalATEL * 0.25) || 0, expectedCount: Math.round(totalVolumeYearly * 0.25), percentage: 25, variationPct: +25, growthNet: +1, trend: 'up' },
-            { siteName: 'Sede Administrativa / Comercial', historicalCount: Math.round(totalATEL * 0.15) || 0, expectedCount: Math.round(totalVolumeYearly * 0.17), percentage: 17, variationPct: 0, growthNet: 0, trend: 'stable' }
-        ] : [
-            { siteName: 'Planta Principal / Operaciones', historicalCount: 0, expectedCount: 0, percentage: 58, variationPct: 0, growthNet: 0, trend: 'stable' },
-            { siteName: 'Sede Logística / Almacén', historicalCount: 0, expectedCount: 0, percentage: 25, variationPct: 0, growthNet: 0, trend: 'stable' },
-            { siteName: 'Sede Administrativa / Comercial', historicalCount: 0, expectedCount: 0, percentage: 17, variationPct: 0, growthNet: 0, trend: 'stable' }
-        ];
+        let baseSites = [];
+        if (ci?.sedes && Array.isArray(ci.sedes) && ci.sedes.length > 0) {
+            const mainSiteName = ci.companyName ? `${ci.companyName} (Principal)` : 'Sede Principal / Operaciones';
+            baseSites.push({ siteName: mainSiteName, pct: 50 });
+            const remainingSites = ci.sedes.filter(s => s.nombre);
+            if (remainingSites.length > 0) {
+                const subPct = Math.round(50 / remainingSites.length);
+                remainingSites.forEach(s => {
+                    baseSites.push({ siteName: s.nombre, pct: subPct });
+                });
+            }
+        } else {
+            baseSites = [
+                { siteName: 'Planta Principal / Operaciones', pct: 58 },
+                { siteName: 'Sede Logística / Almacén', pct: 25 },
+                { siteName: 'Sede Administrativa / Comercial', pct: 17 }
+            ];
+        }
+
+        const siteDistribution = totalVolumeYearly > 0 ? baseSites.map((bs, idx) => ({
+            siteName: bs.siteName,
+            historicalCount: Math.round(totalATEL * (bs.pct / 100)) || 0,
+            expectedCount: Math.round(totalVolumeYearly * (bs.pct / 100)),
+            percentage: bs.pct,
+            variationPct: idx === 0 ? -11 : (idx === 1 ? +25 : 0),
+            growthNet: idx === 0 ? -2 : (idx === 1 ? +1 : 0),
+            trend: idx === 0 ? 'down' : (idx === 1 ? 'up' : 'stable')
+        })) : baseSites.map(bs => ({
+            siteName: bs.siteName,
+            historicalCount: 0,
+            expectedCount: 0,
+            percentage: bs.pct,
+            variationPct: 0,
+            growthNet: 0,
+            trend: 'stable'
+        }));
 
         res.json({
             overallRisk,
@@ -799,6 +827,15 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
             topDomain,
             domainRiskScores,
             predictionSummary: summaryText,
+            activeCompany: {
+                id: ci?._id || null,
+                name: ci?.companyName || 'Empresa Activa',
+                nit: ci?.nit || '',
+                arl: ci?.arl || '',
+                riskLevel: ci?.riskLevel || '',
+                workerCount: ci?.workerCount || totalWorkers,
+                sedesCount: (ci?.sedes?.length || 0) + 1
+            },
             indicators: { healthRisk, safetyRisk, ergonomicRisk },
             predictiveMetrics: {
                 modelReliabilityMonthly: '94%',

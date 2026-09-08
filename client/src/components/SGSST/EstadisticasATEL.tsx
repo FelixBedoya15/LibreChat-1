@@ -15,6 +15,7 @@ import {
     CalendarDays,
     Database,
     Download,
+    Building2,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
@@ -90,6 +91,20 @@ const EstadisticasATEL = () => {
         currentCalYear,
         currentCalYear + 1
     ]);
+    const [activeCompanyInfo, setActiveCompanyInfo] = useState<{ name: string; nit?: string } | null>(null);
+
+    // Fetch active company details
+    useEffect(() => {
+        if (!token) return;
+        fetch('/api/sgsst/company-info', { headers: { Authorization: `Bearer ${token}` } })
+            .then(res => res.json())
+            .then(data => {
+                if (data?.companyName) {
+                    setActiveCompanyInfo({ name: data.companyName, nit: data.nit });
+                }
+            })
+            .catch(() => {});
+    }, [token]);
 
     // Fetch list of years with registered data
     useEffect(() => {
@@ -453,6 +468,12 @@ const EstadisticasATEL = () => {
                                 </button>
                             </div>
                             <span className="text-xs text-text-secondary">| Res. 0312 Art. 30</span>
+                            {activeCompanyInfo?.name && (
+                                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-teal-700 dark:text-teal-300 bg-teal-500/10 dark:bg-teal-500/20 px-2.5 py-0.5 rounded-full border border-teal-500/20 shadow-xs">
+                                    <Building2 className="w-3 h-3 text-teal-500" />
+                                    <span>Empresa: <strong>{activeCompanyInfo.name}</strong>{activeCompanyInfo.nit ? ` · NIT: ${activeCompanyInfo.nit}` : ''}</span>
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>
