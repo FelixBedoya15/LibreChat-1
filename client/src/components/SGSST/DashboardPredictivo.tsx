@@ -1,4 +1,5 @@
 import React, {  useState, useCallback, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
     Sparkles,
     Loader2,
@@ -1242,8 +1243,8 @@ const DashboardPredictivo = () => {
             </div>
         
             {/* Upgrade Modal (Freemium Teaser) */}
-            {showUpgradeModal && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+            {showUpgradeModal && typeof document !== 'undefined' && createPortal(
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/70 backdrop-blur-md px-4">
                     <div className="relative max-w-sm w-full animate-in zoom-in-95 duration-300">
                         <button 
                             onClick={() => setShowUpgradeModal(false)} 
@@ -1261,13 +1262,19 @@ const DashboardPredictivo = () => {
                             />
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
-            {/* ═══ Ultra-Premium Bioseguridad 360° Worker Modal ═══ */}
-            {selectedWorker && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-                    <div className="bg-surface-primary dark:bg-slate-900 border border-border-medium/60 rounded-3xl p-6 max-w-xl w-full mx-4 shadow-2xl relative animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
+            {/* ═══ Ultra-Premium Bioseguridad 360° Worker Modal (Portal to body) ═══ */}
+            {selectedWorker && typeof document !== 'undefined' && createPortal(
+                <div 
+                    className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/75 backdrop-blur-md p-4 sm:p-6 overflow-y-auto"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) setSelectedWorker(null);
+                    }}
+                >
+                    <div className="bg-surface-primary dark:bg-slate-900 border border-border-medium/60 rounded-3xl p-6 max-w-xl w-full mx-auto shadow-2xl relative animate-in zoom-in-95 duration-300 my-auto max-h-[90vh] overflow-y-auto">
                         <button 
                             onClick={() => setSelectedWorker(null)} 
                             className="absolute top-4 right-4 p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-xl transition-colors text-text-secondary outline-none"
@@ -1375,7 +1382,8 @@ const DashboardPredictivo = () => {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
