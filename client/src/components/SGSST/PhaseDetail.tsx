@@ -6,8 +6,9 @@ import {
     ArrowLeft, Upload, MessageSquare, File, Trash2, Loader2, ChevronDown, ChevronRight, FolderOpen,
     FileText, Target, Stethoscope, Scale, Users, UserCircle, BarChart, Activity, AlertTriangle, ShieldAlert,
     ClipboardCheck, Briefcase, GitMerge, UserCheck, BrainCircuit, Blocks, Heart, GraduationCap, Shield, Eye,
-    Car, Wrench, FlaskConical, Trello, Search
+    Car, Wrench, FlaskConical, Trello, Search, Lock, Hammer
 } from 'lucide-react';
+import { cn } from '~/utils';
 
 import { OpenSidebar } from '~/components/Chat/Menus';
 import { Button, useToastContext } from '@librechat/client';
@@ -171,11 +172,8 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
         permission: Permissions.USE,
     }) && hasPermission(PermissionTypes.SGSST) && user?.role !== 'USER_IPEVAR' && user?.role !== 'IPEVAR';
 
-    const isBioMotor = phase.id.startsWith('hito');
-    const lockTitle = isBioMotor ? "Motor Bio-Individual Exclusivo" : "Salud Organizacional Exclusiva";
-    const lockDesc = isBioMotor 
-        ? "El acceso a los aplicativos del Motor Bio-Individual, tales como inspecciones en vivo por videollamada con nuestro agente de inspección, permisos de trabajo en alturas, biomecánico (método OWAS), matriz de peligros Bio-IPEVAR y huella biocéntrica, es exclusivo del Plan Wappy Pro. Evoluciona hoy tu plan para comenzar a implementarlo."
-        : "El acceso a los aplicativos de Salud Organizacional, tales como diagnóstico de estándares mínimos (Resolución 0312), autoevaluación Mintrabajo, responsable SG-SST, política de SST, objetivos y matriz legal, es exclusivo del Plan Wappy Pro. Evoluciona hoy tu plan para comenzar a implementarlo.";
+    const lockTitle = "Somos SST Pro Exclusivo";
+    const lockDesc = "El acceso a la suite completa de aplicativos de Somos SST es exclusivo del Plan Wappy Pro. Evoluciona hoy tu plan para comenzar a implementarlo en tu organización.";
 
     useEffect(() => {
         const saved = localStorage.getItem(storageKey);
@@ -270,6 +268,17 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
         );
     };
 
+    const handleCategoryClick = (categoryId: string) => {
+        if (disabledApps.includes(categoryId) && !isAdmin) {
+            showToast({
+                message: 'Este aplicativo se encuentra actualmente en desarrollo y construcción.',
+                status: 'warning'
+            });
+            return;
+        }
+        toggleCategory(categoryId);
+    };
+
     // Helper to render icon dynamically
     const renderIcon = (iconName: string) => {
         const IconComponent = ICON_MAP[iconName] || FolderOpen;
@@ -330,31 +339,46 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                         </div>
                     )}
                 </div>
-                {categories.filter(c => isAdmin || !disabledApps.includes(c.id)).length === 0 ? (
+                {categories.length === 0 ? (
                     <div className="p-8 text-center text-text-secondary">
                         No hay categorías disponibles para esta fase.
                     </div>
                 ) : (
-                    categories
-                        .filter(category => isAdmin || !disabledApps.includes(category.id))
-                        .map((category) => {
+                    categories.map((category) => {
                         const categoryFiles = files.filter(f => f.category === category.id);
                         const isExpanded = expandedCategories.includes(category.id);
                         const isThisUploading = isUploading === category.id;
+                        const isCategoryDisabled = disabledApps.includes(category.id);
 
                         return (
-                            <div key={category.id} className="w-full min-w-0 rounded-[2rem] border border-border-light dark:border-white/5 bg-white/60 dark:bg-[#1a1a1a]/60 transition-all duration-500 shadow-sm hover:shadow-[0_20px_40px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_20px_40px_rgba(0,0,0,0.5)]">
+                            <div 
+                                key={category.id} 
+                                className={cn(
+                                    "w-full min-w-0 rounded-[2rem] border border-border-light dark:border-white/5 bg-white/60 dark:bg-[#1a1a1a]/60 transition-all duration-500 shadow-sm hover:shadow-[0_20px_40px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_20px_40px_rgba(0,0,0,0.5)]",
+                                    isCategoryDisabled && !isAdmin && "opacity-80 border-dashed border-amber-500/30"
+                                )}
+                            >
                                 {/* Category Header */}
                                 <div
-                                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 md:p-7 cursor-pointer hover:bg-surface-secondary/50 dark:hover:bg-white-[0.02] transition-colors gap-5"
-                                    onClick={() => toggleCategory(category.id)}
+                                    className={cn(
+                                        "flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 md:p-7 transition-colors gap-5",
+                                        isCategoryDisabled && !isAdmin ? "cursor-not-allowed bg-amber-500/[0.02]" : "cursor-pointer hover:bg-surface-secondary/50 dark:hover:bg-white-[0.02]"
+                                    )}
+                                    onClick={() => handleCategoryClick(category.id)}
                                 >
                                     <div className="flex items-center gap-5">
                                         <div className="p-4 rounded-2xl bg-surface-secondary shadow-inner border border-white/20 dark:border-white/5 text-text-primary">
                                             {renderIcon(category.icon)}
                                         </div>
                                         <div>
-                                            <h3 className="text-xl font-black tracking-tight text-text-primary mb-1">{category.title}</h3>
+                                            <div className="flex items-center gap-2.5 flex-wrap">
+                                                <h3 className="text-xl font-black tracking-tight text-text-primary mb-0">{category.title}</h3>
+                                                {isCategoryDisabled && (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                                        <Hammer className="w-3 h-3" /> En construcción
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
 
@@ -363,20 +387,26 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                             <div 
                                                 className="flex items-center bg-surface-secondary/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-border-light dark:border-white/10 hover:bg-surface-tertiary transition-all shadow-sm"
                                                 onClick={(e) => handleToggleApp(category.id, e)}
-                                                title={disabledApps.includes(category.id) ? "Aplicativo Oculto: Clic para mostrar" : "Aplicativo Visible: Clic para ocultar"}
+                                                title={isCategoryDisabled ? "Aplicativo en Construcción: Clic para activar" : "Aplicativo Activo: Clic para marcar en construcción"}
                                             >
                                                 <div className="relative inline-flex items-center cursor-pointer my-1 mx-1">
-                                                    <div className={`w-9 h-5 rounded-full transition-colors ${!disabledApps.includes(category.id) ? 'bg-teal-500' : 'bg-surface-tertiary border border-border-medium'}`}></div>
-                                                    <div className={`absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full shadow-md transition-transform ${!disabledApps.includes(category.id) ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                                                    <div className={`w-9 h-5 rounded-full transition-colors ${!isCategoryDisabled ? 'bg-teal-500' : 'bg-surface-tertiary border border-border-medium'}`}></div>
+                                                    <div className={`absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full shadow-md transition-transform ${!isCategoryDisabled ? 'translate-x-4' : 'translate-x-0'}`}></div>
                                                 </div>
-                                                <span className={`ml-2 text-[10px] font-black uppercase tracking-wider ${!disabledApps.includes(category.id) ? 'text-teal-600 dark:text-teal-400' : 'text-text-secondary text-opacity-50'}`}>
-                                                    {!disabledApps.includes(category.id) ? 'ACTIVO' : 'INACT.'}
+                                                <span className={`ml-2 text-[10px] font-black uppercase tracking-wider ${!isCategoryDisabled ? 'text-teal-600 dark:text-teal-400' : 'text-amber-500'}`}>
+                                                    {!isCategoryDisabled ? 'ACTIVO' : 'EN CONSTR.'}
                                                 </span>
                                             </div>
                                         )}
                                         
                                         <div className="flex items-center justify-center h-10 w-10 text-text-secondary bg-surface-secondary/50 hover:bg-surface-secondary rounded-full border border-border-light dark:border-white/5 transition-all">
-                                            {isExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                                            {isCategoryDisabled && !isAdmin ? (
+                                                <Lock className="h-4 w-4 text-amber-500/70" />
+                                            ) : isExpanded ? (
+                                                <ChevronDown className="h-5 w-5" />
+                                            ) : (
+                                                <ChevronRight className="h-5 w-5" />
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -681,48 +711,71 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                 )}
 
                 {/* Interactive HTML Sandbox Apps Collapsible Card */}
-                {['planear', 'hacer', 'verificar', 'actuar', 'fase1', 'fase2'].includes(phase.id) && (isAdmin || !disabledApps.includes('custom_html_sandbox')) && (
-                    <div className="w-full min-w-0 rounded-[2rem] border border-border-light dark:border-white/5 bg-white/60 dark:bg-[#1a1a1a]/60 transition-all duration-500 shadow-sm hover:shadow-[0_20px_40px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_20px_40px_rgba(0,0,0,0.5)]">
-                        {/* Category Header */}
-                        <div
-                            className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 md:p-7 cursor-pointer hover:bg-surface-secondary/50 dark:hover:bg-white-[0.02] transition-colors gap-5"
-                            onClick={() => toggleCategory('custom_html_sandbox')}
-                        >
-                            <div className="flex items-center gap-5">
-                                <div className="p-4 rounded-2xl bg-surface-secondary shadow-inner border border-white/20 dark:border-white/5 text-text-primary">
-                                    <Blocks className="h-5 w-5 text-teal-500" />
-                                </div>
-                                <div>
-                                    <h3 className="text-xl font-black tracking-tight text-text-primary mb-1">Aplicativos Personalizados HTML</h3>
-                                    <p className="text-xs font-semibold text-text-secondary">Monta, duplica y edita tus propios HTML interactivos con sincronización en la nube</p>
-                                </div>
-                            </div>
+                {['planear', 'hacer', 'verificar', 'actuar', 'fase1', 'fase2', 'hito1', 'hito2', 'hito3', 'hito4', 'hito5', 'hito6'].includes(phase.id) && (() => {
+                    const isSandboxDisabled = disabledApps.includes('custom_html_sandbox');
+                    const isExpanded = expandedCategories.includes('custom_html_sandbox');
 
-                            <div className="flex items-center gap-4 w-full sm:w-auto mt-2 sm:mt-0">
-                                {isAdmin && (
-                                    <div 
-                                        className="flex items-center bg-surface-secondary/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-border-light dark:border-white/10 hover:bg-surface-tertiary transition-all shadow-sm"
-                                        onClick={(e) => handleToggleApp('custom_html_sandbox', e)}
-                                        title={disabledApps.includes('custom_html_sandbox') ? "Aplicativo Oculto: Clic para mostrar" : "Aplicativo Visible: Clic para ocultar"}
-                                    >
-                                        <div className="relative inline-flex items-center cursor-pointer my-1 mx-1">
-                                            <div className={`w-9 h-5 rounded-full transition-colors ${!disabledApps.includes('custom_html_sandbox') ? 'bg-teal-500' : 'bg-surface-tertiary border border-border-medium'}`}></div>
-                                            <div className={`absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full shadow-md transition-transform ${!disabledApps.includes('custom_html_sandbox') ? 'translate-x-4' : 'translate-x-0'}`}></div>
-                                        </div>
-                                        <span className={`ml-2 text-[10px] font-black uppercase tracking-wider ${!disabledApps.includes('custom_html_sandbox') ? 'text-teal-600 dark:text-teal-400' : 'text-text-secondary text-opacity-50'}`}>
-                                            {!disabledApps.includes('custom_html_sandbox') ? 'ACTIVO' : 'INACT.'}
-                                        </span>
-                                    </div>
+                    return (
+                        <div className={cn(
+                            "w-full min-w-0 rounded-[2rem] border border-border-light dark:border-white/5 bg-white/60 dark:bg-[#1a1a1a]/60 transition-all duration-500 shadow-sm hover:shadow-[0_20px_40px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_20px_40px_rgba(0,0,0,0.5)]",
+                            isSandboxDisabled && !isAdmin && "opacity-80 border-dashed border-amber-500/30"
+                        )}>
+                            {/* Category Header */}
+                            <div
+                                className={cn(
+                                    "flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 md:p-7 transition-colors gap-5",
+                                    isSandboxDisabled && !isAdmin ? "cursor-not-allowed bg-amber-500/[0.02]" : "cursor-pointer hover:bg-surface-secondary/50 dark:hover:bg-white-[0.02]"
                                 )}
+                                onClick={() => handleCategoryClick('custom_html_sandbox')}
+                            >
+                                <div className="flex items-center gap-5">
+                                    <div className="p-4 rounded-2xl bg-surface-secondary shadow-inner border border-white/20 dark:border-white/5 text-text-primary">
+                                        <Blocks className="h-5 w-5 text-teal-500" />
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2.5 flex-wrap">
+                                            <h3 className="text-xl font-black tracking-tight text-text-primary mb-1">Aplicativos Personalizados HTML</h3>
+                                            {isSandboxDisabled && (
+                                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                                    <Hammer className="w-3 h-3" /> En construcción
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-xs font-semibold text-text-secondary">Monta, duplica y edita tus propios HTML interactivos con sincronización en la nube</p>
+                                    </div>
+                                </div>
 
-                                <div className="flex items-center justify-center h-10 w-10 text-text-secondary bg-surface-secondary/50 hover:bg-surface-secondary rounded-full border border-border-light dark:border-white/5 transition-all">
-                                    {expandedCategories.includes('custom_html_sandbox') ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                                <div className="flex items-center gap-4 w-full sm:w-auto mt-2 sm:mt-0">
+                                    {isAdmin && (
+                                        <div 
+                                            className="flex items-center bg-surface-secondary/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-border-light dark:border-white/10 hover:bg-surface-tertiary transition-all shadow-sm"
+                                            onClick={(e) => handleToggleApp('custom_html_sandbox', e)}
+                                            title={isSandboxDisabled ? "Aplicativo en Construcción: Clic para activar" : "Aplicativo Activo: Clic para marcar en construcción"}
+                                        >
+                                            <div className="relative inline-flex items-center cursor-pointer my-1 mx-1">
+                                                <div className={`w-9 h-5 rounded-full transition-colors ${!isSandboxDisabled ? 'bg-teal-500' : 'bg-surface-tertiary border border-border-medium'}`}></div>
+                                                <div className={`absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full shadow-md transition-transform ${!isSandboxDisabled ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                                            </div>
+                                            <span className={`ml-2 text-[10px] font-black uppercase tracking-wider ${!isSandboxDisabled ? 'text-teal-600 dark:text-teal-400' : 'text-amber-500'}`}>
+                                                {!isSandboxDisabled ? 'ACTIVO' : 'EN CONSTR.'}
+                                            </span>
+                                        </div>
+                                    )}
+
+                                    <div className="flex items-center justify-center h-10 w-10 text-text-secondary bg-surface-secondary/50 hover:bg-surface-secondary rounded-full border border-border-light dark:border-white/5 transition-all">
+                                        {isSandboxDisabled && !isAdmin ? (
+                                            <Lock className="h-4 w-4 text-amber-500/70" />
+                                        ) : isExpanded ? (
+                                            <ChevronDown className="h-5 w-5" />
+                                        ) : (
+                                            <ChevronRight className="h-5 w-5" />
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* Category Content */}
-                        {expandedCategories.includes('custom_html_sandbox') && (
+                            {/* Category Content */}
+                            {isExpanded && (
                             <div className="px-5 md:px-7 pb-7 pt-5 border-t border-border-light dark:border-white/5 bg-gradient-to-b from-surface-secondary/10 to-transparent">
                                 {!hasAccessToSGSST ? (
                                     <UpgradeWall
@@ -737,7 +790,8 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                             </div>
                         )}
                     </div>
-                )}
+                );
+            })()}
              </div>
             </div>
 
