@@ -46,10 +46,23 @@ export const PredictivePlantComparison: React.FC<PredictivePlantComparisonProps>
                     </span>
                     <span className={cn(
                         "px-2.5 py-1 rounded-xl text-xs font-black flex items-center gap-1",
-                        totalExpected < totalHistorical ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20" : "bg-amber-500/10 text-amber-600 border border-amber-500/20"
+                        totalHistorical === 0 && totalExpected === 0
+                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                            : totalExpected <= totalHistorical
+                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                                : "bg-amber-500/10 text-amber-600 border border-amber-500/20"
                     )}>
-                        {totalExpected < totalHistorical ? <TrendingDown className="w-3.5 h-3.5" /> : <TrendingUp className="w-3.5 h-3.5" />}
-                        {totalExpected - totalHistorical} casos ({totalHistorical > 0 ? Math.round(((totalExpected - totalHistorical) / totalHistorical) * 100) : 0}%)
+                        {totalHistorical === 0 && totalExpected === 0 ? (
+                            <>
+                                <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                                0 casos (Tasa Cero Mantenida)
+                            </>
+                        ) : (
+                            <>
+                                {totalExpected < totalHistorical ? <TrendingDown className="w-3.5 h-3.5" /> : <TrendingUp className="w-3.5 h-3.5" />}
+                                {totalExpected - totalHistorical} casos ({totalHistorical > 0 ? Math.round(((totalExpected - totalHistorical) / totalHistorical) * 100) : 0}%)
+                            </>
+                        )}
                     </span>
                 </div>
             </div>
@@ -142,7 +155,11 @@ export const PredictivePlantComparison: React.FC<PredictivePlantComparisonProps>
                                         </span>
                                     </td>
                                     <td className="py-3 px-3 text-center">
-                                        {site.variationPct <= 0 ? (
+                                        {site.historicalCount === 0 && site.expectedCount === 0 ? (
+                                            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1">
+                                                <CheckCircle className="w-3 h-3" /> Tasa Cero / Blindaje
+                                            </span>
+                                        ) : site.variationPct <= 0 ? (
                                             <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1">
                                                 <CheckCircle className="w-3 h-3" /> En Descenso
                                             </span>

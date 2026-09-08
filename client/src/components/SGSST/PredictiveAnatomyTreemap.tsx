@@ -64,7 +64,8 @@ export const PredictiveAnatomyTreemap: React.FC<PredictiveAnatomyTreemapProps> =
     }, [lesionDistribution]);
 
     const activeList = activeTab === 'anatomy' ? anatomyData : lesionData;
-    const totalCount = activeList.reduce((sum, item) => sum + item.count, 0) || 1;
+    const sumCounts = activeList.reduce((sum, item) => sum + item.count, 0);
+    const totalCount = sumCounts;
     const currentActiveItem = hoveredItem || activeList[0];
 
     // SVG Donut Calculations
@@ -125,8 +126,13 @@ export const PredictiveAnatomyTreemap: React.FC<PredictiveAnatomyTreemapProps> =
                         <span className="text-[10px] font-black uppercase tracking-wider text-text-secondary">
                             Distribución de Casos Esperados (Treemap de Volumen)
                         </span>
-                        <span className="text-[10px] font-bold text-teal-600 dark:text-teal-400 bg-teal-500/10 px-2 py-0.5 rounded-full border border-teal-500/20">
-                            {totalCount} eventos anuales estimados
+                        <span className={cn(
+                            "text-[10px] font-bold px-2.5 py-0.5 rounded-full border",
+                            totalCount === 0
+                                ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+                                : "text-teal-600 dark:text-teal-400 bg-teal-500/10 border-teal-500/20"
+                        )}>
+                            {totalCount === 0 ? "Tasa Cero Proyectada · 0 eventos (Blindaje Activo)" : `${totalCount} eventos anuales estimados`}
                         </span>
                     </div>
 
@@ -262,7 +268,7 @@ export const PredictiveAnatomyTreemap: React.FC<PredictiveAnatomyTreemapProps> =
                                 {currentActiveItem?.name}
                             </span>
                             <span className="text-[9px] font-bold text-teal-600 dark:text-teal-400 mt-0.5">
-                                {currentActiveItem?.count} eventos
+                                {totalCount === 0 ? "Riesgo Latente" : `${currentActiveItem?.count} eventos`}
                             </span>
                         </div>
                     </div>
@@ -276,7 +282,15 @@ export const PredictiveAnatomyTreemap: React.FC<PredictiveAnatomyTreemapProps> =
                             </h5>
                         </div>
                         <p className="text-[10px] text-text-secondary font-medium leading-relaxed">
-                            Representa el <strong className="text-text-primary">{currentActiveItem?.percentage}%</strong> de la siniestralidad potencial con un volumen proyectado de <strong className="text-text-primary">{currentActiveItem?.count} siniestros</strong>.
+                            {totalCount === 0 ? (
+                                <>
+                                    Representa el <strong className="text-text-primary">{currentActiveItem?.percentage}%</strong> de la vulnerabilidad latente con <strong className="text-emerald-600 dark:text-emerald-400 font-bold">0 siniestros proyectados (Tasa Cero)</strong>.
+                                </>
+                            ) : (
+                                <>
+                                    Representa el <strong className="text-text-primary">{currentActiveItem?.percentage}%</strong> de la siniestralidad potencial con un volumen proyectado de <strong className="text-text-primary">{currentActiveItem?.count} siniestros</strong>.
+                                </>
+                            )}
                         </p>
 
                         {activeTab === 'anatomy' && (currentActiveItem as AnatomyItem)?.rolesRisk && (
