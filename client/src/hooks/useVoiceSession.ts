@@ -104,15 +104,34 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             }
             console.log('[VoiceSession] AudioContext 16kHz listo, estado:', audioContext.state, '| sampleRate:', audioContext.sampleRate);
 
-            // 3. Helper: enviar PCM int16 al servidor via WebSocket
+            // 3. Helper: enviar PCM int16 a 16kHz al servidor via WebSocket
             let sendCount = 0;
             const sendPCMChunk = (float32Array: Float32Array) => {
                 if (isHardwareMutedRef.current || isAutoMutedRef.current || isPlayingAudioRef.current || statusRef.current === 'speaking') return;
                 if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
-                const int16Data = new Int16Array(float32Array.length);
-                for (let j = 0; j < float32Array.length; j++) {
-                    const s = Math.max(-1, Math.min(1, float32Array[j]));
+                // Re-muestreo dinámico a 16000 Hz (crítico para Safari en macOS/iOS que opera a 44.1kHz o 48kHz)
+                const currentSampleRate = audioContext?.sampleRate || 16000;
+                let dataToEncode = float32Array;
+
+                if (currentSampleRate !== 16000 && currentSampleRate > 0) {
+                    const ratio = currentSampleRate / 16000;
+                    const newLength = Math.round(float32Array.length / ratio);
+                    const resampled = new Float32Array(newLength);
+                    for (let i = 0; i < newLength; i++) {
+                        const srcIdx = i * ratio;
+                        const idx = Math.floor(srcIdx);
+                        const frac = srcIdx - idx;
+                        const s0 = float32Array[idx] || 0;
+                        const s1 = float32Array[idx + 1] !== undefined ? float32Array[idx + 1] : s0;
+                        resampled[i] = s0 + frac * (s1 - s0);
+                    }
+                    dataToEncode = resampled;
+                }
+
+                const int16Data = new Int16Array(dataToEncode.length);
+                for (let j = 0; j < dataToEncode.length; j++) {
+                    const s = Math.max(-1, Math.min(1, dataToEncode[j]));
                     int16Data[j] = s < 0 ? s * 0x8000 : s * 0x7FFF;
                 }
                 const bytes = new Uint8Array(int16Data.buffer);
@@ -125,7 +144,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
 
                 sendCount++;
                 if (sendCount === 1 || sendCount % 50 === 0) {
-                    console.log(`[VoiceSession] Audio enviado al servidor (chunk #${sendCount}, ${base64.length} chars)`);
+                    console.log(`[VoiceSession] Audio 16kHz enviado al servidor (chunk #${sendCount}, ${base64.length} chars, resampled: ${currentSampleRate !== 16000})`);
                 }
             };
 

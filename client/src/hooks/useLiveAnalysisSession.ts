@@ -81,29 +81,20 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
                     class PCMProcessor extends AudioWorkletProcessor {
                         constructor() {
                             super();
-                            this.bufferSize = 2048; // Send ~128ms chunks at 16kHz
+                            this.bufferSize = 2048;
                             this.buffer = new Float32Array(this.bufferSize);
                             this.bufferIndex = 0;
                         }
 
-                        process(inputs, outputs, parameters) {
+                        process(inputs) {
                             const input = inputs[0];
-                            if (!input || !input.length) return true;
+                            if (!input || !input[0]) return true;
                             
                             const inputChannel = input[0];
-                            
                             for (let i = 0; i < inputChannel.length; i++) {
                                 this.buffer[this.bufferIndex++] = inputChannel[i];
-                                
-                                // When buffer is full, flush it
                                 if (this.bufferIndex >= this.bufferSize) {
-                                    const int16Data = new Int16Array(this.bufferSize);
-                                    for (let j = 0; j < this.bufferSize; j++) {
-                                        const s = Math.max(-1, Math.min(1, this.buffer[j]));
-                                        int16Data[j] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-                                    }
-                                    
-                                    this.port.postMessage(int16Data.buffer);
+                                    this.port.postMessage(this.buffer.slice(0));
                                     this.bufferIndex = 0;
                                 }
                             }
@@ -127,8 +118,6 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
                 await audioContext.resume();
             }
 
-
-
             // 3. Create Audio Graph
             const source = audioContext.createMediaStreamSource(stream);
             const workletNode = new AudioWorkletNode(audioContext, 'pcm-processor');
@@ -144,20 +133,43 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
 
             workletNode.port.onmessage = (event) => {
                 if (isMutedRef.current || isAutoMutedRef.current || statusRef.current === 'speaking') return; // Do not send audio if muted or AI is speaking
+                if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
-                if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                    const bytes = new Uint8Array(event.data);
-                    let binary = '';
-                    for (let i = 0; i < bytes.byteLength; i++) {
-                        binary += String.fromCharCode(bytes[i]);
+                const float32Data = new Float32Array(event.data);
+                const currentSampleRate = audioContext?.sampleRate || 16000;
+                let dataToEncode = float32Data;
+
+                if (currentSampleRate !== 16000 && currentSampleRate > 0) {
+                    const ratio = currentSampleRate / 16000;
+                    const newLength = Math.round(float32Data.length / ratio);
+                    const resampled = new Float32Array(newLength);
+                    for (let i = 0; i < newLength; i++) {
+                        const srcIdx = i * ratio;
+                        const idx = Math.floor(srcIdx);
+                        const frac = srcIdx - idx;
+                        const s0 = float32Data[idx] || 0;
+                        const s1 = float32Data[idx + 1] !== undefined ? float32Data[idx + 1] : s0;
+                        resampled[i] = s0 + frac * (s1 - s0);
                     }
-                    const base64 = btoa(binary);
-
-                    wsRef.current.send(JSON.stringify({
-                        type: 'audio',
-                        data: { audioData: base64 }
-                    }));
+                    dataToEncode = resampled;
                 }
+
+                const int16Data = new Int16Array(dataToEncode.length);
+                for (let j = 0; j < dataToEncode.length; j++) {
+                    const s = Math.max(-1, Math.min(1, dataToEncode[j]));
+                    int16Data[j] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                }
+                const bytes = new Uint8Array(int16Data.buffer);
+                let binary = '';
+                for (let i = 0; i < bytes.byteLength; i++) {
+                    binary += String.fromCharCode(bytes[i]);
+                }
+                const base64 = btoa(binary);
+
+                wsRef.current.send(JSON.stringify({
+                    type: 'audio',
+                    data: { audioData: base64 }
+                }));
             };
 
             // Keep worklet alive

@@ -17,14 +17,12 @@ const INSPECTION_PROTOCOLS = {
             'Fase 3: Postura Fatigada / Colapso Lumbar o Dinámica',
         ],
         framingGuidance: `
-- AUTO-EVALUACIÓN (Portátil / Webcam frontal / Smartphone en soporte):
-  Instrucción hablada: "Para medir tus ángulos con precisión, inclina tu pantalla o ubica la cámara a unos 45° en diagonal y da un paso atrás para capturar cabeza, cuello, tronco y codos a la vez."
-- INSPECCIÓN ASISTIDA (Técnico SST, evaluador o compañero grabando con smartphone):
-  Instrucción hablada: "Por favor ubícate de perfil (plano sagital estricto a 90°) a la altura de la cintura del trabajador y a metro y medio de distancia para registrar columna y miembros con claridad."`,
+- Si el usuario usa su portátil o webcam: Si notas que se corta el tronco o los brazos, sugiérele amablemente dar un paso atrás o inclinar un poco la pantalla a 45° para que entren en cuadro cabeza, cuello, codos y tronco.
+- Si un compañero o prevencionista está grabando con móvil: Sugiérele ubicarse en plano lateral (perfil a 90°) a la altura de la cintura para registrar la curvatura de la columna y las articulaciones.
+- CERO INTERROGATORIOS: No preguntes quién graba ni qué dispositivo usa. Observa directamente la cámara y guía el encuadre solo si es necesario.`,
         phaseGuidance: `
-- FASE 1 (Postura Habitual / Línea Base): "Comencemos con la Fase 1: muéstrame tu trabajo normal realizando la labor de digitación o ensamble continuo..."
-- FASE 2 (Puntos Críticos / Alcances Extremos): "Excelente, ahora para la Fase 2 muéstrame el punto de mayor alcance, inclinación o torsión en tu puesto..."
-- FASE 3 (Postura Fatigada / Retorno o Manipulación): "Muy bien, ahora para la Fase 3 muéstrame la postura cuando sientes cansancio muscular o si manipulas algún elemento..."`,
+- Puedes evaluar el puesto y la labor a través de sus fases de trabajo (Fase 1: Postura habitual frente al computador o tarea continua, Fase 2: Puntos de mayor alcance o flexión extrema, Fase 3: Postura con fatiga muscular o manipulación dinámica).
+- Explica los hallazgos con naturalidad y fluidez sin forzar etapas rígidas ni interrogar al usuario sobre en qué fase está.`,
         reportMatrixHeader: `
             <h3>4.1 Matriz Ergonómica Comparativa Multifase (RULA / REBA / OWAS)</h3>
             <p>La siguiente tabla consolida el muestreo biomecánico del ciclo de trabajo en sus fases representativas, contrastando los ángulos articulares y el nivel de riesgo postural determinado:</p>

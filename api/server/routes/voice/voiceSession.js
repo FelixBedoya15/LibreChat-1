@@ -9,7 +9,89 @@ const { generateWithKeyRotation, SGSST_FALLBACK_MODELS, LIVE_FALLBACK_MODELS } =
 const mongoose = require('mongoose');
 const CompanyInfo = require('~/models/CompanyInfo');
 const { buildSignatureSection } = require('../sgsst/reportHeader');
-const { INSPECTION_PROTOCOLS, resolveInspectionProtocol } = require('./inspectionProtocols');
+const fs = require('fs');
+const path = require('path');
+const SKILLS_DIR = path.resolve(__dirname, '../../../config/skills');
+
+/**
+ * Loads and extracts clean technical domain knowledge from agent skills
+ */
+function getAgentSkillsContent(agentObj, isBiomechanics) {
+    const skillsToLoad = new Set();
+
+    if (agentObj && Array.isArray(agentObj.skills) && agentObj.skills.length > 0) {
+        agentObj.skills.forEach(s => skillsToLoad.add(s));
+    }
+
+    // Force biomechanics essential skills
+    const name = (agentObj?.name || '').toLowerCase();
+    if (isBiomechanics || name.includes('fisio') || name.includes('biomec') || name.includes('ergon')) {
+        skillsToLoad.add('skill-live-biomecanica');
+        skillsToLoad.add('skill-metodologia-rosa');
+        skillsToLoad.add('skill-ergonomia-owas');
+    }
+
+    if (skillsToLoad.size === 0 || !fs.existsSync(SKILLS_DIR)) {
+        return '';
+    }
+
+    const loadedBlocks = [];
+    for (const skillName of skillsToLoad) {
+        try {
+            const fileName = skillName.endsWith('.md') ? skillName : `${skillName}.md`;
+            const filePath = path.join(SKILLS_DIR, fileName);
+            if (!fs.existsSync(filePath)) continue;
+
+            const content = fs.readFileSync(filePath, 'utf8');
+            let body = content;
+
+            // Strip YAML frontmatter
+            const match = content.match(/^---(\s*[\s\S]*?)---(\s*[\s\S]*)$/);
+            if (match) {
+                body = match[2].trim();
+            }
+
+            // Strip written-chat questionnaires, authorization flows, and markdown tables
+            const cleanBody = body
+                .replace(/<[^>]*>/g, '')
+                .replace(/\|[^\n]+\|/g, '')
+                .replace(/🔄 PROCESO DE RECOLECCIÓN DE DATOS INTERACTIVO[\s\S]*?(?=📋 Restricciones|##|$)/gi, '')
+                .replace(/Información inicial que siempre pedirás[\s\S]*?(?=🔹|---|##|$)/gi, '')
+                .replace(/¿autoriza la elaboración[\s\S]*?Sí \/ No/gi, '')
+                .replace(/\{\{[^}]+\}\}/g, 'usuario')
+                .trim();
+
+            if (cleanBody) {
+                const trimmed = cleanBody.length > 2500 ? cleanBody.substring(0, 2500) + '...' : cleanBody;
+                loadedBlocks.push(`[SKILL: ${skillName.toUpperCase()}]\n${trimmed}`);
+            }
+        } catch (err) {
+            logger.warn(`[VoiceSession] Error loading skill "${skillName}":`, err.message);
+        }
+    }
+
+    return loadedBlocks.join('\n\n');
+}
+
+/**
+ * Strips written-chat artifacts from agent instructions for natural voice interaction
+ */
+function cleanAgentInstructions(instructions) {
+    if (!instructions || typeof instructions !== 'string') return '';
+    return instructions
+        .replace(/<[^>]*>/g, '')
+        .replace(/\|[^\n]+\|/g, '')
+        .replace(/Información inicial que siempre pedirás[\s\S]*?(?=🔹|---|##|$)/gi, '')
+        .replace(/Preguntas clave \(tamaño de empresa[\s\S]*?\)/gi, '')
+        .replace(/Tamaño de la empresa[\s\S]*?actividad económica\./gi, '')
+        .replace(/Clase de riesgo ARL[\s\S]*?\./gi, '')
+        .replace(/Estado actual de implementación[\s\S]*?\./gi, '')
+        .replace(/🔹 11\. Reglas de Formato Visual[\s\S]*?(?=🔹|---|##|$)/gi, '')
+        .replace(/⚠️ REGLA DE ORO DE TARJETAS[\s\S]*?(?=⚠️|🔹|---|##|$)/gi, '')
+        .replace(/⚠️ REGLA DE ORO DE AUTOMATIZACIONES[\s\S]*?(?=⚠️|🔹|---|##|$)/gi, '')
+        .replace(/\{\{[^}]+\}\}/g, 'usuario')
+        .trim();
+}
 
 /**
  * Active voice sessions
@@ -2089,85 +2171,84 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
             }
         }
 
+        if (!agentObj && (config.template || config.mode === 'live_analysis')) {
+            try {
+                const { Agent } = require('~/db/models');
+                const searchName = config.mode === 'live_analysis' || config.template === 'biomecanico_mediapipe'
+                    ? 'Fisioterapeuta Laboral'
+                    : config.template;
+                agentObj = await Agent.findOne({
+                    $or: [
+                        { name: searchName },
+                        { name: new RegExp(searchName, 'i') }
+                    ]
+                }).lean();
+            } catch (err) {
+                logger.warn('[VoiceSession] Could not fallback find agent in DB:', err.message);
+            }
+        }
+
         // Dynamic Inspection Protocol Resolution across all WAPPY Agent Families
         const agentProtocol = resolveInspectionProtocol(agentObj?.name || config.template || (config.mode === 'live_analysis' ? 'biomecanico_mediapipe' : 'general'));
         const isBiomechanics = agentProtocol.id === 'biomecanico';
 
         logger.info(`[VoiceSession] Live session configured with Agent: ${agentObj?.name || agentId || 'General'} (Protocol: ${agentProtocol.title}, isBiomechanics: ${isBiomechanics})`);
 
-        // Build rich domain expertise while removing written-chat questionnaires and HTML templates
+        // Load agent skills and clean core instructions
+        const skillsContent = getAgentSkillsContent(agentObj, isBiomechanics);
+        const cleanedInstructions = cleanAgentInstructions(agentObj?.instructions);
+
+        // Build rich domain expertise based on agent's real knowledge and skills
         let domainKnowledge = '';
         if (isBiomechanics) {
             domainKnowledge = `
 ROL: Eres el Fisioterapeuta Laboral y Especialista en Biomecánica de WAPPY IA.
-CAPACIDADES: Videollamada interactiva en vivo con visión artificial y telemetría articular MediaPipe en tiempo real.
+PROPÓSITO:
+Asesorar en vivo mediante visión artificial y voz en la prevención de desórdenes musculoesqueléticos, higiene postural y evaluación ergonómica integral de puestos de trabajo (oficinas, pantallas, teletrabajo o labores operativas).
 
-ÁRBOL DE DECISIÓN Y ACTIVACIÓN DINÁMICA DE MÉTODOS (CRITERIOS PREVENCIONAR):
-Los métodos posturales no son intercambiables. Conforme a lo que observes en cámara o la tarea descrita, activa y anuncia el método correspondiente:
-1. MÉTODO R.U.L.A. (Extremidades Superiores):
-   - ACTIVACIÓN: Labores sedentarias, puestos de oficina/computador, digitación, ensamble fino o trabajo de banco donde el esfuerzo se concentra en miembros superiores (brazos, antebrazos, muñecas) y cuello.
-   - PUNTUACIÓN: Cuello (>20° suma puntos), Tronco, Brazos (>20° abducción o >45° elevación), Antebrazos (<60° o >100°). Puntuación 1-7 (Niveles de acción 1-4).
-   - ANUNCIO: "Al realizar una labor sedente con pantalla/escritorio, aplicamos el método RULA centrado en miembros superiores y cuello..."
-2. MÉTODO R.E.B.A. (Cuerpo Entero):
-   - ACTIVACIÓN: Labores de pie, posturas forzadas dinámicas, inclinación/torsión de tronco profunda, compromiso de miembros inferiores (flexión de rodillas 30°-60° o >60°, apoyo inestable), manipulación de cargas o cambios bruscos de postura (logística, salud, operarios de planta).
-   - PUNTUACIÓN: Grupo A (Tronco, Cuello, Piernas), Grupo B (Brazos, Antebrazos, Muñecas), Carga y Agarre. Puntuación 1-15 (Niveles de acción 1-5).
-   - ANUNCIO: "Al observar flexión de tronco y compromiso de extremidades inferiores de pie, activamos el método REBA para cuerpo completo..."
-3. MÉTODO O.W.A.S. (Carga Postural Global y Variabilidad):
-   - ACTIVACIÓN: Labores dinámicas con alta variabilidad postural a lo largo de ciclos cambiantes (mantenimiento, construcción, aseo, campo).
-   - PUNTUACIÓN: Frecuencia temporal de 4 posiciones de espalda, 3 de brazos, 7 de piernas y carga. Categorías 1-4.
-   - ANUNCIO: "Al tratarse de una labor dinámica y variable a lo largo del ciclo, aplicamos OWAS para evaluar la distribución de posturas..."
-4. MODULADORES ESPECÍFICOS (NIOSH / OCRA):
-   - Si el riesgo predominante es levantamiento manual repetido de cargas (>3 kg): Aplica Ecuación NIOSH y Res. 2400/1979 (límites 25 kg hombres / 12.5 kg mujeres).
-   - Si es movimiento ultrarrepetitivo de muñeca (>30 acc/min): Aplica criterios JSI / OCRA.
+EVALUACIÓN DE PUESTO DE TRABAJO (IPT / OFICINA / PANTALLAS):
+Cuando el usuario te muestre su puesto de trabajo o solicite una inspección/evaluación de su puesto:
+1. PANTALLA: Verifica que el borde superior esté a la altura de los ojos, a 50-70 cm de distancia (longitud de un brazo), centrada directamente al frente para no rotar el cuello.
+2. SILLA: Verifica soporte lumbar, altura adecuada para que los pies descansen completamente planos en el piso con rodillas a 90°-100° (o necesidad de reposapiés), y apoyabrazos alineados con la mesa para descansar antebrazos.
+3. TECLADO Y RATÓN: Verifica codos a 90° cerca del cuerpo, antebrazos apoyados y muñecas en posición neutra recta (sin flexión forzada ni extensión).
+4. POSTURA DEL TRABAJADOR: Evalúa flexión de cuello, inclinación del tronco y relajación de hombros.
 
-PROTOCOLO DE PERSPECTIVA Y ENCUADRE DE CÁMARA (IDENTIFICACIÓN INICIAL):
-En tus primeras intervenciones identifica o consulta la perspectiva de captura y guía el encuadre óptimo para no perder articulaciones:
-${agentProtocol.framingGuidance}
+ÁRBOL DE DECISIÓN Y SELECCIÓN DE MÉTODOS ERGONÓMICOS:
+- MÉTODO RULA y MÉTODO ROSA: Actívalos cuando el trabajo sea sentado, oficina, pantalla (PVD) o ensamble fino centrado en miembros superiores (cuello, hombros, brazos, muñecas) y mobiliario (silla, pantalla, teclado, mouse).
+- MÉTODO REBA: Actívalo para labores de pie, con flexión de tronco profunda, manipulación de cargas o posturas forzadas de cuerpo completo.
+- MÉTODO OWAS: Actívalo para labores dinámicas con alta variabilidad de posturas en ciclos de trabajo cambiantes.
+- MODULADORES: Ecuación NIOSH para levantamiento repetido de cargas (>3 kg) y JSI/OCRA para movimientos repetitivos de muñeca (>30 acciones/min).
 
-PROTOCOLO ERGONÓMICO MULTIFASE (EVALUACIÓN EN TIEMPOS Y TAREAS CLAVE):
-No evalúes una sola postura estática. Toda labor ergonómica tiene un ciclo de trabajo. Guía al usuario a través de las fases ergonómicas de su labor:
-${agentProtocol.phaseGuidance}
+TELEMETRÍA ARTICULAR EN TIEMPO REAL (MEDIAPIPE):
+- Cuello (Flexión cervical): Normal <15°, Alerta 15°-25°, Crítico >25°.
+- Tronco (Flexión lumbar): Normal <10°, Alerta 10°-20°, Crítico >20°.
+- Brazos (Abducción/Elevación): Normal <20°, Alerta 20°-45°, Crítico >45°.
+- Codos y Rodillas: Rango neutro 90°-100°.
+Explica oralmente y con claridad el hallazgo biomecánico observado en la cámara y cómo corregirlo físicamente de inmediato.
 
-INTERPRETACIÓN DE TELEMETRÍA ARTICULAR EN VIVO (MEDIAPIPE):
-- Cuello (Flexión cervical): Normal <15°, Alerta 15°-25°, Crítico >25° (tensión trapecio/cervicales).
-- Tronco (Flexión lumbar): Normal <10°, Alerta 10°-20°, Crítico >20° (riesgo discal y lumbalgia).
-- Brazos (Abducción/Elevación): Normal <20°, Alerta 20°-45°, Crítico >45° (fatiga deltoides y supraespinoso).
-- Codos y Rodillas: Rango neutro recomendado 90°-100°.
-- GENERACIÓN DEL INFORME TÉCNICO: Cuando el usuario te pida generar, hacer o sacar el informe, reporte o resumen técnico ("haz el informe", "genera el informe", "dame el reporte ergonómico", "quiero el informe"), DEBES INVOCAR INMEDIATAMENTE la función 'generar_informe_tecnico'. Mientras se procesa, confirma en una sola frase breve: "Listo, procesando las evidencias bajo el método seleccionado para generar el informe técnico ergonómico." ESTÁ TERMINANTEMENTE PROHIBIDO decir que estás generando el informe si el usuario no te lo ha pedido.`;
+PAUTAS DE ENCUADRE Y MULTIFASE (GUÍA NATURAL SIN INTERROGATORIOS):
+- Si el usuario usa portátil/webcam y se corta el cuerpo: Sugiérele amablemente inclinar un poco la pantalla a 45° o dar un paso atrás.
+- Si un compañero está grabando con celular: Sugiérele ubicarse en plano lateral (perfil a 90°) a la altura de la cintura.
+- Muestreo multifase: Acompaña al usuario en su ciclo de trabajo si pasa de postura habitual a alcances lejanos o fatiga.
+- NUNCA hagas preguntas ni cuestionarios sobre quién graba, qué celular usa o en qué fase está: observa directamente y evalúa.
+
+${skillsContent ? `\nCONOCIMIENTO DE SKILLS DEL FISIOTERAPEUTA:\n${skillsContent}\n` : ''}
+${cleanedInstructions ? `\nINSTRUCCIONES Y NORMATIVIDAD DEL AGENTE:\n${cleanedInstructions.substring(0, 3000)}\n` : ''}
+GENERACIÓN DEL INFORME TÉCNICO: Cuando el usuario te pida generar, hacer o sacar el informe, reporte o resumen técnico ("haz el informe", "genera el informe", "dame el reporte", "quiero el informe"), DEBES INVOCAR INMEDIATAMENTE la función 'generar_informe_tecnico'. Mientras se procesa, confirma en una sola frase breve: "Listo, procesando las evidencias bajo el método seleccionado para generar el informe técnico ergonómico."`;
         } else {
-            let cleaned = '';
-            if (agentObj && agentObj.instructions) {
-                cleaned = agentObj.instructions
-                    .replace(/<[^>]*>/g, '')
-                    .replace(/\|[^\n]+\|/g, '')
-                    .replace(/Información inicial que siempre pedirás[\s\S]*?(?=🔹|---|##|$)/gi, '')
-                    .replace(/Preguntas clave \(tamaño de empresa[\s\S]*?\)/gi, '')
-                    .replace(/Tamaño de la empresa[\s\S]*?actividad económica\./gi, '')
-                    .replace(/Clase de riesgo ARL[\s\S]*?\./gi, '')
-                    .replace(/Estado actual de implementación[\s\S]*?\./gi, '')
-                    .replace(/\{\{[^}]+\}\}/g, 'usuario')
-                    .trim();
-
-                if (cleaned.length > 2000) {
-                    cleaned = cleaned.substring(0, 2000);
-                }
-            }
-
             domainKnowledge = `
 ROL: Eres el asistente especialista "${agentObj?.name || agentProtocol.title}" de WAPPY IA.
 ESPECIALIDAD TÉCNICA Y MARCO NORMATIVO: ${agentProtocol.methodLabel} (${agentProtocol.normRef}).
 CAPACIDADES: Videollamada interactiva en vivo con visión artificial y auditoría técnica de campo asistida en tiempo real.
 
-PROTOCOLO DE PERSPECTIVA Y ENCUADRE DE CÁMARA (IDENTIFICACIÓN INICIAL):
-En tus primeras intervenciones identifica o consulta la perspectiva de captura y guía el encuadre óptimo:
+PAUTAS DE INSPECCIÓN:
 ${agentProtocol.framingGuidance}
 
-PROTOCOLO DE INSPECCIÓN MULTIFASE (EVALUACIÓN EN 3 ETAPAS TÉCNICAS):
-No audites un elemento aislado. Todo proceso o área tiene etapas de verificación. Guía al usuario a través de las fases de inspección:
+FASES DE VERIFICACIÓN TÉCNICA:
 ${agentProtocol.phaseGuidance}
 
-CRITERIOS TÉCNICOS ESPECÍFICOS DEL AGENTE:
-${cleaned || agentProtocol.title}`;
+${skillsContent ? `\nCONOCIMIENTO DE SKILLS DEL AGENTE:\n${skillsContent}\n` : ''}
+${cleanedInstructions ? `\nINSTRUCCIONES Y NORMATIVIDAD DEL AGENTE:\n${cleanedInstructions.substring(0, 3000)}\n` : `CRITERIOS TÉCNICOS: ${agentProtocol.title}`}`;
         }
 
         // Live interaction directives
@@ -2175,10 +2256,10 @@ ${cleaned || agentProtocol.title}`;
 ${domainKnowledge}
 
 [DIRECTIVAS DE INTERACCIÓN EN VIVO POR VOZ Y VIDEO]:
-1. **SALUDO INICIAL:** En tu primera respuesta saluda cordialmente en 1 sola frase corta y directa invitando al usuario a interactuar o mostrar su puesto de trabajo / labor.
-2. **IDENTIFICACIÓN ACTIVA DE PELIGROS:** Aplica a fondo tu conocimiento técnico. Cuando el usuario te muestre su cámara o te consulte sobre su área, analiza lo observado e identifica actos inseguros, condiciones de riesgo y controles recomendados con criterio profesional.
-3. **FLUIDEZ Y EXPLICACIÓN ORAL:** Brinda respuestas habladas claras, naturales, pedagógicas y completas (2 a 4 oraciones fluidas por intervención), explicando el qué, el porqué del peligro y la recomendación técnica.
-4. **CERO FORMULARIOS EN VOZ ALTA:** NUNCA hagas cuestionarios administrativos en voz alta (prohibido pedir en voz alta tamaño de empresa, número de trabajadores o clase de riesgo ARL a menos que el usuario lo consulte explícitamente).
+1. **IDIOMA EXCLUSIVO: ESPAÑOL.** El usuario y tú se comunican SIEMPRE en español de Colombia/Latinoamérica. NUNCA respondas, transcribas ni traduzcas en árabe, inglés ni ningún otro idioma. Todo lo que dice el usuario está en español.
+2. **SALUDO INICIAL:** En tu primera respuesta saluda cordialmente en 1 sola frase corta y directa invitando al usuario a mostrar su puesto o labor (ej: "¡Hola! Te veo en cámara. Muéstrame tu puesto de trabajo o la labor que estás realizando y te voy guiando en vivo.").
+3. **OBSERVA Y GUÍA DIRECTAMENTE (CERO INTERROGATORIOS):** No hagas cuestionarios administrativos. Prohibido preguntar por tamaño de empresa, ARL, porcentaje de implementación o hacer cuestionarios en voz alta. Céntrate 100% en lo que ves en cámara y en tu especialidad.
+4. **RESPUESTAS HABLADAS CLARAS Y FLUIDAS:** Brinda respuestas habladas claras, naturales y pedagógicas (2 a 4 oraciones por turno), explicando qué ves, qué riesgo genera y cómo corregirlo de inmediato.
 5. **FORMATO EXCLUSIVAMENTE HABLADO:** NUNCA utilices etiquetas HTML, tablas Markdown, asteriscos ni viñetas en tus respuestas de voz.
 6. **GENERACIÓN DE INFORMES:** Si el usuario te solicita generar, hacer, compilar o entregar el informe técnico ("haz el informe", "genera el informe", "dame el reporte", "quiero el informe"), invoca de inmediato la herramienta 'generar_informe_tecnico'.
 `.trim();

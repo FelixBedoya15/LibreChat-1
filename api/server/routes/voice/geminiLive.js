@@ -286,9 +286,11 @@ ${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.c
                     ],
                 },
                 // FASE 3: Using BOTH transcriptions simultaneously
-                // inputAudioTranscription = transcribes user's voice
+                // inputAudioTranscription = transcribes user's voice strictly in Spanish
                 // outputAudioTranscription = transcribes AI's voice
-                inputAudioTranscription: {},
+                inputAudioTranscription: {
+                    languageCodes: ['es-CO', 'es-419', 'es']
+                },
                 outputAudioTranscription: {},
                 // Standard Tools support
                 tools: this.config.tools || [{ googleSearch: {} }],
