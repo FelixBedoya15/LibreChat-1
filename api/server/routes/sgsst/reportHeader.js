@@ -13,9 +13,11 @@
  * @param {string} [options.norm] - Normative reference (e.g. "Resolución 0312 de 2019")
  * @param {string} [options.riskLevel] - Risk level label
  * @param {string} [options.responsibleName] - Name of the person generating the report
+ * @param {string} [options.cargo] - Job title / position evaluated
+ * @param {string} [options.actividad] - Brief description of activities
  * @returns {string} HTML string
  */
-function buildStandardHeader({ title, companyInfo, date, norm, riskLevel, responsibleName }) {
+function buildStandardHeader({ title, companyInfo, date, norm, riskLevel, responsibleName, cargo, actividad }) {
   const ci = companyInfo || {};
   const empresa = ci.companyName || 'EMPRESA';
   const companyType = ci.companyType || 'Persona Jurídica';
@@ -73,7 +75,7 @@ function buildStandardHeader({ title, companyInfo, date, norm, riskLevel, respon
 
 <!-- Tabla Resumen de la Entidad (Estilizada y Limpia) -->
 <div style="margin-bottom: 24px; font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box; page-break-inside: avoid;">
-  <table style="width: 100%; min-width: 600px; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; background-color: #ffffff;">
+  <table style="width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; background-color: #ffffff;">
     <thead>
       <tr>
         <th colspan="4" style="background: linear-gradient(90deg, #0f766e, #0d9488); color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: center; border: none;">
@@ -84,32 +86,39 @@ function buildStandardHeader({ title, companyInfo, date, norm, riskLevel, respon
     <tbody>
       <tr style="font-size: 11px; color: #1e293b;">
         <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155; width: 25%;">Empresa:</td>
-        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; font-weight: 600; color: #0f766e; width: 25%;">${empresa} <span style="font-size:9px;color:#64748b;font-weight:normal;">(${companyType})</span></td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; font-weight: 600; color: #0f766e; width: 25%; word-break: break-word;">${empresa} <span style="font-size:9px;color:#64748b;font-weight:normal;">(${companyType})</span></td>
         <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155; width: 25%;">${nitLabel}:</td>
-        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; width: 25%;">${nit}</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; width: 25%; word-break: break-word;">${nit}</td>
       </tr>
       <tr style="font-size: 11px; color: #1e293b;">
         <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155;">Representante:</td>
-        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">${representante}${representanteId}</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; word-break: break-word;">${representante}${representanteId}</td>
         <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155;">N° Trabajadores:</td>
-        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">${trabajadores}</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; word-break: break-word;">${trabajadores}</td>
       </tr>
       <tr style="font-size: 11px; color: #1e293b;">
         <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155;">Nivel de Riesgo:</td>
-        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">${riesgo}</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; word-break: break-word;">${riesgo}</td>
         <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155;">Ciudad / Depto:</td>
-        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">${ciudad}</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; word-break: break-word;">${ciudad}</td>
       </tr>
       <tr style="font-size: 11px; color: #1e293b;">
         <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155;">Fecha de Emisión:</td>
-        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">${fecha}</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; word-break: break-word;">${fecha}</td>
         <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155;">ARL:</td>
-        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">${arl}</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; word-break: break-word;">${arl}</td>
       </tr>
       <tr style="font-size: 11px; color: #1e293b;">
-        <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0; color: #334155;">Norma:</td>
-        <td colspan="3" style="padding: 8px 12px;">${norma}</td>
+        <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: ${cargo ? '1px solid #e2e8f0;' : 'none;'}; border-right: 1px solid #e2e8f0; color: #334155;">Norma:</td>
+        <td colspan="3" style="padding: 8px 12px; border-bottom: ${cargo ? '1px solid #e2e8f0;' : 'none;'}; word-break: break-word;">${norma}</td>
       </tr>
+      ${cargo ? `
+      <tr style="font-size: 11px; color: #1e293b;">
+        <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0; color: #334155;">Puesto / Cargo:</td>
+        <td style="padding: 8px 12px; border-right: 1px solid #e2e8f0; font-weight: 600; color: #0f766e; word-break: break-word;">${cargo}</td>
+        <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0; color: #334155;">Actividad:</td>
+        <td style="padding: 8px 12px; word-break: break-word;">${actividad || 'Evaluación de puesto de trabajo'}</td>
+      </tr>` : ''}
     </tbody>
   </table>
 </div>

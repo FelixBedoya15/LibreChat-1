@@ -8,7 +8,7 @@ const { v4: uuidv4 } = require('uuid');
 const { generateWithKeyRotation, SGSST_FALLBACK_MODELS, LIVE_FALLBACK_MODELS } = require('../sgsst/sgsstGemini');
 const mongoose = require('mongoose');
 const CompanyInfo = require('~/models/CompanyInfo');
-const { buildSignatureSection } = require('../sgsst/reportHeader');
+const { buildSignatureSection, buildStandardHeader } = require('../sgsst/reportHeader');
 const fs = require('fs');
 const path = require('path');
 const SKILLS_DIR = path.resolve(__dirname, '../../../config/skills');
@@ -1460,8 +1460,10 @@ ${activeProtocol.reportMatrixHeader}
             ESTRUCTURA HTML OBLIGATORIA:
 
             PRIMERA LÍNEA (ANTES de cualquier otro HTML, sin excepción):
-            <div id="wappy-kpi" data-riesgo="[ALTO|MEDIO|BAJO]" data-accion="[Inmediata|Programada|Preventiva]" data-consecuencia="[Mortal|Incapacitante|Leve]" data-npeligros="[N]" style="display:none"></div>
+            <div id="wappy-kpi" data-riesgo="[ALTO|MEDIO|BAJO]" data-cargo="[Nombre del cargo o puesto de trabajo mencionado por el usuario]" data-actividad="[Breve resumen de la actividad laboral evaluada]" data-accion="[Inmediata|Programada|Preventiva]" data-consecuencia="[Mortal|Incapacitante|Leve]" data-npeligros="[N]" style="display:none"></div>
             - data-riesgo: El nivel de riesgo predominante que encontraste.
+            - data-cargo: Cargo o puesto de trabajo que el usuario indicó al inicio (ej. Desarrollador de Software, Asistente Administrativo, etc.).
+            - data-actividad: Breve descripción de la actividad habitual evaluada.
             - data-accion: La acción requerida con mayor urgencia.
             - data-consecuencia: La consecuencia máxima posible de materialización del riesgo crítico (Mortal, Incapacitante o Leve).
             - data-npeligros: El número exacto de peligros que listaste en la Matriz de Riesgos (debe ser ≥ 5).
@@ -1652,8 +1654,12 @@ En la sección "4.1 Matriz Ergonómica Comparativa Multifase", en la columna "Te
 
             // ─── DYNAMIC SIGNATURE AND WORKER DETECTION ──────────────────────
             let finalSignatureHtml = '';
+            let companyInfo = null;
             try {
-                const companyInfo = await CompanyInfo.findOne({ user: this.userId }).lean();
+                companyInfo = await CompanyInfo.findOne({ user: this.userId, isActive: true }).lean();
+                if (!companyInfo) {
+                    companyInfo = await CompanyInfo.findOne({ user: this.userId }).lean();
+                }
                 let matchedWorker = null;
 
                 if (mongoose.models.PerfilSociodemograficoData) {
@@ -1682,7 +1688,7 @@ En la sección "4.1 Matriz Ergonómica Comparativa Multifase", en la columna "Te
                 reportHtml += `\n\n${finalSignatureHtml}`;
             }
 
-            // ─── PREMIUM EMERALD-TEAL WRAPPER (MATCH INITIAL FORMAT 1) ────────
+            // ─── EXTRACT KPI DIV AND CONTEXT METADATA ────────
             const kpiMatch = reportHtml.match(/<div[^>]+id=["']wappy-kpi["'][^>]*>[\s\S]*?<\/div>/i) || reportHtml.match(/<div[^>]+id=["']wappy-kpi["'][^>]*>/i);
             let kpiDiv = '';
             if (kpiMatch) {
@@ -1712,30 +1718,67 @@ En la sección "4.1 Matriz Ergonómica Comparativa Multifase", en la columna "Te
                     const phaseData = this.phaseEvidences?.[idx];
                     const label = phaseData?.phaseName || phaseLabels[idx] || `Fase ${idx + 1}: Evidencia de Inspección`;
                     const telemSummary = phaseData?.telemetry?.summary || '';
+                    const telemItems = telemSummary ? telemSummary.split(/\s*•\s*/).filter(Boolean) : [];
+
+                    const telemHtml = telemItems.length > 0 ? `
+                        <div style="margin-top:8px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:6px 8px; text-align:left; box-shadow:0 1px 2px rgba(0,0,0,0.03); width:100%; box-sizing:border-box;">
+                            <div style="font-size:0.72em; font-weight:700; color:#0f766e; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; border-bottom:1px solid #e2e8f0; padding-bottom:2px;">
+                                📐 Telemetría Articular:
+                            </div>
+                            ${telemItems.map(item => {
+                                const parts = item.split(':');
+                                const metricName = parts[0]?.trim() || '';
+                                const metricVal = parts.slice(1).join(':').trim() || '';
+                                return `
+                                <div style="font-size:0.68em; line-height:1.3; color:#334155; margin-bottom:3px; word-break:break-word; overflow-wrap:break-word;">
+                                    <span style="font-weight:600; color:#1e293b;">• ${metricName}:</span> 
+                                    <span style="color:#0f766e; font-weight:600;">${metricVal}</span>
+                                </div>`;
+                            }).join('')}
+                        </div>` : '';
 
                     return `
-                    <td style="width:33.333%; padding:6px; vertical-align:top; text-align:center; border:none; background:transparent;">
+                    <td style="width:33.333%; max-width:33.333%; padding:6px; vertical-align:top; text-align:center; border:none; background:transparent; word-break:break-word; overflow-wrap:break-word; box-sizing:border-box;">
                         <div style="background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0; padding:4px; box-shadow:0 2px 6px rgba(0,0,0,0.04);">
                             <img src="data:image/jpeg;base64,${b64}" alt="Evidencia Fase ${idx+1}" style="width:100%; max-height:220px; object-fit:contain; border-radius:6px; display:block; margin:0 auto;" />
                         </div>
-                        <p style="font-size:0.78em; color:#0f766e; font-weight:700; margin-top:8px; margin-bottom:2px; line-height:1.3;">${label}</p>
-                        ${telemSummary ? `<p style="font-size:0.7em; color:#475569; margin-top:2px; font-family:monospace; line-height:1.2;">${telemSummary}</p>` : ''}
+                        <p style="font-size:0.78em; color:#0f766e; font-weight:700; margin-top:8px; margin-bottom:2px; line-height:1.3; word-break:break-word; overflow-wrap:break-word;">${label}</p>
+                        ${telemHtml}
                     </td>`;
                 }).join('');
 
                 evidenceHtml = `
                     <div style="margin-bottom:24px;">
                         <h3 style="color:#0f766e; font-size:1.1em; text-transform:uppercase; letter-spacing:1px; border-left:4px solid #14b8a6; padding-left:10px; margin-bottom:12px;">${sectionTitle}</h3>
-                        <table border="0" style="width:100%; border:none; table-layout:fixed; border-collapse:collapse; margin-top:12px;">
+                        <table border="0" style="width:100%; border:none; table-layout:fixed; border-collapse:collapse; margin-top:12px; box-sizing:border-box;">
                             <tr>${imgItems}</tr>
                         </table>
                     </div>`;
             }
 
             const radicadoId = `LA-${new Date().getFullYear()}-${String(Math.floor(Math.random()*9000)+1000)}`;
-            const currentHour = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
-            const finalWrappedHtml = `<div class="report-container">
+            // Extract cargo & actividad if present in kpiDiv
+            const cargoMatch = kpiDiv.match(/data-cargo=["']([^"']+)["']/i);
+            const actividadMatch = kpiDiv.match(/data-actividad=["']([^"']+)["']/i);
+            const extractedCargo = cargoMatch ? cargoMatch[1] : '';
+            const extractedActividad = actividadMatch ? actividadMatch[1] : '';
+
+            const standardReportTitle = this.isBiomechanics 
+                ? 'INFORME TÉCNICO DE ERGONOMÍA Y BIOMECÁNICA' 
+                : (activeProtocol?.title ? activeProtocol.title.toUpperCase() : 'INFORME TÉCNICO DE EVALUACIÓN DE RIESGOS');
+
+            const standardHeaderHtml = buildStandardHeader({
+                title: standardReportTitle,
+                companyInfo: companyInfo,
+                date: currentDate,
+                norm: this.isBiomechanics ? 'Resolución 2400 de 1979 / GTC 45 / ISO 11226 (RULA/REBA)' : (activeProtocol?.normRef || 'Resolución 0312 de 2019 / GTC 45'),
+                responsibleName: this.user?.name || companyInfo?.responsibleSST,
+                cargo: extractedCargo,
+                actividad: extractedActividad,
+            });
+
+            const finalWrappedHtml = `<div class="report-container" style="font-family:'Segoe UI',Arial,sans-serif; max-width:900px; margin:0 auto; color:#111827;">
 ${kpiDiv}
 <style>
 .ai-report-content h2, .ai-report-content h3 { color: #0f766e; margin-top: 24px; margin-bottom: 12px; font-weight: 700; border-bottom: 1px solid #ccfbf1; padding-bottom: 6px; }
@@ -1745,80 +1788,16 @@ ${kpiDiv}
 .ai-report-content td { padding: 6px; border-bottom: 1px solid #e2e8f0; color: #1e293b; word-break: break-word; }
 .ai-report-content tr:nth-child(even) td { background-color: #f8fafc; }
 </style>
-<div style="font-family:'Segoe UI',Arial,sans-serif; max-width:900px; margin:0 auto; color:#111827; background-color:#f9fafb; border-radius:16px; overflow:hidden; border:1px solid #e5e7eb; box-shadow:0 10px 15px -3px rgba(0,0,0,0.05);">
-  <!-- HEADER (WAPPY PREMIUM EMERALD-TEAL-CYAN DEGRADADO) -->
-  <div style="background-color:#0f766e; background:linear-gradient(135deg,#064e3b 0%,#0f766e 60%,#0891b2 100%); -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important; padding:32px; position:relative; overflow:hidden; border-bottom:3px solid #14b8a6;">
-    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; position:relative; z-index:10;">
-      <div>
-        <div style="color:#22d3ee; font-size:0.75em; font-weight:800; letter-spacing:4px; text-transform:uppercase; margin-bottom:6px; text-shadow:0 0 10px rgba(34,211,238,0.3); display:flex; align-items:center; gap:8px;">
-          <svg width="12" height="12" viewBox="0 0 100 100" style="overflow:visible;">
-            <circle cx="50" cy="50" r="45" fill="#22d3ee">
-              <animate attributeName="opacity" values="1;0.4;1" dur="1s" repeatCount="indefinite" />
-              <animate attributeName="r" values="45;65;45" dur="1s" repeatCount="indefinite" />
-            </circle>
-          </svg>
-          ✨ WAPPY IA • HSE Command Center
-        </div>
-        <h1 style="color:#ffffff; font-size:1.8em; font-weight:900; margin:0 0 6px; letter-spacing:-0.5px; text-shadow:0 2px 4px rgba(0,0,0,0.2);">
-          ${this.isBiomechanics ? 'Informe Técnico de Ergonomía y Biomecánica' : 'Informe de Análisis de Riesgos y Peligros'}
-        </h1>
-        <div style="color:#a7f3d0; font-size:0.85em; font-weight:500; display:flex; align-items:center; gap:6px;">
-          <span style="display:inline-block; width:8px; height:8px; background-color:#34d399; border-radius:50%; box-shadow:0 0 8px #34d399;"></span>
-          Modalidad: Auditoría Asistida por IA (${this.isBiomechanics ? 'Visión Artificial en Vivo' : 'Predictiva'})
-        </div>
-      </div>
-      <div>
-        <div style="background:rgba(255,255,255,0.12); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; border:1px solid rgba(255,255,255,0.25); border-radius:12px; padding:12px 20px; min-width:180px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
-          <div style="color:#22d3ee; font-size:0.65em; font-weight:800; letter-spacing:3px; text-transform:uppercase; margin-bottom:4px;">RADICADO</div>
-          <div style="color:#ffffff; font-size:1.25em; font-weight:900; font-family:monospace; letter-spacing:1px;">${radicadoId}</div>
-          <div style="color:#e2e8f0; font-size:0.75em; margin-top:4px; font-weight:500;">
-            📅 ${currentDate}
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Background grid pattern -->
-    <div style="position:absolute; inset:0; opacity:0.15; pointer-events:none; z-index:1;">
-      <svg width="100%" height="100%">
-        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#ffffff" stroke-width="1"/>
-        </pattern>
-        <rect width="100%" height="100%" fill="url(#grid)" />
-      </svg>
-    </div>
-  </div>
 
-  <!-- INFO BAR -->
-  <div style="background:#f0fdfa; border-bottom:1px solid #ccfbf1; padding:14px 32px; display:flex; flex-wrap:wrap; gap:32px; font-size:0.85em; color:#0f766e; font-weight:600; align-items:center;">
-    <div style="display:flex; align-items:center; gap:6px;">
-      <span style="color:#14b8a6; font-size:1.2em;">📅</span> <strong>Fecha:</strong> ${currentDate}
-    </div>
-    <div style="display:flex; align-items:center; gap:6px;">
-      <span style="color:#14b8a6; font-size:1.2em;">⏱️</span> <strong>Hora:</strong> ${currentHour}
-    </div>
-    <div style="display:flex; align-items:center; gap:6px;">
-      <span style="color:#14b8a6; font-size:1.2em;">🛡️</span> <strong>Estándar:</strong> ${this.isBiomechanics ? 'RULA / REBA / OWAS (GTC 45 / Res. 2400)' : 'GTC 45 / ISO 45001'}
-    </div>
-    <div style="display:flex; align-items:center; gap:6px; margin-left:auto;">
-      <strong>Estado:</strong> 
-      <span style="background-color:#ecfdf5; color:#065f46; padding:3px 12px; border-radius:50px; font-size:0.9em; font-weight:700; border:1px solid #a7f3d0; display:flex; align-items:center; gap:6px;">
-        ✔ Completado
-      </span>
-    </div>
-  </div>
+${standardHeaderHtml}
 
-  <!-- BODY CONTENT -->
-  <div style="background:#ffffff; padding:40px 32px; min-height:400px; display:flex; flex-direction:column; color:#1f2937;">
-    
+<div style="background:#ffffff; padding:10px 0; min-height:400px; display:flex; flex-direction:column; color:#1f2937;">
     ${evidenceHtml}
 
     <div class="ai-report-content" style="line-height:1.7; color:#1f2937;">
       <h2 style="color:#0f766e; font-size:1.4em; font-weight:800; border-bottom:2px solid #14b8a6; padding-bottom:8px; margin-bottom:20px;">${this.isBiomechanics ? 'Informe Técnico de Evaluación Postural y Ergonómica' : 'Informe Técnico de Evaluación de Riesgos y Peligros'}</h2>
       ${reportHtml}
     </div>
-    
-  </div>
 </div>
 </div>`;
 
@@ -2408,10 +2387,16 @@ Asesorar en vivo mediante visión artificial y voz en la prevención de desórde
 
 DIRECTIVA DE LIDERAZGO ACTIVO Y EVALUACIÓN PASO A PASO (OBLIGATORIO):
 No actúes como un chatbot pasivo que solo espera preguntas o suelta recomendaciones sueltas. TÚ DIRIGES LA EVALUACIÓN ERGONÓMICA EN CAMPO:
-1. Toma el control desde tu primer saludo proponiendo la evaluación estructurada en 3 pasos rápidos:
+1. Toma el control desde tu primer saludo:
+   - PASO PREVIO OBLIGATORIO (ANTES DE INICIAR FASES):
+     En tu primera intervención saluda con calidez y PREGUNTA de inmediato por el cargo o puesto de trabajo y una breve descripción de las actividades que realiza en su jornada cotidiana:
+     "¡Hola! Te doy la bienvenida a la evaluación ergonómica y biomecánica en vivo. Para contextualizar y personalizar tu informe, por favor cuéntame: ¿cuál es tu cargo o puesto de trabajo y qué actividades principales realizas en tu día a día?"
+     REGLA ESTRICTA: NO inicies el Paso 1 ni pidas adoptar posturas antes de que el usuario responda su cargo y actividad.
+   - INICIO DE FASES (AL RECIBIR LA RESPUESTA):
+     Valida cordialmente en una sola frase breve y da inicio inmediato al Paso 1 llamando a 'cambiar_fase_evaluacion' con fase: 1.
    - Paso 1 (Postura Habitual / Línea Base): Pídele trabajar/digitar normalmente unos segundos mientras mides cuello y tronco con MediaPipe.
-   - Paso 2 (Alcance Crítico / Flexión Máxima): Pídele mostrar el punto o alcance más exigente de su puesto de trabajo.
-   - Paso 3 (Postura Fatigada / Apoyo Lumbar): Pídele mostrar cómo se sienta cuando ya siente cansancio para revisar soporte de silla, columna y pies.
+   - Paso 2 (Alcance Crítico / Flexión Máxima): Pídele mostrar el punto o alcance más exigente de su puesto de trabajo. Invoca 'cambiar_fase_evaluacion' con fase: 2.
+   - Paso 3 (Postura Fatigada / Apoyo Lumbar): Pídele mostrar cómo se sienta cuando ya siente cansancio para revisar soporte de silla, columna y pies. Invoca 'cambiar_fase_evaluacion' con fase: 3.
 2. En cada fase, utiliza la telemetría articular (grados de cuello, tronco, brazos) para darle retroalimentación en vivo sobre lo que ves.
 3. Al culminar las 3 fases, ofrece compilar el informe técnico oficial e invoca 'generar_informe_tecnico' en cuanto el usuario lo apruebe.
 
@@ -2464,10 +2449,10 @@ ${domainKnowledge}
 
 [DIRECTIVAS DE INTERACCIÓN EN VIVO POR VOZ Y VIDEO]:
 1. **IDIOMA EXCLUSIVO: ESPAÑOL.** El usuario y tú se comunican SIEMPRE en español de Colombia/Latinoamérica. NUNCA respondas, transcribas ni traduzcas en árabe, inglés ni ningún otro idioma. Todo lo que dice el usuario está en español.
-2. **SALUDO INICIAL Y LIDERAZGO:** En tu primera respuesta saluda cordialmente en 1 o 2 frases y TOMA EL LIDERAZGO proponiendo de inmediato iniciar el Paso 1 de la evaluación de campo. NUNCA invoques herramientas de informe en el saludo.
-3. **CONDUCE LA EVALUACIÓN PASO A PASO:** Guía activamente al usuario por las fases de campo: Paso 1 (Postura Habitual), Paso 2 (Alcance Crítico / Carga) y Paso 3 (Fatiga / Deslizamiento). Al indicarle al usuario pasar al siguiente paso, invoca la herramienta 'cambiar_fase_evaluacion' con el número de fase (1, 2 o 3). NO seas un asistente pasivo que solo espera preguntas.
+2. **SALUDO INICIAL Y PASO PREVIO OBLIGATORIO (CARGO Y ACTIVIDAD):** En tu primera intervención saluda cordialmente en 1 o 2 frases y PREGUNTA de inmediato: "¿Cuál es tu cargo o puesto de trabajo y qué actividad principal realizas en tu día a día?". NUNCA invoques herramientas de informe en el saludo y NUNCA pidas posturas en tu primer turno. Espera a que el usuario responda su cargo y actividad.
+3. **CONDUCE LA EVALUACIÓN TRAS EL CONTEXTO:** Una vez que el usuario te responda indicando su cargo y actividad, valida en una sola frase breve y entusiasta y da inicio al Paso 1 (Postura Habitual / Línea Base), invocando de inmediato la herramienta 'cambiar_fase_evaluacion' con fase: 1. Luego continúa secuencialmente con el Paso 2 (Alcance Crítico) y Paso 3 (Fatiga / Deslizamiento) llamando a 'cambiar_fase_evaluacion' en cada transición.
 4. **RETROALIMENTACIÓN BIOMECÁNICA PRECISA:** Menciona los ángulos articulares medidos en cámara (cuello, tronco, brazos) y brinda correcciones físicas inmediatas.
-5. **CERO CUESTIONARIOS ADMINISTRATIVOS:** Prohibido preguntar por ARL, tamaño de empresa o porcentajes de implementación. Céntrate en la observación de campo.
+5. **CERO CUESTIONARIOS ADMINISTRATIVOS ADICIONALES:** Prohibido preguntar por ARL, tamaño de empresa o porcentajes de implementación. Limítate exclusivamente a preguntar cargo y actividad al inicio y luego concéntrate en la observación de campo.
 6. **RESPUESTAS HABLADAS CONCISAS:** Respuestas habladas claras y pedagógicas (2 a 4 oraciones por turno). Sin formato Markdown ni HTML en voz.
 7. **GENERACIÓN DE INFORME:** NUNCA generes el informe durante el saludo ni en los pasos 1 o 2. Solo debes invocar 'generar_informe_tecnico' al concluir las 3 fases O cuando el usuario te ordene explícitamente generar el informe ('haz el informe', 'genera el reporte', 'dame el informe').
 `.trim();
