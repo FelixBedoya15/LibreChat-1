@@ -6,7 +6,7 @@ import { TooltipAnchor } from '@librechat/client';
 import store from '~/store';
 import VoiceOrb from '../Voice/VoiceOrb';
 import VoiceSelector from '../Voice/VoiceSelector';
-import { ERGONOMIC_PHASES } from '../Voice/VoiceModal';
+import { resolveInspectionProtocol, INSPECTION_PROTOCOLS, ERGONOMIC_PHASES, type InspectionProtocol } from '~/utils/inspectionProtocols';
 import { useLiveAnalysisSession } from '~/hooks/useLiveAnalysisSession';
 import { useLocalize, useAuthContext } from '~/hooks';
 import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
@@ -82,9 +82,22 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const [showVoiceSelector, setShowVoiceSelector] = useState(false);
     const [audioAmplitude, setAudioAmplitude] = useState(0);
 
-    // Multi-Phase Ergonomic Protocol & Perspective States
+    const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+    const [manualCapturedPhotos, setManualCapturedPhotos] = useState<string[]>([]);
+    const [isFlashActive, setIsFlashActive] = useState(false);
+    const [zoom, setZoom] = useState<number>(1);
+
+    // Multi-Phase Inspection Protocol & Perspective States across all families
+    const activeProtocol = useMemo<InspectionProtocol>(() => {
+        return resolveInspectionProtocol(selectedTemplate);
+    }, [selectedTemplate]);
+
     const [currentPhaseIndex, setCurrentPhaseIndex] = useState<number>(0);
-    const currentPhase = ERGONOMIC_PHASES[currentPhaseIndex] || ERGONOMIC_PHASES[0];
+    const currentPhase = activeProtocol.phases[currentPhaseIndex] || activeProtocol.phases[0];
+
+    useEffect(() => {
+        setCurrentPhaseIndex(0);
+    }, [activeProtocol.id]);
 
     const isMobileDevice = useMemo(() => {
         if (typeof window === 'undefined') return false;
@@ -102,11 +115,8 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     currentPhaseRef.current = currentPhase;
     const capturePerspectiveRef = useRef(capturePerspective);
     capturePerspectiveRef.current = capturePerspective;
-
-    const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
-    const [manualCapturedPhotos, setManualCapturedPhotos] = useState<string[]>([]);
-    const [isFlashActive, setIsFlashActive] = useState(false);
-    const [zoom, setZoom] = useState<number>(1);
+    const activeProtocolRef = useRef(activeProtocol);
+    activeProtocolRef.current = activeProtocol;
 
     const handleTemplateClick = (templateId: string, templateName: string) => {
         if (isVital && templateId !== 'general') {
@@ -1080,17 +1090,23 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         if (eAngle !== null) telemetryParts.push(`Flexión de Codo: ${eAngle}° (${elbowInfo.status})`);
         if (kAngle !== null) telemetryParts.push(`Flexión de Rodilla: ${kAngle}° (${kneeInfo.status})`);
 
-        const phaseName = currentPhaseRef.current?.name || 'Fase 1: Postura Habitual';
+        const proto = activeProtocolRef.current;
+        const phase = currentPhaseRef.current || proto.phases[0];
         const perspective = capturePerspectiveRef.current || 'Auto-evaluación';
 
-        const telemetryText = telemetryParts.length > 0 
-            ? `[Captura de Evidencia Biomecánica • ${phaseName} • Perspectiva: ${perspective}] Registro de telemetría articular en el momento de la captura: ${telemetryParts.join(', ')}.`
-            : `[Captura de Evidencia Biomecánica • ${phaseName} • Perspectiva: ${perspective}] Captura de evidencia sin telemetría articular activa en el momento.`;
+        let telemetryText = '';
+        if (selectedTemplate === 'biomecanico_mediapipe' || proto.id === 'biomecanico') {
+            telemetryText = telemetryParts.length > 0 
+                ? `[Captura de Evidencia Biomecánica • ${phase.name} • Perspectiva: ${perspective}] Registro de telemetría articular en el momento de la captura: ${telemetryParts.join(', ')}.`
+                : `[Captura de Evidencia Biomecánica • ${phase.name} • Perspectiva: ${perspective}] Captura de evidencia sin telemetría articular activa en el momento.`;
+        } else {
+            telemetryText = `[Captura de Evidencia Técnica • ${proto.title} • ${phase.name} • Perspectiva: ${perspective} • Enfoque: ${phase.focus}] Evidencia fotográfica registrada en el ciclo de inspección.`;
+        }
 
         sendEvidenceImage(base64, telemetryText);
 
-        // Auto-advance to next ergonomic phase if not at last phase
-        setCurrentPhaseIndex((prev) => (prev < ERGONOMIC_PHASES.length - 1 ? prev + 1 : prev));
+        // Auto-advance to next phase if not at last phase
+        setCurrentPhaseIndex((prev) => (prev < proto.phases.length - 1 ? prev + 1 : prev));
     }, [
         captureSnapshot, 
         sendEvidenceImage, 
@@ -1647,7 +1663,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                                     {capturePerspective}
                                 </span>
                                 <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-lg p-0.5">
-                                    {ERGONOMIC_PHASES.map((p, idx) => (
+                                    {activeProtocol.phases.map((p, idx) => (
                                         <button
                                             key={p.id}
                                             onClick={() => setCurrentPhaseIndex(idx)}
@@ -1934,18 +1950,16 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                         {/* Camera Shutter Button */}
                         {(isCameraOn || isScreenSharing) && (
                             <TooltipAnchor
-                                description={selectedTemplate === 'biomecanico_mediapipe' ? `Capturar ${currentPhase.name} (${capturePerspective})` : "Capturar Foto de Evidencia"}
+                                description={`Capturar ${currentPhase.name} (${capturePerspective})`}
                                 render={
                                     <button
                                         onClick={handleManualCapture}
                                         className="relative p-2.5 sm:p-4 rounded-full bg-emerald-500 text-white hover:bg-emerald-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all duration-300 transform active:scale-90 border border-emerald-400/30"
                                     >
                                         <Camera className="w-4 h-4 sm:w-5 sm:h-5" />
-                                        {selectedTemplate === 'biomecanico_mediapipe' && (
-                                            <span className="absolute -top-1 -right-1 bg-black/80 text-cyan-300 text-[8px] font-mono font-bold px-1 rounded-full border border-cyan-500/50">
-                                                {currentPhaseIndex + 1}/3
-                                            </span>
-                                        )}
+                                        <span className="absolute -top-1 -right-1 bg-black/80 text-cyan-300 text-[8px] font-mono font-bold px-1 rounded-full border border-cyan-500/50">
+                                            {currentPhaseIndex + 1}/{activeProtocol.phases.length}
+                                        </span>
                                     </button>
                                 }
                             />

@@ -9,6 +9,7 @@ const { generateWithKeyRotation, SGSST_FALLBACK_MODELS, LIVE_FALLBACK_MODELS } =
 const mongoose = require('mongoose');
 const CompanyInfo = require('~/models/CompanyInfo');
 const { buildSignatureSection } = require('../sgsst/reportHeader');
+const { INSPECTION_PROTOCOLS, resolveInspectionProtocol } = require('./inspectionProtocols');
 
 /**
  * Active voice sessions
@@ -1192,19 +1193,11 @@ REGLAS DE INTERACCIÓN EN VIVO:
 
             const currentDate = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-            // Determine ergo/template instructions based on the selected template in this session
+            // Determine active inspection protocol and comparative matrix instructions
+            const activeProtocol = this.agentProtocol || resolveInspectionProtocol(this.agentObj?.name || this.config?.template);
             let templateInstructions = "";
-            const activeTemplate = (this.config?.template || 'general').toLowerCase();
-            if (activeTemplate === 'alturas') {
-                templateInstructions = "ENFOQUE DE AUDITORÍA: Trabajo en alturas (líneas de vida, puntos de anclaje, estado del arnés y conectores, equipo de protección anticaídas certificado). Guía el análisis y la matriz de peligros para priorizar riesgos de caída a distinto nivel, sistemas de acceso y EPP especializado contra caídas.";
-            } else if (activeTemplate === 'eléctrico' || activeTemplate === 'electrico') {
-                templateInstructions = "ENFOQUE DE AUDITORÍA: Riesgo eléctrico (tableros eléctricos, cableado expuesto, candados y tarjetas LOTO, herramientas aisladas, EPP dieléctrico). Guía el análisis y la matriz de peligros para priorizar riesgos de choque eléctrico, arco eléctrico, quemaduras y control de energías peligrosas.";
-            } else if (activeTemplate === '5s') {
-                templateInstructions = "ENFOQUE DE AUDITORÍA: Orden y aseo con metodología 5S (Seiri/Clasificar, Seiton/Organizar, Seiso/Limpiar, Seiketsu/Estandarizar, Shitsuke/Disciplina, almacenamiento seguro, pasillos despejados). Enfoca el reporte en las desviaciones de orden, aseo y disciplina locativa.";
-            } else if (activeTemplate === 'biomecanico_estandar') {
-                templateInstructions = `ENFOQUE DE AUDITORÍA: Riesgo Biomecánico Estándar (Cualitativo) bajo la guía GTC 45. Analiza exhaustivamente posturas (prolongadas, forzadas, mantenidas, anti-gravitacionales), movimientos repetitivos y manipulación manual de cargas.
-En la matriz de peligros, enfócate en el peligro Biomecánico, detallando los efectos a la salud asociados (e.g., trastornos musculoesqueléticos, fatiga muscular, lesiones lumbares). Diseña medidas de control orientadas al rediseño de puestos de trabajo, pausas activas especializadas y rotación de tareas.`;
-            } else if (activeTemplate === 'biomecanico_mediapipe' || activeTemplate.includes('biomecan')) {
+
+            if (activeProtocol.id === 'biomecanico') {
                 templateInstructions = `ENFOQUE DE AUDITORÍA: Análisis Biomecánico Cuantitativo y Ergonómico Multifase en tiempo real aplicando la selección técnica de métodos ergonómicos (Criterios Prevencionar: RULA, REBA u OWAS).
 Durante la sesión se ha registrado telemetría de ángulos articulares (Flexión Cervical, Inclinación de Tronco, Abducción de Brazos, Codos y Rodillas) y se estructuró la evaluación a través de un PROTOCOLO MULTIFASE en el ciclo de trabajo:
 - Perspectiva de Captura: Documenta si el análisis se ejecutó como "Auto-evaluación (Portátil/Webcam)" o como "Inspección Asistida por Tercero (Smartphone)".
@@ -1214,34 +1207,19 @@ Durante la sesión se ha registrado telemetría de ángulos articulares (Flexió
 - Ecuación NIOSH / Res. 2400: Cuando existió levantamiento manual repetido de cargas (>3 kg).
 
 REQUERIMIENTO ADICIONAL OBLIGATORIO:
-1. Debes incluir una sección especial titulada '<h3>4.1 Matriz Ergonómica Comparativa Multifase (RULA / REBA / OWAS)</h3>' inmediatamente después de la tabla de Matriz de Riesgos (antes de la sección 5).
-2. En esa sección, inserta OBLIGATORIAMENTE una tabla comparativa con las fases evaluadas (mínimo 3 fases del ciclo):
-   - Fase 1: Postura Habitual / Línea Base (tarea principal continua).
-   - Fase 2: Puntos Críticos / Alcances Extremos (pico de flexión de cuello, abducción de brazos o torsión).
-   - Fase 3: Postura Fatigada / Colapso Postural (deslizamiento sacral, pérdida de curvatura lumbar o retorno).
-   Estructura obligatoria de la tabla (dentro de un contenedor table-responsive):
-   <div class="table-responsive" style="overflow-x: auto; width: 100%; margin: 16px 0; -webkit-overflow-scrolling: touch;">
-   <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; min-width: 900px; text-align: left; font-size: 0.88em;">
-     <thead style="background-color: #0f766e; color: white;">
-       <tr>
-         <th style="padding: 10px 10px; white-space: nowrap;">Fase del Ciclo</th>
-         <th style="padding: 10px 10px; white-space: nowrap;">Perspectiva de Captura</th>
-         <th style="padding: 10px 10px; white-space: nowrap;">Tarea / Postura Observada</th>
-         <th style="padding: 10px 10px; white-space: nowrap;">Telemetría MediaPipe (Cuello / Tronco / Brazo)</th>
-         <th style="padding: 10px 10px; white-space: nowrap;">Método</th>
-         <th style="padding: 10px 10px; text-align: center; white-space: nowrap;">Puntaje Final</th>
-         <th style="padding: 10px 10px; white-space: nowrap;">Nivel de Riesgo y Acción</th>
-         <th style="padding: 10px 10px; white-space: nowrap;">Medida Inmediata</th>
-       </tr>
-     </thead>
-     <tbody>
-       <!-- Fila para Fase 1, Fila para Fase 2, Fila para Fase 3 -->
-     </tbody>
-   </table>
-   </div>
-3. Analiza las imágenes de evidencia capturadas citando explícitamente a qué fase corresponden y contrastando la evolución de la postura desde la fase habitual hasta la postura crítica y la fatiga.`;
+1. Debes incluir OBLIGATORIAMENTE la sección especial comparativa multifase inmediatamente después de la tabla de Matriz de Riesgos (antes de la sección 5):
+${activeProtocol.reportMatrixHeader}
+2. Analiza las imágenes de evidencia capturadas citando explícitamente a qué fase corresponden y contrastando la evolución de la postura desde la fase habitual hasta la postura crítica y la fatiga.`;
             } else {
-                templateInstructions = "ENFOQUE DE AUDITORÍA: Inspección general de seguridad industrial (ISO 45001 y GTC 45, orden general, señalización, ergonomía, EPP general).";
+                templateInstructions = `ENFOQUE DE AUDITORÍA: ${activeProtocol.title} aplicando ${activeProtocol.methodLabel} (${activeProtocol.normRef}).
+La inspección en vivo se estructuró y documentó a través de un PROTOCOLO MULTIFASE sistemático:
+- Fases evaluadas: ${activeProtocol.phases.join(', ')}.
+- Perspectiva de Captura: Documenta si la verificación se ejecutó como auto-inspección autónoma o como inspección asistida con dispositivo móvil.
+
+REQUERIMIENTO ADICIONAL OBLIGATORIO:
+1. Debes incluir OBLIGATORIAMENTE la sección comparativa multifase inmediatamente después de la tabla de Matriz de Riesgos (antes de la sección 5):
+${activeProtocol.reportMatrixHeader}
+2. Analiza las imágenes de evidencia fotográfica capturadas citando explícitamente a qué fase corresponden y contrastando los hallazgos técnicos entre cada etapa de la inspección.`;
             }
 
             const prompt = `
@@ -1475,22 +1453,12 @@ REQUERIMIENTO ADICIONAL OBLIGATORIO:
             // Build photographic evidence section inside body
             let evidenceHtml = '';
             if (framesToUse.length > 0) {
-                const phaseLabels = [
-                    'Fase 1: Postura Habitual / Línea Base',
-                    'Fase 2: Alcance Crítico / Flexión Máxima',
-                    'Fase 3: Postura Fatigada / Colapso Lumbar',
-                    'Fase 4: Dinámica / Manipulación de Carga',
-                    'Fase 5: Retorno / Descanso',
-                ];
-                const isBiomecanico = this.agentSpecialty === 'biomecanico_mediapipe';
-                const sectionTitle = isBiomecanico
-                    ? '1. Evidencia Fotográfica y Cinemática Multifase'
-                    : '1. Evidencia Fotográfica del Entorno Analizado';
+                const activeProtocol = this.agentProtocol || resolveInspectionProtocol(this.agentObj?.name || this.config?.template);
+                const phaseLabels = activeProtocol.phases;
+                const sectionTitle = `1. Evidencia Fotográfica y Documental Multifase (${activeProtocol.title})`;
 
                 const imgItems = framesToUse.map((b64, idx) => {
-                    const caption = isBiomecanico
-                        ? `<strong>${phaseLabels[idx] || `Fase ${idx + 1}: Muestreo Cinemático`}</strong>`
-                        : `Figura ${idx + 1}: Captura de evidencia del entorno analizado.`;
+                    const caption = `<strong>${phaseLabels[idx] || `Fase ${idx + 1}: Evidencia de Inspección`}</strong>`;
                     return `
                     <div style="flex:1 1 calc(33.333% - 16px); max-width:300px; min-width:200px; text-align:center; margin-bottom:12px; box-sizing:border-box;">
                         <img src="data:image/jpeg;base64,${b64}" alt="Evidencia ${idx+1}" style="width:100%; height:240px; object-fit:contain; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.05);" />
@@ -2112,26 +2080,20 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
         }
 
         let agentObj = null;
-        let isBiomechanics = false;
         if (agentId) {
             try {
                 const { getAgent } = require('~/models/Agent');
                 agentObj = await getAgent({ id: agentId });
-                if (agentObj) {
-                    const agentName = (agentObj.name || '').toLowerCase();
-                    if (agentName.includes('fisioterapeuta') || agentName.includes('biomecánica') || agentName.includes('biomecanica')) {
-                        isBiomechanics = true;
-                    }
-                    logger.info(`[VoiceSession] Live session configured with Agent: ${agentObj.name || agentId} (isBiomechanics: ${isBiomechanics})`);
-                }
             } catch (agentError) {
                 logger.error('[VoiceSession] Error loading agent details:', agentError);
             }
         }
 
-        if (config.template === 'biomecanico_mediapipe' || config.mode === 'live_analysis') {
-            isBiomechanics = true;
-        }
+        // Dynamic Inspection Protocol Resolution across all WAPPY Agent Families
+        const agentProtocol = resolveInspectionProtocol(agentObj?.name || config.template || (config.mode === 'live_analysis' ? 'biomecanico_mediapipe' : 'general'));
+        const isBiomechanics = agentProtocol.id === 'biomecanico';
+
+        logger.info(`[VoiceSession] Live session configured with Agent: ${agentObj?.name || agentId || 'General'} (Protocol: ${agentProtocol.title}, isBiomechanics: ${isBiomechanics})`);
 
         // Build rich domain expertise while removing written-chat questionnaires and HTML templates
         let domainKnowledge = '';
@@ -2160,17 +2122,11 @@ Los métodos posturales no son intercambiables. Conforme a lo que observes en c�
 
 PROTOCOLO DE PERSPECTIVA Y ENCUADRE DE CÁMARA (IDENTIFICACIÓN INICIAL):
 En tus primeras intervenciones identifica o consulta la perspectiva de captura y guía el encuadre óptimo para no perder articulaciones:
-- AUTO-GRABACIÓN (El trabajador se evalúa a sí mismo desde la webcam frontal de su portátil o smartphone en soporte):
-  Instrucción hablada: "Para medir tus ángulos con precisión, ubica tu portátil o cámara a unos 45° en diagonal o aléjate un poco para que entren en cuadro tu cabeza, cuello, tronco y codos."
-- INSPECCIÓN ASISTIDA (Un técnico SST, prevencionista o compañero está grabando al trabajador con un teléfono móvil):
-  Instrucción hablada: "Por favor ubícate de perfil (plano sagital a 90°) a la altura de su cintura a metro y medio de distancia para registrar la columna, hombros y brazos con claridad."
+${agentProtocol.framingGuidance}
 
 PROTOCOLO ERGONÓMICO MULTIFASE (EVALUACIÓN EN TIEMPOS Y TAREAS CLAVE):
 No evalúes una sola postura estática. Toda labor ergonómica tiene un ciclo de trabajo. Guía al usuario a través de las fases ergonómicas de su labor:
-- FASE 1 (Postura Habitual / Línea Base): Tarea principal repetitiva mantenida durante más tiempo (ej. digitación continua, ensamble o lectura de pantalla).
-- FASE 2 (Puntos Críticos / Alcances Extremos): Momento de mayor flexión, abducción o torsión biomecánica (ej. alcanzar objetos lejanos, inclinar el cuello >30° para mirar el móvil o documentos en la mesa, o levantar carga).
-- FASE 3 (Postura Fatigada / Colapso Postural): Postura degradada tras tiempo prolongado (deslizamiento sacral en la silla, pérdida de curvatura lumbar, apoyo de cabeza en la mano o retorno dinámico).
-Guía el avance de las fases de forma natural y fluida ("Comencemos con la Fase 1: muéstrame tu trabajo normal...", "Excelente, ahora para la Fase 2 muéstrame el punto de mayor alcance o inclinación...", "Muy bien, ahora para la Fase 3 muéstrame tu postura cuando sientes cansancio...").
+${agentProtocol.phaseGuidance}
 
 INTERPRETACIÓN DE TELEMETRÍA ARTICULAR EN VIVO (MEDIAPIPE):
 - Cuello (Flexión cervical): Normal <15°, Alerta 15°-25°, Crítico >25° (tensión trapecio/cervicales).
@@ -2178,31 +2134,40 @@ INTERPRETACIÓN DE TELEMETRÍA ARTICULAR EN VIVO (MEDIAPIPE):
 - Brazos (Abducción/Elevación): Normal <20°, Alerta 20°-45°, Crítico >45° (fatiga deltoides y supraespinoso).
 - Codos y Rodillas: Rango neutro recomendado 90°-100°.
 - GENERACIÓN DEL INFORME TÉCNICO: Cuando el usuario te pida generar, hacer o sacar el informe, reporte o resumen técnico ("haz el informe", "genera el informe", "dame el reporte ergonómico", "quiero el informe"), DEBES INVOCAR INMEDIATAMENTE la función 'generar_informe_tecnico'. Mientras se procesa, confirma en una sola frase breve: "Listo, procesando las evidencias bajo el método seleccionado para generar el informe técnico ergonómico." ESTÁ TERMINANTEMENTE PROHIBIDO decir que estás generando el informe si el usuario no te lo ha pedido.`;
-        } else if (agentObj && agentObj.instructions) {
-            // Clean out written-chat questionnaires, HTML blocks, and markdown tables from agent prompt
-            let cleaned = agentObj.instructions
-                .replace(/<[^>]*>/g, '')
-                .replace(/\|[^\n]+\|/g, '')
-                .replace(/Información inicial que siempre pedirás[\s\S]*?(?=🔹|---|##|$)/gi, '')
-                .replace(/Preguntas clave \(tamaño de empresa[\s\S]*?\)/gi, '')
-                .replace(/Tamaño de la empresa[\s\S]*?actividad económica\./gi, '')
-                .replace(/Clase de riesgo ARL[\s\S]*?\./gi, '')
-                .replace(/Estado actual de implementación[\s\S]*?\./gi, '')
-                .replace(/\{\{[^}]+\}\}/g, 'usuario')
-                .trim();
+        } else {
+            let cleaned = '';
+            if (agentObj && agentObj.instructions) {
+                cleaned = agentObj.instructions
+                    .replace(/<[^>]*>/g, '')
+                    .replace(/\|[^\n]+\|/g, '')
+                    .replace(/Información inicial que siempre pedirás[\s\S]*?(?=🔹|---|##|$)/gi, '')
+                    .replace(/Preguntas clave \(tamaño de empresa[\s\S]*?\)/gi, '')
+                    .replace(/Tamaño de la empresa[\s\S]*?actividad económica\./gi, '')
+                    .replace(/Clase de riesgo ARL[\s\S]*?\./gi, '')
+                    .replace(/Estado actual de implementación[\s\S]*?\./gi, '')
+                    .replace(/\{\{[^}]+\}\}/g, 'usuario')
+                    .trim();
 
-            if (cleaned.length > 2500) {
-                cleaned = cleaned.substring(0, 2500);
+                if (cleaned.length > 2000) {
+                    cleaned = cleaned.substring(0, 2000);
+                }
             }
 
             domainKnowledge = `
-ROL: Eres el asistente "${agentObj.name || 'Especialista SST'}" de WAPPY IA.
-ESPECIALIDAD TÉCNICA, CRITERIOS DE IDENTIFICACIÓN DE PELIGROS Y NORMATIVIDAD DEL AGENTE:
-${cleaned}`;
-        } else {
-            domainKnowledge = `
-ROL: Eres un Asistente Experto Senior en Seguridad y Salud en el Trabajo (SST/HSE) de WAPPY IA.
-ESPECIALIDAD: Identificación de peligros, actos y condiciones inseguras (GTC 45, Decreto 1072 de 2015, Resolución 0312 de 2019, tareas críticas, seguridad química y vial).`;
+ROL: Eres el asistente especialista "${agentObj?.name || agentProtocol.title}" de WAPPY IA.
+ESPECIALIDAD TÉCNICA Y MARCO NORMATIVO: ${agentProtocol.methodLabel} (${agentProtocol.normRef}).
+CAPACIDADES: Videollamada interactiva en vivo con visión artificial y auditoría técnica de campo asistida en tiempo real.
+
+PROTOCOLO DE PERSPECTIVA Y ENCUADRE DE CÁMARA (IDENTIFICACIÓN INICIAL):
+En tus primeras intervenciones identifica o consulta la perspectiva de captura y guía el encuadre óptimo:
+${agentProtocol.framingGuidance}
+
+PROTOCOLO DE INSPECCIÓN MULTIFASE (EVALUACIÓN EN 3 ETAPAS TÉCNICAS):
+No audites un elemento aislado. Todo proceso o área tiene etapas de verificación. Guía al usuario a través de las fases de inspección:
+${agentProtocol.phaseGuidance}
+
+CRITERIOS TÉCNICOS ESPECÍFICOS DEL AGENTE:
+${cleaned || agentProtocol.title}`;
         }
 
         // Live interaction directives
@@ -2221,6 +2186,7 @@ ${domainKnowledge}
         // Pass the array of keys to VoiceSession
         const session = new VoiceSession(clientWs, userId, apiKeys, config, conversationId);
         session.agentObj = agentObj;
+        session.agentProtocol = agentProtocol;
         session.isBiomechanics = isBiomechanics;
 
         // Start session
