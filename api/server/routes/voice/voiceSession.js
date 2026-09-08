@@ -1205,18 +1205,41 @@ REGLAS DE INTERACCIÓN EN VIVO:
                 templateInstructions = `ENFOQUE DE AUDITORÍA: Riesgo Biomecánico Estándar (Cualitativo) bajo la guía GTC 45. Analiza exhaustivamente posturas (prolongadas, forzadas, mantenidas, anti-gravitacionales), movimientos repetitivos y manipulación manual de cargas.
 En la matriz de peligros, enfócate en el peligro Biomecánico, detallando los efectos a la salud asociados (e.g., trastornos musculoesqueléticos, fatiga muscular, lesiones lumbares). Diseña medidas de control orientadas al rediseño de puestos de trabajo, pausas activas especializadas y rotación de tareas.`;
             } else if (activeTemplate === 'biomecanico_mediapipe' || activeTemplate.includes('biomecan')) {
-                templateInstructions = `ENFOQUE DE AUDITORÍA: Análisis Biomecánico Cuantitativo en tiempo real aplicando la selección técnica de métodos ergonómicos (Criterios Prevencionar: RULA, REBA u OWAS).
-Durante la sesión se ha registrado telemetría de ángulos articulares (Flexión Cervical, Inclinación de Tronco, Abducción de Brazos, Codos y Rodillas) y se identificó el método ergonómico óptimo según la labor observada:
+                templateInstructions = `ENFOQUE DE AUDITORÍA: Análisis Biomecánico Cuantitativo y Ergonómico Multifase en tiempo real aplicando la selección técnica de métodos ergonómicos (Criterios Prevencionar: RULA, REBA u OWAS).
+Durante la sesión se ha registrado telemetría de ángulos articulares (Flexión Cervical, Inclinación de Tronco, Abducción de Brazos, Codos y Rodillas) y se estructuró la evaluación a través de un PROTOCOLO MULTIFASE en el ciclo de trabajo:
+- Perspectiva de Captura: Documenta si el análisis se ejecutó como "Auto-evaluación (Portátil/Webcam)" o como "Inspección Asistida por Tercero (Smartphone)".
 - Método RULA: Para labores de oficina / sedente frente a pantalla o ensamblaje fino donde el riesgo principal recae en miembros superiores y cuello.
 - Método REBA: Para labores de pie, posturas forzadas de cuerpo entero, flexión de rodillas, manipulación de carga o posturas dinámicas/inestables.
 - Método OWAS: Para tareas dinámicas de alta variabilidad postural en ciclos cambiantes (mantenimiento, construcción, aseo).
 - Ecuación NIOSH / Res. 2400: Cuando existió levantamiento manual repetido de cargas (>3 kg).
 
 REQUERIMIENTO ADICIONAL OBLIGATORIO:
-1. Debes incluir una sección especial titulada '<h3>4.1 Evaluación Ergonómica Cuantitativa (Método Aplicado: RULA / REBA / OWAS)</h3>' inmediatamente después de la tabla de Matriz de Riesgos (antes de la sección 5).
-2. En esa sección, indica claramente qué método se aplicó y la justificación técnica de su elección basada en los segmentos corporales más comprometidos.
-3. Inserta una tabla detallada con los ángulos promedio detectados en Cuello/Cervical, Columna/Tronco, Brazos, Codos y Rodillas, clasificando el nivel de riesgo según los estándares del método seleccionado (Puntuación Grupos A y B, Puntuación Final y Nivel de Acción 1 a 4 o 1 a 5).
-4. Analiza las imágenes de evidencia capturadas (Auto-Snapshots ergonómicos y fotos manuales con esqueleto articular MediaPipe), citando textualmente las posturas y ángulos reflejados en las fotos.`;
+1. Debes incluir una sección especial titulada '<h3>4.1 Matriz Ergonómica Comparativa Multifase (RULA / REBA / OWAS)</h3>' inmediatamente después de la tabla de Matriz de Riesgos (antes de la sección 5).
+2. En esa sección, inserta OBLIGATORIAMENTE una tabla comparativa con las fases evaluadas (mínimo 3 fases del ciclo):
+   - Fase 1: Postura Habitual / Línea Base (tarea principal continua).
+   - Fase 2: Puntos Críticos / Alcances Extremos (pico de flexión de cuello, abducción de brazos o torsión).
+   - Fase 3: Postura Fatigada / Colapso Postural (deslizamiento sacral, pérdida de curvatura lumbar o retorno).
+   Estructura obligatoria de la tabla (dentro de un contenedor table-responsive):
+   <div class="table-responsive" style="overflow-x: auto; width: 100%; margin: 16px 0; -webkit-overflow-scrolling: touch;">
+   <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; min-width: 900px; text-align: left; font-size: 0.88em;">
+     <thead style="background-color: #0f766e; color: white;">
+       <tr>
+         <th style="padding: 10px 10px; white-space: nowrap;">Fase del Ciclo</th>
+         <th style="padding: 10px 10px; white-space: nowrap;">Perspectiva de Captura</th>
+         <th style="padding: 10px 10px; white-space: nowrap;">Tarea / Postura Observada</th>
+         <th style="padding: 10px 10px; white-space: nowrap;">Telemetría MediaPipe (Cuello / Tronco / Brazo)</th>
+         <th style="padding: 10px 10px; white-space: nowrap;">Método</th>
+         <th style="padding: 10px 10px; text-align: center; white-space: nowrap;">Puntaje Final</th>
+         <th style="padding: 10px 10px; white-space: nowrap;">Nivel de Riesgo y Acción</th>
+         <th style="padding: 10px 10px; white-space: nowrap;">Medida Inmediata</th>
+       </tr>
+     </thead>
+     <tbody>
+       <!-- Fila para Fase 1, Fila para Fase 2, Fila para Fase 3 -->
+     </tbody>
+   </table>
+   </div>
+3. Analiza las imágenes de evidencia capturadas citando explícitamente a qué fase corresponden y contrastando la evolución de la postura desde la fase habitual hasta la postura crítica y la fatiga.`;
             } else {
                 templateInstructions = "ENFOQUE DE AUDITORÍA: Inspección general de seguridad industrial (ISO 45001 y GTC 45, orden general, señalización, ergonomía, EPP general).";
             }
@@ -1452,14 +1475,32 @@ REQUERIMIENTO ADICIONAL OBLIGATORIO:
             // Build photographic evidence section inside body
             let evidenceHtml = '';
             if (framesToUse.length > 0) {
-                const imgItems = framesToUse.map((b64, idx) => `
+                const phaseLabels = [
+                    'Fase 1: Postura Habitual / Línea Base',
+                    'Fase 2: Alcance Crítico / Flexión Máxima',
+                    'Fase 3: Postura Fatigada / Colapso Lumbar',
+                    'Fase 4: Dinámica / Manipulación de Carga',
+                    'Fase 5: Retorno / Descanso',
+                ];
+                const isBiomecanico = this.agentSpecialty === 'biomecanico_mediapipe';
+                const sectionTitle = isBiomecanico
+                    ? '1. Evidencia Fotográfica y Cinemática Multifase'
+                    : '1. Evidencia Fotográfica del Entorno Analizado';
+
+                const imgItems = framesToUse.map((b64, idx) => {
+                    const caption = isBiomecanico
+                        ? `<strong>${phaseLabels[idx] || `Fase ${idx + 1}: Muestreo Cinemático`}</strong>`
+                        : `Figura ${idx + 1}: Captura de evidencia del entorno analizado.`;
+                    return `
                     <div style="flex:1 1 calc(33.333% - 16px); max-width:300px; min-width:200px; text-align:center; margin-bottom:12px; box-sizing:border-box;">
                         <img src="data:image/jpeg;base64,${b64}" alt="Evidencia ${idx+1}" style="width:100%; height:240px; object-fit:contain; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.05);" />
-                        <p style="font-size:0.75em; color:#7f8c8d; margin-top:4px;">Figura ${idx+1}: Captura de evidencia del entorno analizado.</p>
-                    </div>`).join('');
+                        <p style="font-size:0.75em; color:#475569; margin-top:6px; line-height:1.3;">${caption}</p>
+                    </div>`;
+                }).join('');
+
                 evidenceHtml = `
                     <div style="margin-bottom:24px;">
-                        <h3 style="color:#0f766e; font-size:1.1em; text-transform:uppercase; letter-spacing:1px; border-left:4px solid #14b8a6; padding-left:10px; margin-bottom:12px;">1. Evidencia Fotográfica del Entorno Analizado</h3>
+                        <h3 style="color:#0f766e; font-size:1.1em; text-transform:uppercase; letter-spacing:1px; border-left:4px solid #14b8a6; padding-left:10px; margin-bottom:12px;">${sectionTitle}</h3>
                         <div style="display:flex; flex-wrap:wrap; gap:16px; margin-top:12px;">${imgItems}</div>
                     </div>`;
             }
@@ -2116,6 +2157,20 @@ Los métodos posturales no son intercambiables. Conforme a lo que observes en c�
 4. MODULADORES ESPECÍFICOS (NIOSH / OCRA):
    - Si el riesgo predominante es levantamiento manual repetido de cargas (>3 kg): Aplica Ecuación NIOSH y Res. 2400/1979 (límites 25 kg hombres / 12.5 kg mujeres).
    - Si es movimiento ultrarrepetitivo de muñeca (>30 acc/min): Aplica criterios JSI / OCRA.
+
+PROTOCOLO DE PERSPECTIVA Y ENCUADRE DE CÁMARA (IDENTIFICACIÓN INICIAL):
+En tus primeras intervenciones identifica o consulta la perspectiva de captura y guía el encuadre óptimo para no perder articulaciones:
+- AUTO-GRABACIÓN (El trabajador se evalúa a sí mismo desde la webcam frontal de su portátil o smartphone en soporte):
+  Instrucción hablada: "Para medir tus ángulos con precisión, ubica tu portátil o cámara a unos 45° en diagonal o aléjate un poco para que entren en cuadro tu cabeza, cuello, tronco y codos."
+- INSPECCIÓN ASISTIDA (Un técnico SST, prevencionista o compañero está grabando al trabajador con un teléfono móvil):
+  Instrucción hablada: "Por favor ubícate de perfil (plano sagital a 90°) a la altura de su cintura a metro y medio de distancia para registrar la columna, hombros y brazos con claridad."
+
+PROTOCOLO ERGONÓMICO MULTIFASE (EVALUACIÓN EN TIEMPOS Y TAREAS CLAVE):
+No evalúes una sola postura estática. Toda labor ergonómica tiene un ciclo de trabajo. Guía al usuario a través de las fases ergonómicas de su labor:
+- FASE 1 (Postura Habitual / Línea Base): Tarea principal repetitiva mantenida durante más tiempo (ej. digitación continua, ensamble o lectura de pantalla).
+- FASE 2 (Puntos Críticos / Alcances Extremos): Momento de mayor flexión, abducción o torsión biomecánica (ej. alcanzar objetos lejanos, inclinar el cuello >30° para mirar el móvil o documentos en la mesa, o levantar carga).
+- FASE 3 (Postura Fatigada / Colapso Postural): Postura degradada tras tiempo prolongado (deslizamiento sacral en la silla, pérdida de curvatura lumbar, apoyo de cabeza en la mano o retorno dinámico).
+Guía el avance de las fases de forma natural y fluida ("Comencemos con la Fase 1: muéstrame tu trabajo normal...", "Excelente, ahora para la Fase 2 muéstrame el punto de mayor alcance o inclinación...", "Muy bien, ahora para la Fase 3 muéstrame tu postura cuando sientes cansancio...").
 
 INTERPRETACIÓN DE TELEMETRÍA ARTICULAR EN VIVO (MEDIAPIPE):
 - Cuello (Flexión cervical): Normal <15°, Alerta 15°-25°, Crítico >25° (tensión trapecio/cervicales).

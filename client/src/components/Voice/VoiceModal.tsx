@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, type FC } from 'react';
 import { useRecoilState, useSetRecoilState } from 'recoil';
-import { Mic, MicOff, Video, VideoOff, RefreshCcw, Monitor, MonitorOff, PhoneOff, Smartphone, Camera, AlertCircle, FileText } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, RefreshCcw, Monitor, MonitorOff, PhoneOff, Smartphone, Camera, AlertCircle, FileText, UserCheck } from 'lucide-react';
 import { TooltipAnchor } from '@librechat/client';
 import store from '~/store';
 import VoiceOrb from './VoiceOrb';
@@ -68,6 +68,12 @@ const playStartupSound = () => {
     }
 };
 
+export const ERGONOMIC_PHASES = [
+    { id: 1, name: 'Fase 1: Postura Habitual', shortName: 'Fase 1: Habitual', desc: 'Línea base en ciclo continuo de trabajo' },
+    { id: 2, name: 'Fase 2: Alcance Crítico', shortName: 'Fase 2: Alcance Máximo', desc: 'Punto más distante, flexión o torsión pico' },
+    { id: 3, name: 'Fase 3: Postura Fatigada', shortName: 'Fase 3: Fatiga / Dinámica', desc: 'Colapso postural sostenido o manipulación' },
+];
+
 const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onConversationIdUpdate, onConversationUpdated, model, endpoint, agentId }) => {
     const localize = useLocalize();
     const [voiceChatGeneral, setVoiceChatGeneral] = useRecoilState(store.voiceChatGeneral);
@@ -88,6 +94,27 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     const [zoom, setZoom] = useState<number>(1);
     const [isFlashActive, setIsFlashActive] = useState(false);
     const [limitNotification, setLimitNotification] = useState<string | null>(null);
+
+    // Multi-Phase Ergonomic Protocol & Perspective States
+    const [currentPhaseIndex, setCurrentPhaseIndex] = useState<number>(0);
+    const currentPhase = ERGONOMIC_PHASES[currentPhaseIndex] || ERGONOMIC_PHASES[0];
+
+    const isMobileDevice = useMemo(() => {
+        if (typeof window === 'undefined') return false;
+        return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
+    }, []);
+
+    const capturePerspective = useMemo(() => {
+        if (isMobileDevice && facingMode === 'environment') {
+            return 'Inspección Asistida (Smartphone)';
+        }
+        return 'Auto-evaluación (Portátil/Webcam)';
+    }, [isMobileDevice, facingMode]);
+
+    const currentPhaseRef = useRef(currentPhase);
+    currentPhaseRef.current = currentPhase;
+    const capturePerspectiveRef = useRef(capturePerspective);
+    capturePerspectiveRef.current = capturePerspective;
 
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const videoIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -601,7 +628,9 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                     if (kAngle !== null) parts.push(`Rodilla: ${kAngle}° (${kneeInfo.status})`);
 
                     if (parts.length > 0) {
-                        telemetryString = `[Telemetría Articular en Vivo]: ${parts.join(', ')}`;
+                        const phaseName = currentPhaseRef.current?.name || 'Evaluación General';
+                        const perspective = capturePerspectiveRef.current || 'Auto-evaluación';
+                        telemetryString = `[Telemetría Articular en Vivo • ${phaseName} • ${perspective}]: ${parts.join(', ')}`;
                     }
                 }
 
@@ -1075,13 +1104,19 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             if (eAngle !== null) telemetryParts.push(`Flexión de Codo: ${eAngle}° (${elbowInfo.status})`);
             if (kAngle !== null) telemetryParts.push(`Flexión de Rodilla: ${kAngle}° (${kneeInfo.status})`);
 
+            const phaseName = currentPhaseRef.current?.name || 'Fase 1: Postura Habitual';
+            const perspective = capturePerspectiveRef.current || 'Auto-evaluación';
+
             const telemetryText = telemetryParts.length > 0 
-                ? `[Captura de Evidencia Biomecánica] Registro de telemetría articular en el momento de la captura: ${telemetryParts.join(', ')}.`
-                : `[Captura de Evidencia Manual] Captura de foto de evidencia sin telemetría articular activa en el momento.`;
+                ? `[Captura de Evidencia Biomecánica • ${phaseName} • Perspectiva: ${perspective}] Registro de telemetría articular en el momento de la captura: ${telemetryParts.join(', ')}.`
+                : `[Captura de Evidencia Biomecánica • ${phaseName} • Perspectiva: ${perspective}] Captura de evidencia sin telemetría articular activa en el momento.`;
 
             sendEvidenceImage(base64, telemetryText);
 
-            console.log(`[VoiceModal] Manual photo captured and sent. Total manual photos: ${manualPhotosCountRef.current}`);
+            // Auto-advance to next ergonomic phase if not at last phase
+            setCurrentPhaseIndex((prev) => (prev < ERGONOMIC_PHASES.length - 1 ? prev + 1 : prev));
+
+            console.log(`[VoiceModal] Manual photo captured for ${phaseName} (${perspective}). Total manual photos: ${manualPhotosCountRef.current}`);
         }
     }, [
         isCameraOn, 
@@ -1294,12 +1329,34 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                 {/* Simplified Biomechanical Telemetry HUD (Glassmorphism) */}
                 {isBiomechanicsAgent && isReady && (
                     <div className="absolute top-4 left-4 right-4 z-40 bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl p-3 shadow-2xl flex flex-wrap gap-2 md:gap-4 justify-between items-center transition-all animate-in fade-in duration-300">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                             <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 animate-pulse"></span>
                             <span className="text-[10px] md:text-xs font-mono font-bold uppercase tracking-wider text-cyan-400">Visión IA Biomecánica</span>
                             <span className="text-[9px] px-2 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 font-mono font-semibold">
                                 {kneeAngle !== null && kneeAngle > 25 ? 'Método: REBA (Cuerpo Entero)' : 'Método: RULA (Miembros Sup.)'}
                             </span>
+                            {/* Perspective Badge */}
+                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 font-mono font-semibold flex items-center gap-1">
+                                <UserCheck className="w-3 h-3 text-emerald-400" />
+                                {capturePerspective}
+                            </span>
+                            {/* Ergonomic Multi-Phase Selector */}
+                            <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1">
+                                {ERGONOMIC_PHASES.map((p, idx) => (
+                                    <button
+                                        key={p.id}
+                                        onClick={() => setCurrentPhaseIndex(idx)}
+                                        className={`px-2 py-0.5 rounded-lg text-[9px] font-mono transition-all duration-200 ${
+                                            currentPhaseIndex === idx 
+                                                ? 'bg-cyan-500 text-black font-bold shadow-md shadow-cyan-500/30' 
+                                                : 'text-white/60 hover:text-white hover:bg-white/10'
+                                        }`}
+                                        title={p.desc}
+                                    >
+                                        {p.shortName}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                         <div className="flex flex-wrap gap-2 md:gap-3 items-center">
                             {/* Neck Angle */}
@@ -1435,8 +1492,9 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                                 {manualCapturedPhotos.map((src, idx) => (
                                     <div key={idx} className="relative w-16 h-16 rounded-lg border border-white/20 overflow-hidden shadow-md flex-shrink-0 group hover:border-emerald-500 transition-colors">
                                         <img src={src} alt={`Evidencia ${idx + 1}`} className="w-full h-full object-cover" />
-                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <span className="text-[9px] font-mono text-white font-bold">#{idx + 1}</span>
+                                        <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity p-1 text-center">
+                                            <span className="text-[8px] font-mono text-cyan-300 font-bold">Fase {Math.min(idx + 1, 3)}</span>
+                                            <span className="text-[7px] font-mono text-white/80">#{idx + 1}</span>
                                         </div>
                                     </div>
                                 ))}
@@ -1463,13 +1521,16 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                         {/* Camera Shutter Button */}
                         {isBiomechanicsAgent && (isCameraOn || isScreenSharing) && (
                             <TooltipAnchor
-                                description="Capturar Foto de Evidencia"
+                                description={`Capturar ${currentPhase.name} (${capturePerspective})`}
                                 render={
                                     <button
                                         onClick={handleManualCapture}
-                                        className="p-2.5 sm:p-4 rounded-full bg-emerald-500 text-white hover:bg-emerald-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all duration-300 transform active:scale-90 border border-emerald-400/30"
+                                        className="relative p-2.5 sm:p-4 rounded-full bg-emerald-500 text-white hover:bg-emerald-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all duration-300 transform active:scale-90 border border-emerald-400/30"
                                     >
                                         <Camera className="w-4 h-4 sm:w-5 sm:h-5" />
+                                        <span className="absolute -top-1 -right-1 bg-black/80 text-cyan-300 text-[8px] font-mono font-bold px-1 rounded-full border border-cyan-500/50">
+                                            {currentPhaseIndex + 1}/3
+                                        </span>
                                     </button>
                                 }
                             />

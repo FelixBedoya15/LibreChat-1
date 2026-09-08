@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef, useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import { useRecoilState, useSetRecoilState } from 'recoil';
-import { X, Mic, MicOff, Video, VideoOff, RefreshCcw, Monitor, MonitorOff, PhoneOff, Smartphone, Camera } from 'lucide-react';
+import { X, Mic, MicOff, Video, VideoOff, RefreshCcw, Monitor, MonitorOff, PhoneOff, Smartphone, Camera, UserCheck } from 'lucide-react';
 import { TooltipAnchor } from '@librechat/client';
 import store from '~/store';
 import VoiceOrb from '../Voice/VoiceOrb';
 import VoiceSelector from '../Voice/VoiceSelector';
+import { ERGONOMIC_PHASES } from '../Voice/VoiceModal';
 import { useLiveAnalysisSession } from '~/hooks/useLiveAnalysisSession';
 import { useLocalize, useAuthContext } from '~/hooks';
 import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
@@ -80,6 +81,27 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
     const [showVoiceSelector, setShowVoiceSelector] = useState(false);
     const [audioAmplitude, setAudioAmplitude] = useState(0);
+
+    // Multi-Phase Ergonomic Protocol & Perspective States
+    const [currentPhaseIndex, setCurrentPhaseIndex] = useState<number>(0);
+    const currentPhase = ERGONOMIC_PHASES[currentPhaseIndex] || ERGONOMIC_PHASES[0];
+
+    const isMobileDevice = useMemo(() => {
+        if (typeof window === 'undefined') return false;
+        return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
+    }, []);
+
+    const capturePerspective = useMemo(() => {
+        if (isMobileDevice && facingMode === 'environment') {
+            return 'Inspección Asistida (Smartphone)';
+        }
+        return 'Auto-evaluación (Portátil/Webcam)';
+    }, [isMobileDevice, facingMode]);
+
+    const currentPhaseRef = useRef(currentPhase);
+    currentPhaseRef.current = currentPhase;
+    const capturePerspectiveRef = useRef(capturePerspective);
+    capturePerspectiveRef.current = capturePerspective;
 
     const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
     const [manualCapturedPhotos, setManualCapturedPhotos] = useState<string[]>([]);
@@ -1058,11 +1080,17 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         if (eAngle !== null) telemetryParts.push(`Flexión de Codo: ${eAngle}° (${elbowInfo.status})`);
         if (kAngle !== null) telemetryParts.push(`Flexión de Rodilla: ${kAngle}° (${kneeInfo.status})`);
 
+        const phaseName = currentPhaseRef.current?.name || 'Fase 1: Postura Habitual';
+        const perspective = capturePerspectiveRef.current || 'Auto-evaluación';
+
         const telemetryText = telemetryParts.length > 0 
-            ? `[Captura de Evidencia Biomecánica] Registro de telemetría articular en el momento de la captura: ${telemetryParts.join(', ')}.`
-            : `[Captura de Evidencia Manual] Captura de foto de evidencia sin telemetría articular activa en el momento.`;
+            ? `[Captura de Evidencia Biomecánica • ${phaseName} • Perspectiva: ${perspective}] Registro de telemetría articular en el momento de la captura: ${telemetryParts.join(', ')}.`
+            : `[Captura de Evidencia Biomecánica • ${phaseName} • Perspectiva: ${perspective}] Captura de evidencia sin telemetría articular activa en el momento.`;
 
         sendEvidenceImage(base64, telemetryText);
+
+        // Auto-advance to next ergonomic phase if not at last phase
+        setCurrentPhaseIndex((prev) => (prev < ERGONOMIC_PHASES.length - 1 ? prev + 1 : prev));
     }, [
         captureSnapshot, 
         sendEvidenceImage, 
@@ -1612,6 +1640,29 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                                     </button>
                                 </div>
                             </div>
+
+                            <div className="flex flex-wrap items-center justify-between gap-1.5 pb-1">
+                                <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 font-mono font-semibold flex items-center gap-1">
+                                    <UserCheck className="w-3 h-3 text-emerald-400" />
+                                    {capturePerspective}
+                                </span>
+                                <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-lg p-0.5">
+                                    {ERGONOMIC_PHASES.map((p, idx) => (
+                                        <button
+                                            key={p.id}
+                                            onClick={() => setCurrentPhaseIndex(idx)}
+                                            className={`px-1.5 py-0.5 rounded text-[8.5px] font-mono transition-all duration-200 ${
+                                                currentPhaseIndex === idx 
+                                                    ? 'bg-cyan-500 text-black font-bold shadow-sm shadow-cyan-500/30' 
+                                                    : 'text-white/60 hover:text-white hover:bg-white/10'
+                                            }`}
+                                            title={p.desc}
+                                        >
+                                            {p.shortName}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                             
                             <div className="grid grid-cols-2 gap-2.5">
                                 {/* Cuello Box */}
@@ -1850,8 +1901,9 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                                 {manualCapturedPhotos.map((src, idx) => (
                                     <div key={idx} className="relative w-16 h-16 rounded-lg border border-white/20 overflow-hidden shadow-md flex-shrink-0 group hover:border-emerald-500 transition-colors">
                                         <img src={src} alt={`Evidencia ${idx + 1}`} className="w-full h-full object-cover" />
-                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <span className="text-[9px] font-mono text-white font-bold">#{idx + 1}</span>
+                                        <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity p-1 text-center">
+                                            <span className="text-[8px] font-mono text-cyan-300 font-bold">Fase {Math.min(idx + 1, 3)}</span>
+                                            <span className="text-[7px] font-mono text-white/80">#{idx + 1}</span>
                                         </div>
                                     </div>
                                 ))}
@@ -1882,13 +1934,18 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                         {/* Camera Shutter Button */}
                         {(isCameraOn || isScreenSharing) && (
                             <TooltipAnchor
-                                description="Capturar Foto de Evidencia"
+                                description={selectedTemplate === 'biomecanico_mediapipe' ? `Capturar ${currentPhase.name} (${capturePerspective})` : "Capturar Foto de Evidencia"}
                                 render={
                                     <button
                                         onClick={handleManualCapture}
-                                        className="p-2.5 sm:p-4 rounded-full bg-emerald-500 text-white hover:bg-emerald-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all duration-300 transform active:scale-90 border border-emerald-400/30"
+                                        className="relative p-2.5 sm:p-4 rounded-full bg-emerald-500 text-white hover:bg-emerald-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all duration-300 transform active:scale-90 border border-emerald-400/30"
                                     >
                                         <Camera className="w-4 h-4 sm:w-5 sm:h-5" />
+                                        {selectedTemplate === 'biomecanico_mediapipe' && (
+                                            <span className="absolute -top-1 -right-1 bg-black/80 text-cyan-300 text-[8px] font-mono font-bold px-1 rounded-full border border-cyan-500/50">
+                                                {currentPhaseIndex + 1}/3
+                                            </span>
+                                        )}
                                     </button>
                                 }
                             />
