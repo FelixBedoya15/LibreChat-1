@@ -25,6 +25,7 @@ import {
     ShieldAlert,
     CheckCircle,
     Clock,
+    Building2,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
@@ -39,6 +40,9 @@ import { useAutoLoadReport } from './useAutoLoadReport';
 import { UpgradeWall } from './UpgradeWall';
 import { SystemRoles } from 'librechat-data-provider';
 import CollapsibleReportBox from './CollapsibleReportBox';
+import PredictiveTimeSeriesChart, { type TimeSeriesPoint } from './PredictiveTimeSeriesChart';
+import PredictiveAnatomyTreemap, { type LesionItem, type AnatomyItem } from './PredictiveAnatomyTreemap';
+import PredictivePlantComparison, { type SiteItem } from './PredictivePlantComparison';
 
 interface ForecastData {
     overallRisk: number;
@@ -51,8 +55,13 @@ interface ForecastData {
         expectedMonthlyAccidents: number;
         expectedYearlyDaysLost: number;
         expectedDaysCharged: number;
+        expectedYearlyTotal?: number;
         topThreatenedDomain: string;
     };
+    timeSeries?: TimeSeriesPoint[];
+    lesionDistribution?: LesionItem[];
+    anatomyDistribution?: AnatomyItem[];
+    siteDistribution?: SiteItem[];
     domainRiskScores?: Record<string, number>;
     indicators: {
         healthRisk: number;
@@ -219,6 +228,8 @@ const DashboardPredictivo = () => {
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [showUpgradeModal, setShowUpgradeModal] = useState(false);
     const [isReportCollapsed, setIsReportCollapsed] = useState(false);
+    const [activeHito7Tab, setActiveHito7Tab] = useState<'timeseries' | 'anatomy' | 'sedes' | 'workforce'>('timeseries');
+    const [riskFilter, setRiskFilter] = useState<{ roleOrTag: string; label: string } | null>(null);
 
     // ─── Fetch Forecast & Biocentric data ─────────────────────────────────
     const fetchForecast = useCallback(async () => {
@@ -636,8 +647,14 @@ const DashboardPredictivo = () => {
         handleSelectReport
     });
 
-    // Filtering workers
+    // Filtering workers (supports biocentric risk filter from anatomy treemap)
     const filteredWorkers = workers.filter(w => {
+        if (riskFilter) {
+            const queryRisk = riskFilter.roleOrTag.toLowerCase();
+            const matchesRole = (w.cargo || '').toLowerCase().includes(queryRisk);
+            const matchesTag = (w.bioTagsIA || []).some((t: string) => t.toLowerCase().includes(queryRisk));
+            if (!matchesRole && !matchesTag) return false;
+        }
         const query = searchQuery.toLowerCase().trim();
         if (!query) return true;
         return (w.nombre || '').toLowerCase().includes(query) || (w.cargo || '').toLowerCase().includes(query);
@@ -698,16 +715,16 @@ const DashboardPredictivo = () => {
                         </div>
                         <div>
                             <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
-                                <h1 className="text-xl sm:text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-teal-200 via-teal-100 to-indigo-200">
-                                    Oráculo Predictivo · Bio-Seguridad 360°
+                                <h1 className="text-xl sm:text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-pink-300 via-teal-200 to-indigo-200">
+                                    Centro de Inteligencia Predictiva · WAPPY
                                 </h1>
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
-                                    Hito 5 · Activo 
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-pink-500/15 text-pink-400 border border-pink-500/30 shadow-sm">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-pink-400 animate-ping" />
+                                    🧠 Hito 07 · El Pináculo de WAPPY
                                 </span>
                             </div>
-                            <p className="text-teal-100/75 text-xs max-w-2xl leading-relaxed font-medium">
-                                Motor de consolidación biocéntrica. Mapea y predice incompatibilidades físicas, ergonómicas y clínicas cruzando el organismo de tus trabajadores con las exigencias del cargo.
+                            <p className="text-teal-100/80 text-xs max-w-2xl leading-relaxed font-medium">
+                                Cúspide de analítica predictiva y Machine Learning. Pronóstico estocástico de siniestralidad a 1 y 12 meses, radar anatómico de lesiones y prescripción proactiva de controles para proteger la vida de cada colaborador.
                             </p>
                         </div>
                     </div>
@@ -864,100 +881,209 @@ const DashboardPredictivo = () => {
                 </div>
             )}
 
-            {/* ═══ Heatmap & Search (Bio 360° Workforce) ═══ */}
-            <div className="p-6 rounded-3xl border border-border-medium/60 glass-premium shadow-xl transition-all duration-300">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                    <div>
-                        <h3 className="text-sm font-black text-text-primary flex items-center gap-2 tracking-[0.1em] uppercase">
-                            <Users className="h-4.5 w-4.5 text-teal-500" />
-                            MAPA DE CALOR: APTITUD BIO-INDIVIDUAL 360°
-                        </h3>
-                        <p className="text-[11px] text-text-secondary font-semibold mt-0.5">Control de aptitud clínica-operativa de la plantilla completa.</p>
-                    </div>
-                    <div className="relative max-w-xs w-full">
-                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-text-secondary" />
-                        <input
-                            type="text"
-                            placeholder="Buscar trabajador o cargo..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-border-medium bg-surface-primary hover:border-teal-500/30 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none transition-all font-semibold"
-                        />
-                    </div>
+            {/* ═══ Modular Sub-Navigation Pills (Hito 07) ═══ */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-2 rounded-3xl bg-surface-primary border border-border-medium/60 shadow-sm">
+                <div className="flex items-center flex-wrap gap-1.5 w-full sm:w-auto">
+                    <button
+                        onClick={() => setActiveHito7Tab('timeseries')}
+                        className={cn(
+                            "flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all duration-300",
+                            activeHito7Tab === 'timeseries'
+                                ? "bg-gradient-to-r from-teal-600 to-teal-500 text-white shadow-lg shadow-teal-500/25 scale-[1.02]"
+                                : "text-text-secondary hover:text-text-primary hover:bg-surface-hover"
+                        )}
+                    >
+                        <TrendingUp className="w-4 h-4" />
+                        Proyección Temporal (1M & 12M)
+                    </button>
+                    <button
+                        onClick={() => setActiveHito7Tab('anatomy')}
+                        className={cn(
+                            "flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all duration-300",
+                            activeHito7Tab === 'anatomy'
+                                ? "bg-gradient-to-r from-pink-600 to-pink-500 text-white shadow-lg shadow-pink-500/25 scale-[1.02]"
+                                : "text-text-secondary hover:text-text-primary hover:bg-surface-hover"
+                        )}
+                    >
+                        <ShieldAlert className="w-4 h-4" />
+                        Diagnóstico Anatómico & Lesiones
+                    </button>
+                    <button
+                        onClick={() => setActiveHito7Tab('sedes')}
+                        className={cn(
+                            "flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all duration-300",
+                            activeHito7Tab === 'sedes'
+                                ? "bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-lg shadow-indigo-500/25 scale-[1.02]"
+                                : "text-text-secondary hover:text-text-primary hover:bg-surface-hover"
+                        )}
+                    >
+                        <Building2 className="w-4 h-4" />
+                        Sedes & Focalización Operativa
+                    </button>
+                    <button
+                        onClick={() => setActiveHito7Tab('workforce')}
+                        className={cn(
+                            "flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all duration-300",
+                            activeHito7Tab === 'workforce'
+                                ? "bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-lg shadow-purple-500/25 scale-[1.02]"
+                                : "text-text-secondary hover:text-text-primary hover:bg-surface-hover"
+                        )}
+                    >
+                        <Users className="w-4 h-4" />
+                        Plantilla Biocéntrica (FIT 360°)
+                    </button>
                 </div>
 
-                {loadingData ? (
-                    <div className="flex items-center justify-center p-12">
-                        <Loader2 className="w-6 h-6 animate-spin text-teal-500" />
-                    </div>
-                ) : filteredWorkers.length === 0 ? (
-                    <div className="text-center p-12 text-text-secondary">
-                        <UserX className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                        <p className="text-xs font-bold">No se encontraron trabajadores en condiciones de salud.</p>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {filteredWorkers.map(w => {
-                            const profile = profiles.find(p => (p.nombreCargo || '').toLowerCase().trim() === (w.cargo || '').toLowerCase().trim());
-                            const fit = calcFit(w, profile);
-                            const score = (w.biocentricScore !== undefined && w.biocentricScore !== null) ? w.biocentricScore : fit.score;
-                            const sc = SCORE_COLOR(score);
-                            const hasIA = w.bioTagsIA && w.bioTagsIA.length > 0 && !w.bioTagsIA.includes('Sin_Hallazgos');
-                            
-                            return (
-                                <div 
-                                    key={w.id} 
-                                    onClick={() => setSelectedWorker({ ...w, calculatedScore: score, auditItems: fit.auditItems })}
-                                    className="p-4 rounded-2xl border border-border-light bg-surface-primary/70 hover:bg-surface-primary hover:border-teal-500/40 hover:shadow-md transition-all duration-300 cursor-pointer flex flex-col justify-between gap-3 group relative overflow-hidden"
-                                >
-                                    {/* Visual hover background glow */}
-                                    <div className="absolute top-0 right-0 w-16 h-16 rounded-full bg-teal-500/[0.02] blur-xl pointer-events-none group-hover:bg-teal-500/10 transition-all duration-500" />
-                                    
-                                    <div className="flex items-start justify-between gap-2.5">
-                                        <div className="flex items-center gap-2.5 min-w-0">
-                                            <div className={cn("w-9 h-9 rounded-xl border flex items-center justify-center text-xs font-black shrink-0 transition-transform duration-500 group-hover:scale-105", sc.ring, sc.bg, sc.text)}>
-                                                {(w.nombre || 'U')[0].toUpperCase()}
-                                            </div>
-                                            <div className="min-w-0">
-                                                <h4 className="font-bold text-xs text-text-primary truncate group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">{w.nombre}</h4>
-                                                <p className="text-[10px] text-text-secondary truncate font-bold flex items-center gap-1 mt-0.5">
-                                                    <Briefcase className="w-3 h-3 shrink-0" />
-                                                    {w.cargo || 'Sin cargo'}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="shrink-0 flex flex-col items-end">
-                                            <span className={cn("px-2 py-0.5 rounded-lg text-[9px] font-black tracking-wider uppercase shadow-sm", sc.badge)}>
-                                                {score}% FIT
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {/* Tags row */}
-                                    <div className="flex flex-wrap gap-1.5 mt-1">
-                                        {hasIA ? (
-                                            w.bioTagsIA.slice(0, 2).map((tag: string) => (
-                                                <span key={tag} className="px-1.5 py-0.5 rounded-md text-[8px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                                                    {tag}
-                                                </span>
-                                            ))
-                                        ) : (
-                                            <span className="text-[8px] font-bold text-text-secondary italic">Sin anomalías críticas</span>
-                                        )}
-                                    </div>
-
-                                    <div className="flex items-center justify-between border-t border-border-light pt-2 mt-1">
-                                        <span className="text-[9px] font-bold text-text-secondary">Edad: {w.edad || '?'} años</span>
-                                        <span className="text-[9px] font-black text-teal-600 dark:text-teal-400 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            Ficha 360° <Eye className="w-3 h-3" />
-                                        </span>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                {riskFilter && (
+                    <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-teal-500/10 border border-teal-500/30 text-teal-700 dark:text-teal-300 text-xs font-bold shrink-0">
+                        <span>Filtro Biocéntrico: <strong>{riskFilter.label}</strong></span>
+                        <button
+                            onClick={() => setRiskFilter(null)}
+                            className="p-0.5 hover:bg-teal-500/20 rounded-md transition-colors"
+                            title="Quitar filtro"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
                     </div>
                 )}
             </div>
+
+            {/* ═══ Active Tab Content ═══ */}
+            {activeHito7Tab === 'timeseries' && (
+                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <PredictiveTimeSeriesChart
+                        timeSeries={forecast?.timeSeries || []}
+                        metrics={forecast?.predictiveMetrics}
+                        isLoading={isLoadingForecast}
+                    />
+                </div>
+            )}
+
+            {activeHito7Tab === 'anatomy' && (
+                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <PredictiveAnatomyTreemap
+                        lesionDistribution={forecast?.lesionDistribution}
+                        anatomyDistribution={forecast?.anatomyDistribution}
+                        onFilterByWorkerRisk={(roleOrTag, label) => {
+                            setRiskFilter({ roleOrTag, label });
+                            setActiveHito7Tab('workforce');
+                        }}
+                        activeFilter={riskFilter?.label}
+                    />
+                </div>
+            )}
+
+            {activeHito7Tab === 'sedes' && (
+                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <PredictivePlantComparison
+                        siteDistribution={forecast?.siteDistribution}
+                    />
+                </div>
+            )}
+
+            {activeHito7Tab === 'workforce' && (
+                <div className="p-6 rounded-3xl border border-border-medium/60 glass-premium shadow-xl transition-all duration-300 animate-in fade-in slide-in-from-bottom-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                        <div>
+                            <h3 className="text-sm font-black text-text-primary flex items-center gap-2 tracking-[0.1em] uppercase">
+                                <Users className="h-4.5 w-4.5 text-teal-500" />
+                                MAPA DE CALOR: APTITUD BIO-INDIVIDUAL 360°
+                            </h3>
+                            <p className="text-[11px] text-text-secondary font-semibold mt-0.5">Control de aptitud clínica-operativa de la plantilla completa.</p>
+                        </div>
+                        <div className="relative max-w-xs w-full">
+                            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-text-secondary" />
+                            <input
+                                type="text"
+                                placeholder="Buscar trabajador o cargo..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-border-medium bg-surface-primary hover:border-teal-500/30 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none transition-all font-semibold"
+                            />
+                        </div>
+                    </div>
+
+                    {loadingData ? (
+                        <div className="flex items-center justify-center p-12">
+                            <Loader2 className="w-6 h-6 animate-spin text-teal-500" />
+                        </div>
+                    ) : filteredWorkers.length === 0 ? (
+                        <div className="text-center p-12 text-text-secondary">
+                            <UserX className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                            <p className="text-xs font-bold">No se encontraron trabajadores que coincidan con el filtro actual.</p>
+                            {riskFilter && (
+                                <button
+                                    onClick={() => setRiskFilter(null)}
+                                    className="mt-3 text-xs text-teal-600 dark:text-teal-400 font-bold hover:underline"
+                                >
+                                    Quitar filtro biocéntrico ({riskFilter.label})
+                                </button>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                            {filteredWorkers.map(w => {
+                                const profile = profiles.find(p => (p.nombreCargo || '').toLowerCase().trim() === (w.cargo || '').toLowerCase().trim());
+                                const fit = calcFit(w, profile);
+                                const score = (w.biocentricScore !== undefined && w.biocentricScore !== null) ? w.biocentricScore : fit.score;
+                                const sc = SCORE_COLOR(score);
+                                const hasIA = w.bioTagsIA && w.bioTagsIA.length > 0 && !w.bioTagsIA.includes('Sin_Hallazgos');
+                                
+                                return (
+                                    <div 
+                                        key={w.id} 
+                                        onClick={() => setSelectedWorker({ ...w, calculatedScore: score, auditItems: fit.auditItems })}
+                                        className="p-4 rounded-2xl border border-border-light bg-surface-primary/70 hover:bg-surface-primary hover:border-teal-500/40 hover:shadow-md transition-all duration-300 cursor-pointer flex flex-col justify-between gap-3 group relative overflow-hidden"
+                                    >
+                                        {/* Visual hover background glow */}
+                                        <div className="absolute top-0 right-0 w-16 h-16 rounded-full bg-teal-500/[0.02] blur-xl pointer-events-none group-hover:bg-teal-500/10 transition-all duration-500" />
+                                        
+                                        <div className="flex items-start justify-between gap-2.5">
+                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                <div className={cn("w-9 h-9 rounded-xl border flex items-center justify-center text-xs font-black shrink-0 transition-transform duration-500 group-hover:scale-105", sc.ring, sc.bg, sc.text)}>
+                                                    {(w.nombre || 'U')[0].toUpperCase()}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <h4 className="font-bold text-xs text-text-primary truncate group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">{w.nombre}</h4>
+                                                    <p className="text-[10px] text-text-secondary truncate font-bold flex items-center gap-1 mt-0.5">
+                                                        <Briefcase className="w-3 h-3 shrink-0" />
+                                                        {w.cargo || 'Sin cargo'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="shrink-0 flex flex-col items-end">
+                                                <span className={cn("px-2 py-0.5 rounded-lg text-[9px] font-black tracking-wider uppercase shadow-sm", sc.badge)}>
+                                                    {score}% FIT
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Tags row */}
+                                        <div className="flex flex-wrap gap-1.5 mt-1">
+                                            {hasIA ? (
+                                                w.bioTagsIA.slice(0, 2).map((tag: string) => (
+                                                    <span key={tag} className="px-1.5 py-0.5 rounded-md text-[8px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                                        {tag}
+                                                    </span>
+                                                ))
+                                            ) : (
+                                                <span className="text-[8px] font-bold text-text-secondary italic">Sin anomalías críticas</span>
+                                            )}
+                                        </div>
+
+                                        <div className="flex items-center justify-between border-t border-border-light pt-2 mt-1">
+                                            <span className="text-[9px] font-bold text-text-secondary">Edad: {w.edad || '?'} años</span>
+                                            <span className="text-[9px] font-black text-teal-600 dark:text-teal-400 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                Ficha 360° <Eye className="w-3 h-3" />
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* ═══ Bar Chart + Predicted Insight ═══ */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1000,7 +1126,7 @@ const DashboardPredictivo = () => {
                             {[
                                 'Huella Biocéntrica H1 (FIT & Salud)',
                                 'Matriz Bio-IPEVAR (9 Dominios H2)',
-                                'Causalidad ATENEA (8M)',
+                                'Matriz Causal Multidimensional (8M)',
                                 'Estadísticas ATEL & Días Cargados (H4)',
                                 'Investigaciones Forenses (H4)',
                                 'Dinámica OWAS & LIVA IA (H3)',
@@ -1035,7 +1161,7 @@ const DashboardPredictivo = () => {
                                 <div className="flex items-center justify-between mb-5">
                                     <h3 className="text-xs font-black text-text-primary flex items-center gap-2 tracking-[0.12em] uppercase">
                                         <AnimatedIcon name="sparkles" size={16} className="text-teal-500 animate-pulse" />
-                                        ANÁLISIS PREDICTIVO ML & CAUSALIDAD ATENEA
+                                        ANÁLISIS PREDICTIVO ML & CAUSALIDAD MULTIDIMENSIONAL (8M)
                                     </h3>
                                     {forecast?.topDomain && (
                                         <span className="px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 border border-red-200 dark:border-red-800">
