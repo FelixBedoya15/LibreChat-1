@@ -95,6 +95,8 @@ function wrapTablesInResponsiveContainer(html: string): string {
         table.style.border = 'none';
         table.style.borderRadius = '0';
         table.style.width = '100%';
+        table.style.minWidth = '800px';
+        table.style.tableLayout = 'auto';
 
         table.parentNode?.insertBefore(wrapper, table);
         wrapper.appendChild(table);
@@ -1725,8 +1727,11 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
                     margin: 0 !important;
                     border: none !important;
                     border-radius: 0 !important;
-                    min-width: 720px;
+                    min-width: 800px !important;
+                    width: 100% !important;
+                    max-width: none !important;
                     display: table !important;
+                    table-layout: auto !important;
                 }
                 /* Salvaguarda para tablas no envueltas: scroll block sin desbordar el recuadro */
                 .live-editor-content > table,
@@ -1745,7 +1750,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
                     font-weight: 600;
                     border-bottom: 1px solid #ddd;
                     border-right: 1px solid rgba(255,255,255,0.15);
-                    white-space: nowrap !important;
+                    white-space: normal !important;
                     word-break: normal !important;
                     letter-spacing: 0.01em;
                 }

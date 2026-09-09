@@ -1645,20 +1645,20 @@ ${activeProtocol.reportMatrixHeader}
             <h3>4. Matriz de Identificación de Peligros y Valoración de Riesgos (GTC 45)</h3>
             <p>La siguiente matriz ha sido construida con metodología GTC 45 (Guía Técnica Colombiana), evaluando cada peligro identificado durante la inspección en vivo. El nivel de riesgo se obtiene multiplicando Nivel de Deficiencia (ND) × Nivel de Exposición (NE) = Nivel de Probabilidad (NP), y luego NP × Nivel de Consecuencia (NC) = Nivel de Riesgo (NR).</p>
             <div class="table-responsive" style="overflow-x: auto; width: 100%; margin: 16px 0; -webkit-overflow-scrolling: touch;">
-            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; table-layout: fixed; text-align: left; font-size: 0.82em;">
+            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; min-width: 850px; table-layout: auto; text-align: left; font-size: 0.85em;">
               <thead style="background-color: #004d99; color: white;">
                 <tr>
-                    <th style="padding: 8px 4px; width: 4%; text-align: center; word-break: break-word;">#</th>
-                    <th style="padding: 8px 5px; width: 11%; word-break: break-word;">Proceso / Zona</th>
-                    <th style="padding: 8px 5px; width: 15%; word-break: break-word;">Peligro (Descripción)</th>
-                    <th style="padding: 8px 5px; width: 11%; word-break: break-word;">Clasificación GTC 45</th>
-                    <th style="padding: 8px 5px; width: 14%; word-break: break-word;">Efectos Posibles</th>
-                    <th style="padding: 8px 3px; width: 5%; text-align: center; word-break: break-word;">ND</th>
-                    <th style="padding: 8px 3px; width: 5%; text-align: center; word-break: break-word;">NE</th>
-                    <th style="padding: 8px 3px; width: 5%; text-align: center; word-break: break-word;">NC</th>
-                    <th style="padding: 8px 3px; width: 6%; text-align: center; word-break: break-word;">NR</th>
-                    <th style="padding: 8px 5px; width: 13%; word-break: break-word;">Nivel Riesgo</th>
-                    <th style="padding: 8px 5px; width: 11%; word-break: break-word;">Aceptabilidad</th>
+                    <th style="padding: 8px 6px; text-align: center; white-space: normal;">#</th>
+                    <th style="padding: 8px 8px; white-space: normal;">Proceso / Zona</th>
+                    <th style="padding: 8px 8px; white-space: normal;">Peligro (Descripción)</th>
+                    <th style="padding: 8px 8px; white-space: normal;">Clasificación GTC 45</th>
+                    <th style="padding: 8px 8px; white-space: normal;">Efectos Posibles</th>
+                    <th style="padding: 8px 6px; text-align: center; white-space: normal;">ND</th>
+                    <th style="padding: 8px 6px; text-align: center; white-space: normal;">NE</th>
+                    <th style="padding: 8px 6px; text-align: center; white-space: normal;">NC</th>
+                    <th style="padding: 8px 6px; text-align: center; white-space: normal;">NR</th>
+                    <th style="padding: 8px 8px; white-space: normal;">Nivel Riesgo</th>
+                    <th style="padding: 8px 8px; white-space: normal;">Aceptabilidad</th>
                 </tr>
               </thead>
               <tbody>
@@ -1684,16 +1684,16 @@ ${activeProtocol.reportMatrixHeader}
             <h3>5. Medidas de Intervención por Jerarquía de Controles (ISO 45001 / GTC 45)</h3>
             <p>Las medidas de control se proponen siguiendo estrictamente la Jerarquía de Controles establecida en la ISO 45001 y la GTC 45: Eliminación → Sustitución → Controles de Ingeniería → Controles Administrativos → Elementos de Protección Personal (EPP).</p>
             <div class="table-responsive" style="overflow-x: auto; width: 100%; margin: 16px 0; -webkit-overflow-scrolling: touch;">
-            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; table-layout: fixed; text-align: left; font-size: 0.85em;">
+            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; min-width: 850px; table-layout: auto; text-align: left; font-size: 0.85em;">
               <thead style="background-color: #004d99; color: white;">
                 <tr>
-                    <th style="padding: 8px 6px; width: 15%; word-break: break-word;">Peligro / Riesgo</th>
-                    <th style="padding: 8px 6px; width: 15%; word-break: break-word;">Eliminación / Sustitución</th>
-                    <th style="padding: 8px 6px; width: 15%; word-break: break-word;">Controles Ingeniería</th>
-                    <th style="padding: 8px 6px; width: 16%; word-break: break-word;">Controles Admin</th>
-                    <th style="padding: 8px 6px; width: 15%; word-break: break-word;">EPP Requerido</th>
-                    <th style="padding: 8px 6px; width: 13%; word-break: break-word;">Responsable</th>
-                    <th style="padding: 8px 6px; width: 11%; word-break: break-word;">Plazo</th>
+                    <th style="padding: 8px 8px; white-space: normal;">Peligro / Riesgo</th>
+                    <th style="padding: 8px 8px; white-space: normal;">Eliminación / Sustitución</th>
+                    <th style="padding: 8px 8px; white-space: normal;">Controles Ingeniería</th>
+                    <th style="padding: 8px 8px; white-space: normal;">Controles Admin</th>
+                    <th style="padding: 8px 8px; white-space: normal;">EPP Requerido</th>
+                    <th style="padding: 8px 8px; white-space: normal;">Responsable</th>
+                    <th style="padding: 8px 8px; white-space: normal;">Plazo</th>
                 </tr>
               </thead>
               <tbody>
@@ -1938,9 +1938,10 @@ ${kpiDiv}
 <style>
 .ai-report-content h2, .ai-report-content h3 { color: #0f766e; margin-top: 24px; margin-bottom: 12px; font-weight: 700; border-bottom: 1px solid #ccfbf1; padding-bottom: 6px; }
 .ai-report-content p, .ai-report-content li { color: #334155; margin-bottom: 10px; font-size: 0.95em; }
-.ai-report-content table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 16px 0; font-size: 0.85em; }
-.ai-report-content th { background-color: #0f766e; color: #ffffff; padding: 8px 6px; text-align: left; word-break: break-word; }
-.ai-report-content td { padding: 6px; border-bottom: 1px solid #e2e8f0; color: #1e293b; word-break: break-word; }
+.ai-report-content .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 16px 0; border-radius: 10px; border: 1px solid #e2e8f0; }
+.ai-report-content table { width: 100%; min-width: 800px; table-layout: auto; border-collapse: separate; border-spacing: 0; margin: 0; font-size: 0.85em; }
+.ai-report-content th { background-color: #0f766e; color: #ffffff; padding: 9px 10px; text-align: left; white-space: normal; word-break: normal; }
+.ai-report-content td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; color: #1e293b; white-space: normal; word-break: normal; }
 .ai-report-content tr:nth-child(even) td { background-color: #f8fafc; }
 </style>
 
@@ -1959,29 +1960,36 @@ ${standardHeaderHtml}
             // Strip any 4+ space indentation so markdown engines never treat tags as code blocks
             reportHtml = finalWrappedHtml.replace(/^[ \t]{4,}/gm, '');
 
-            // Ensure every <table> has table-layout: fixed, width: 100%, and responsive wrapping without overflow clipping
+            // Ensure every <table> has a responsive wrapper and horizontal scroll (min-width: 800px, overflow-x: auto)
             if (reportHtml && typeof reportHtml === 'string') {
                 reportHtml = reportHtml.replace(/(?:<div[^>]*class=["'][^"']*table-responsive[^"']*["'][^>]*>\s*)?(<table[\s\S]*?<\/table>)(?:\s*<\/div>)?/gi, (match, tableContent) => {
                     let cleanTable = tableContent;
-                    // Strip any hardcoded min-width that exceeds printable width
-                    cleanTable = cleanTable.replace(/min-width:\s*\d+px;?/gi, '');
-                    // Strip any white-space: nowrap that breaks print/PDF layouts
-                    cleanTable = cleanTable.replace(/white-space:\s*nowrap;?/gi, '');
-                    
-                    // Ensure table has width: 100% and table-layout: fixed
-                    cleanTable = cleanTable.replace(/<table\b([^>]*)>/i, (m, attrs) => {
-                        if (/style=["']/.test(attrs)) {
-                            return `<table ${attrs.replace(/style=["']([^"']*)["']/, 'style="width: 100%; table-layout: fixed; $1"')}>`;
-                        } else {
-                            return `<table style="width: 100%; table-layout: fixed;" ${attrs}>`;
-                        }
-                    });
-                    // Ensure th & td wrap words gracefully
+                    // Replace table-layout: fixed with table-layout: auto so columns never crush/overlap
+                    cleanTable = cleanTable.replace(/table-layout:\s*fixed;?/gi, 'table-layout: auto;');
+                    // Ensure table has min-width: 800px so overflow-x: auto activates when space is constrained
+                    if (!cleanTable.includes('min-width')) {
+                        cleanTable = cleanTable.replace(/<table\b([^>]*)>/i, (m, attrs) => {
+                            if (/style=["']/.test(attrs)) {
+                                return `<table ${attrs.replace(/style=["']([^"']*)["']/, 'style="width: 100%; min-width: 800px; table-layout: auto; $1"')}>`;
+                            } else {
+                                return `<table style="width: 100%; min-width: 800px; table-layout: auto;" ${attrs}>`;
+                            }
+                        });
+                    } else {
+                        cleanTable = cleanTable.replace(/<table\b([^>]*)>/i, (m, attrs) => {
+                            if (/style=["']/.test(attrs)) {
+                                return `<table ${attrs.replace(/style=["']([^"']*)["']/, 'style="table-layout: auto; $1"')}>`;
+                            } else {
+                                return `<table style="table-layout: auto;" ${attrs}>`;
+                            }
+                        });
+                    }
+                    // Ensure th & td allow natural wrapping and never overlap
                     cleanTable = cleanTable.replace(/<(th|td)\b([^>]*)>/gi, (m, tag, attrs) => {
                         if (/style=["']/.test(attrs)) {
-                            return `<${tag} ${attrs.replace(/style=["']([^"']*)["']/, 'style="word-break: break-word; overflow-wrap: break-word; $1"')}>`;
+                            return `<${tag} ${attrs.replace(/style=["']([^"']*)["']/, 'style="white-space: normal; word-break: normal; $1"')}>`;
                         } else {
-                            return `<${tag} style="word-break: break-word; overflow-wrap: break-word;" ${attrs}>`;
+                            return `<${tag} style="white-space: normal; word-break: normal;" ${attrs}>`;
                         }
                     });
                     return `<div class="table-responsive" style="overflow-x: auto; width: 100%; margin: 16px 0; -webkit-overflow-scrolling: touch;">${cleanTable}</div>`;

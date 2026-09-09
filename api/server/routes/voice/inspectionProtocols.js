@@ -52,17 +52,17 @@ Como Fisioterapeuta Laboral en vivo, TÚ DIRIGES LA SESIÓN PASO A PASO de forma
             <h3>4.1 Matriz Ergonómica Comparativa Multifase (RULA / REBA / OWAS)</h3>
             <p>La siguiente tabla consolida el muestreo biomecánico del ciclo de trabajo en sus fases representativas, contrastando los ángulos articulares y el nivel de riesgo postural determinado:</p>
             <div class="table-responsive" style="overflow-x: auto; width: 100%; margin: 16px 0; -webkit-overflow-scrolling: touch;">
-            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; table-layout: fixed; text-align: left; font-size: 0.85em;">
+            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; min-width: 850px; table-layout: auto; text-align: left; font-size: 0.85em;">
               <thead style="background-color: #0f766e; color: white;">
                 <tr>
-                  <th style="padding: 8px 6px; width: 12%; word-break: break-word;">Fase del Ciclo</th>
-                  <th style="padding: 8px 6px; width: 11%; word-break: break-word;">Perspectiva</th>
-                  <th style="padding: 8px 6px; width: 16%; word-break: break-word;">Tarea / Postura Observada</th>
-                  <th style="padding: 8px 6px; width: 18%; word-break: break-word;">Telemetría Articular</th>
-                  <th style="padding: 8px 6px; width: 8%; word-break: break-word;">Método</th>
-                  <th style="padding: 8px 6px; width: 8%; text-align: center; word-break: break-word;">Puntaje</th>
-                  <th style="padding: 8px 6px; width: 13%; word-break: break-word;">Nivel de Riesgo</th>
-                  <th style="padding: 8px 6px; width: 14%; word-break: break-word;">Medida Inmediata</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Fase del Ciclo</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Perspectiva</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Tarea / Postura Observada</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Telemetría Articular</th>
+                  <th style="padding: 8px 8px; text-align: center; white-space: normal; word-break: normal;">Método</th>
+                  <th style="padding: 8px 8px; text-align: center; white-space: normal; word-break: normal;">Puntaje</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Nivel de Riesgo</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Medida Inmediata</th>
                 </tr>
               </thead>
               <tbody>
@@ -99,17 +99,17 @@ Como Fisioterapeuta Laboral en vivo, TÚ DIRIGES LA SESIÓN PASO A PASO de forma
             <h3>4.1 Matriz de Almacenamiento y Compatibilidad Química Multifase (SGA / ONU)</h3>
             <p>La siguiente tabla detalla la evaluación técnica de los reactivos y productos químicos inspeccionados, su rotulación SGA, contención física y matriz de incompatibilidad:</p>
             <div class="table-responsive" style="overflow-x: auto; width: 100%; margin: 16px 0; -webkit-overflow-scrolling: touch;">
-            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; table-layout: fixed; text-align: left; font-size: 0.85em;">
+            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; min-width: 850px; table-layout: auto; text-align: left; font-size: 0.85em;">
               <thead style="background-color: #b45309; color: white;">
                 <tr>
-                  <th style="padding: 8px 6px; width: 12%; word-break: break-word;">Fase</th>
-                  <th style="padding: 8px 6px; width: 15%; word-break: break-word;">Producto Químico</th>
-                  <th style="padding: 8px 6px; width: 12%; word-break: break-word;">Clase ONU / SGA</th>
-                  <th style="padding: 8px 6px; width: 13%; word-break: break-word;">Pictogramas</th>
-                  <th style="padding: 8px 6px; width: 13%; word-break: break-word;">Contención / Dique</th>
-                  <th style="padding: 8px 6px; width: 10%; text-align: center; word-break: break-word;">Compatibilidad</th>
-                  <th style="padding: 8px 6px; width: 11%; word-break: break-word;">Nivel Riesgo</th>
-                  <th style="padding: 8px 6px; width: 14%; word-break: break-word;">Control Inmediato</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Fase</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Producto Químico</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Clase ONU / SGA</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Pictogramas</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Contención / Dique</th>
+                  <th style="padding: 8px 8px; text-align: center; white-space: normal; word-break: normal;">Compatibilidad</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Nivel Riesgo</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Control Inmediato</th>
                 </tr>
               </thead>
               <tbody>
@@ -146,16 +146,16 @@ Como Fisioterapeuta Laboral en vivo, TÚ DIRIGES LA SESIÓN PASO A PASO de forma
             <h3>4.1 Matriz de Inspección Preoperacional Vehicular PESV Multifase (Res. 40595)</h3>
             <p>La siguiente tabla consolida la lista de verificación técnica preoperacional de acuerdo con los estándares obligatorios del Plan Estratégico de Seguridad Vial:</p>
             <div class="table-responsive" style="overflow-x: auto; width: 100%; margin: 16px 0; -webkit-overflow-scrolling: touch;">
-            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; table-layout: fixed; text-align: left; font-size: 0.85em;">
+            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; min-width: 850px; table-layout: auto; text-align: left; font-size: 0.85em;">
               <thead style="background-color: #047857; color: white;">
                 <tr>
-                  <th style="padding: 8px 6px; width: 13%; word-break: break-word;">Fase Preoperacional</th>
-                  <th style="padding: 8px 6px; width: 15%; word-break: break-word;">Componente / Sistema</th>
-                  <th style="padding: 8px 6px; width: 15%; word-break: break-word;">Criterio Técnico (Res. 40595)</th>
-                  <th style="padding: 8px 6px; width: 17%; word-break: break-word;">Estado Visual Observado</th>
-                  <th style="padding: 8px 6px; width: 12%; text-align: center; word-break: break-word;">Condición Operativa</th>
-                  <th style="padding: 8px 6px; width: 12%; word-break: break-word;">Aptitud para Salida</th>
-                  <th style="padding: 8px 6px; width: 16%; word-break: break-word;">Acción Inmediata</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Fase Preoperacional</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Componente / Sistema</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Criterio Técnico (Res. 40595)</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Estado Visual Observado</th>
+                  <th style="padding: 8px 8px; text-align: center; white-space: normal; word-break: normal;">Condición Operativa</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Aptitud para Salida</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Acción Inmediata</th>
                 </tr>
               </thead>
               <tbody>
@@ -192,17 +192,17 @@ Como Fisioterapeuta Laboral en vivo, TÚ DIRIGES LA SESIÓN PASO A PASO de forma
             <h3>4.1 Matriz de Inspección Técnica de Equipos Críticos Multifase (NFPA / RETIE)</h3>
             <p>La siguiente tabla resume la auditoría de conformidad técnica para sistemas contra incendio, redes eléctricas o equipos de protección de alto riesgo:</p>
             <div class="table-responsive" style="overflow-x: auto; width: 100%; margin: 16px 0; -webkit-overflow-scrolling: touch;">
-            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; table-layout: fixed; text-align: left; font-size: 0.85em;">
+            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; min-width: 850px; table-layout: auto; text-align: left; font-size: 0.85em;">
               <thead style="background-color: #be123c; color: white;">
                 <tr>
-                  <th style="padding: 8px 6px; width: 12%; word-break: break-word;">Fase</th>
-                  <th style="padding: 8px 6px; width: 15%; word-break: break-word;">Equipo / Sistema</th>
-                  <th style="padding: 8px 6px; width: 11%; word-break: break-word;">Norma</th>
-                  <th style="padding: 8px 6px; width: 16%; word-break: break-word;">Condición Observada</th>
-                  <th style="padding: 8px 6px; width: 11%; text-align: center; word-break: break-word;">Manómetro / Sello</th>
-                  <th style="padding: 8px 6px; width: 10%; word-break: break-word;">Vigencia</th>
-                  <th style="padding: 8px 6px; width: 11%; word-break: break-word;">Nivel Riesgo</th>
-                  <th style="padding: 8px 6px; width: 14%; word-break: break-word;">Medida Inmediata</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Fase</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Equipo / Sistema</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Norma</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Condición Observada</th>
+                  <th style="padding: 8px 8px; text-align: center; white-space: normal; word-break: normal;">Manómetro / Sello</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Vigencia</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Nivel Riesgo</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Medida Inmediata</th>
                 </tr>
               </thead>
               <tbody>
@@ -239,17 +239,17 @@ Como Fisioterapeuta Laboral en vivo, TÚ DIRIGES LA SESIÓN PASO A PASO de forma
             <h3>4.1 Matriz de Inspección Locativa y Auditoría de Campo Multifase (GTC 45 / 5S)</h3>
             <p>La siguiente tabla estructura los hallazgos críticos evidenciados durante el recorrido de inspección en vivo clasificados por etapas de verificación:</p>
             <div class="table-responsive" style="overflow-x: auto; width: 100%; margin: 16px 0; -webkit-overflow-scrolling: touch;">
-            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; table-layout: fixed; text-align: left; font-size: 0.85em;">
+            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; min-width: 850px; table-layout: auto; text-align: left; font-size: 0.85em;">
               <thead style="background-color: #1d4ed8; color: white;">
                 <tr>
-                  <th style="padding: 8px 6px; width: 12%; word-break: break-word;">Fase</th>
-                  <th style="padding: 8px 6px; width: 14%; word-break: break-word;">Área / Puesto</th>
-                  <th style="padding: 8px 6px; width: 17%; word-break: break-word;">Condición / Acto Inseguro</th>
-                  <th style="padding: 8px 6px; width: 12%; word-break: break-word;">Peligro GTC 45</th>
-                  <th style="padding: 8px 6px; width: 9%; text-align: center; word-break: break-word;">5S</th>
-                  <th style="padding: 8px 6px; width: 11%; word-break: break-word;">EPP</th>
-                  <th style="padding: 8px 6px; width: 11%; word-break: break-word;">Nivel Riesgo</th>
-                  <th style="padding: 8px 6px; width: 14%; word-break: break-word;">Acción Inmediata</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Fase</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Área / Puesto</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Condición / Acto Inseguro</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Peligro GTC 45</th>
+                  <th style="padding: 8px 8px; text-align: center; white-space: normal; word-break: normal;">5S</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">EPP</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Nivel Riesgo</th>
+                  <th style="padding: 8px 8px; white-space: normal; word-break: normal;">Acción Inmediata</th>
                 </tr>
               </thead>
               <tbody>
