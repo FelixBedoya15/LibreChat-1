@@ -205,6 +205,8 @@ class VoiceSession {
         this.activeEvidenceMessageId = null; // Track current grouped evidence message ID
         this.manualEvidences = []; // Stored manual evidence photos
         this.phaseEvidences = {}; // Stored structured multi-phase photos and telemetries
+        this.lastEvaluatedFrames = []; // Fallback cache of last evaluated frames
+        this.lastPhaseEvidences = {}; // Fallback cache of last phase evidences
         this.agentObj = null;
         this.isBiomechanics = false;
         this.toolCalledThisTurn = false;
@@ -1763,9 +1765,11 @@ ${activeProtocol.reportMatrixHeader}
                     ? this.manualEvidences 
                     : (this.frameBuffer && this.frameBuffer.length > 0) 
                         ? this.frameBuffer 
-                        : this.latestFrame 
-                            ? [this.latestFrame] 
-                            : [];
+                        : (this.lastEvaluatedFrames && this.lastEvaluatedFrames.length > 0)
+                            ? this.lastEvaluatedFrames
+                            : this.latestFrame 
+                                ? [this.latestFrame] 
+                                : [];
 
             let realTelemetryBlock = '';
             if (phaseTelemetryNotes.length > 0) {
@@ -1866,7 +1870,7 @@ En la sección "4.1 Matriz Ergonómica Comparativa Multifase", en la columna "Te
                 const sectionTitle = `1. Evidencia Fotográfica y Documental Multifase (${activeProtocol.title})`;
 
                 const imgItems = framesToUse.slice(0, 3).map((b64, idx) => {
-                    const phaseData = this.phaseEvidences?.[idx];
+                    const phaseData = this.phaseEvidences?.[idx] || this.lastPhaseEvidences?.[idx];
                     const label = phaseData?.phaseName || phaseLabels[idx] || `Fase ${idx + 1}: Evidencia de Inspección`;
                     const telemSummary = phaseData?.telemetry?.summary || '';
                     const telemItems = telemSummary ? telemSummary.split(/\s*•\s*/).filter(Boolean) : [];
@@ -2196,6 +2200,14 @@ ${standardHeaderHtml}
                         : this.latestFrame
                             ? [this.latestFrame]
                             : [];
+
+            // Cache evaluated frames and phase evidences for fallback in case subsequent report needs them
+            if (evalFrames && evalFrames.length > 0) {
+                this.lastEvaluatedFrames = [...evalFrames];
+            }
+            if (this.phaseEvidences && Object.keys(this.phaseEvidences).length > 0) {
+                this.lastPhaseEvidences = { ...this.phaseEvidences };
+            }
 
             // Clear manual evidence and phase buffers for next turns/reports
             this.manualEvidences = [];

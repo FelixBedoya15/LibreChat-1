@@ -1226,9 +1226,25 @@ class AgentClient extends BaseClient {
       memoryPromise = this.runMemory(initialMessages);
 
       // Dual-axis rotation: outer = model fallbacks (503), inner = API keys (429/403)
-      let keys = [this.options.agent?.model_parameters?.apiKey];
-      if (typeof keys[0] === 'string' && keys[0].includes(',')) {
-        keys = keys[0].split(',').map((k) => k.trim()).filter(Boolean);
+      let initialKeys = [this.options.agent?.model_parameters?.apiKey];
+      if (typeof initialKeys[0] === 'string' && initialKeys[0].includes(',')) {
+        initialKeys = initialKeys[0].split(',').map((k) => k.trim()).filter(Boolean);
+      }
+      initialKeys = initialKeys.filter(Boolean);
+
+      // CRITICAL FALLBACK: Merge environment keys (GOOGLE_KEY, GEMINI_API_KEY) so that
+      // when a single user/agent key hits daily quota (429 limit: 20), rotation can try other available keys!
+      const envKeys = [process.env.GOOGLE_KEY, process.env.GEMINI_API_KEY]
+        .filter(Boolean)
+        .flatMap((k) => k.split(','))
+        .map((k) => k.trim())
+        .filter((k) => k.length > 0 && k !== 'user_provided');
+
+      let keys = [...initialKeys];
+      for (const ek of envKeys) {
+        if (!keys.includes(ek)) {
+          keys.push(ek);
+        }
       }
       if (!keys.length) {
         keys = [null];
@@ -1360,12 +1376,15 @@ class AgentClient extends BaseClient {
               logger.error('Failed to send clear_step_maps event', e);
             }
 
-            if (isDailyQuotaExceeded) {
-              logger.warn(`[AgentClient] Daily quota exhausted for model "${currentModel}". Rotating immediately to next model...`);
+            if (isDailyQuotaExceeded && i < keys.length - 1) {
+              logger.warn(`[AgentClient] Daily quota exhausted for model "${currentModel}" on Key ${i + 1}. Retrying with next API key ${i + 2}...`);
+              continue; // Try next key, same model
+            } else if (isDailyQuotaExceeded) {
+              logger.warn(`[AgentClient] Daily quota exhausted for model "${currentModel}" on all ${keys.length} keys. Rotating immediately to next model...`);
               rotateToNextModel = true;
               break;
             } else if (isRetryable && i < keys.length - 1) {
-              logger.warn(`[AgentClient] Error (${isInvalidKey ? 'Invalid key' : isNetworkError ? 'Network / Fetch failed' : isServiceUnavailable ? 'Model unavailable/overloaded (503)' : 'Rate limit / Quota'}). Retrying with next API key ${i + 1}...`);
+              logger.warn(`[AgentClient] Error (${isInvalidKey ? 'Invalid key' : isNetworkError ? 'Network / Fetch failed' : isServiceUnavailable ? 'Model unavailable/overloaded (503)' : 'Rate limit / Quota'}). Retrying with next API key ${i + 2}...`);
               continue; // Try next key, same model
             } else if (isRetryable) {
               // Last key also failed or model unavailable → rotate to next model

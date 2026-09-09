@@ -80,21 +80,30 @@ async function resolveApiKeys(userId) {
     }
   }
 
-  // 2. Fallback a variables de entorno si el usuario no tiene clave en BD
-  if (!rawApiKey) {
-    const { GOOGLE_KEY, GEMINI_API_KEY } = process.env;
-    if (GOOGLE_KEY && GOOGLE_KEY !== 'user_provided') {
-      rawApiKey = GOOGLE_KEY;
-    } else if (GEMINI_API_KEY) {
-      rawApiKey = GEMINI_API_KEY;
-    }
-  }
-
-  // 3. Separar por comas y filtrar cadenas vacías o 'user_provided'
-  const keys = rawApiKey
+  // 2. Extraer claves del usuario si existen
+  const userKeys = rawApiKey
     .split(',')
     .map(k => k.trim())
     .filter(k => k.length > 0 && k !== 'user_provided');
+
+  // 3. Combinar con variables de entorno (GOOGLE_KEY, GEMINI_API_KEY) como respaldo
+  // para permitir rotación fluida si la cuota diaria de una clave se agota (ej. limit: 20 peticiones)
+  const envKeysRaw = [process.env.GOOGLE_KEY, process.env.GEMINI_API_KEY]
+    .filter(Boolean)
+    .join(',');
+
+  const envKeys = envKeysRaw
+    .split(',')
+    .map(k => k.trim())
+    .filter(k => k.length > 0 && k !== 'user_provided');
+
+  // Mantener prioridad de las claves del usuario pero concatenar claves del entorno sin duplicar
+  const keys = [...userKeys];
+  for (const ek of envKeys) {
+    if (!keys.includes(ek)) {
+      keys.push(ek);
+    }
+  }
 
   if (keys.length === 0) {
     throw new Error(

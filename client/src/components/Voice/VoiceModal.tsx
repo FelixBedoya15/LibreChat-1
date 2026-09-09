@@ -300,6 +300,12 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             if (action.name === 'cambiar_fase_evaluacion') {
                 const requestedPhase = Number(action.args?.fase);
                 if (requestedPhase >= 1 && requestedPhase <= 3) {
+                    if (requestedPhase === 1) {
+                        // Starting a new inspection cycle: clear previous photo caches
+                        autoCapturedPhasesRef.current.clear();
+                        manualPhotosCountRef.current = 0;
+                        setManualCapturedPhotos([]);
+                    }
                     const targetIdx = requestedPhase - 1;
                     if (targetIdx !== currentPhaseIndexRef.current) {
                         console.log(`[VoiceModal] Wappy action changed phase to: ${targetIdx + 1}`);
@@ -314,6 +320,10 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             console.log('[VoiceModal] Report received successfully');
             setIsGeneratingReport(false);
             setReportSuccess(true);
+            // Reset capture buffers so subsequent inspections in the same session capture fresh photos
+            autoCapturedPhasesRef.current.clear();
+            manualPhotosCountRef.current = 0;
+            setManualCapturedPhotos([]);
             if (html && html.length > 30 && !html.includes('⚠️ Error de Generación')) {
                 setStreamingCanvas({
                     id: messageId || `report-${Date.now()}`,
@@ -490,6 +500,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         if (!isOpen) {
             setManualCapturedPhotos([]);
             manualPhotosCountRef.current = 0;
+            autoCapturedPhasesRef.current.clear();
             setLastUserTranscript('');
             setZoom(1);
         }
@@ -1143,8 +1154,8 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     const handleManualCapture = useCallback(() => {
         if (!isCameraOn && !isScreenSharing) return;
 
-        if (manualPhotosCountRef.current >= 10) {
-            setLimitNotification("Límite alcanzado: Máximo 10 fotos de evidencia permitidas.");
+        if (manualPhotosCountRef.current >= 15) {
+            setLimitNotification("Límite alcanzado: Máximo 15 fotos de evidencia permitidas.");
             setTimeout(() => {
                 setLimitNotification(null);
             }, 4000);
