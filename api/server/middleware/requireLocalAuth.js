@@ -12,13 +12,18 @@ const requireLocalAuth = (req, res, next) => {
       // Use 403 so it's not confused with a missing resource, allowing the message to be read
       // But we must ensure the frontend sees the message.
       if (info && info.message) {
+        if (info.message.toLowerCase().includes('not verified')) {
+          return res.status(422).send({ message: info.message });
+        }
         return res.status(403).send({ message: info.message });
       }
       return res.status(404).send(info);
     }
     if (info && info.message) {
       logger.debug('[requireLocalAuth] Error: ' + info.message);
-      // Use 403 so it's not confused with validation error 422 if it's an auth failure
+      if (info.message.toLowerCase().includes('not verified')) {
+        return res.status(422).send({ message: info.message });
+      }
       return res.status(403).send({ message: info.message });
     }
     req.user = user;

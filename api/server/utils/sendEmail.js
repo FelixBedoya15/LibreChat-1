@@ -109,8 +109,8 @@ const sendEmail = async ({ email, subject, payload, template, from, throwError =
 
     // Prepare common email data
     const notificationsEmail = process.env.EMAIL_NOTIFICATIONS_FROM || 'notificaciones@wappy.club';
-    let fromName = process.env.EMAIL_FROM_NAME || process.env.APP_TITLE;
-    const fromEmail = from || process.env.EMAIL_FROM;
+    let fromName = process.env.EMAIL_FROM_NAME || process.env.APP_TITLE || 'WAPPY IA';
+    const fromEmail = from || process.env.EMAIL_FROM || process.env.EMAIL_NOTIFICATIONS_FROM || process.env.EMAIL_USERNAME || 'notificaciones@wappy.club';
 
     if (fromEmail === notificationsEmail) {
       fromName = process.env.EMAIL_NOTIFICATIONS_FROM_NAME || 'Notificaciones Wappy';
@@ -142,9 +142,12 @@ const sendEmail = async ({ email, subject, payload, template, from, throwError =
       smtpPass = process.env.EMAIL_NOTIFICATIONS_PASSWORD;
     }
 
+    const smtpPort = Number(process.env.EMAIL_PORT) || 25;
+    const isSecureConnection = process.env.EMAIL_ENCRYPTION === 'tls' || smtpPort === 465;
+
     const transporterOptions = {
-      // Use STARTTLS by default instead of obligatory TLS
-      secure: process.env.EMAIL_ENCRYPTION === 'tls',
+      // Use TLS for port 465 or when explicit tls is requested
+      secure: isSecureConnection,
       // If explicit STARTTLS is set, require it when connecting
       requireTls: process.env.EMAIL_ENCRYPTION === 'starttls',
       tls: {
@@ -167,8 +170,10 @@ const sendEmail = async ({ email, subject, payload, template, from, throwError =
       transporterOptions.service = process.env.EMAIL_SERVICE;
     } else {
       transporterOptions.host = process.env.EMAIL_HOST;
-      transporterOptions.port = process.env.EMAIL_PORT ?? 25;
+      transporterOptions.port = smtpPort;
     }
+
+    logger.info(`[sendEmail] Sending email to "${email}" with subject "${subject}" (from: ${fromEmail}, secure: ${isSecureConnection}, port: ${smtpPort})`);
 
     const mailOptions = {
       // Header address should contain name-addr

@@ -1,6 +1,6 @@
 const express = require('express');
 const { logger } = require('@librechat/data-schemas');
-const { isEnabled, getBalanceConfig } = require('@librechat/api');
+const { isEnabled, getBalanceConfig, checkEmailConfig } = require('@librechat/api');
 const {
   Constants,
   CacheKeys,
@@ -98,11 +98,7 @@ router.get('/', async function (req, res) {
       emailLoginEnabled,
       registrationEnabled: !ldap?.enabled && isEnabled(process.env.ALLOW_REGISTRATION),
       socialLoginEnabled: isEnabled(process.env.ALLOW_SOCIAL_LOGIN),
-      emailEnabled:
-        (!!process.env.EMAIL_SERVICE || !!process.env.EMAIL_HOST) &&
-        !!process.env.EMAIL_USERNAME &&
-        !!process.env.EMAIL_PASSWORD &&
-        !!process.env.EMAIL_FROM,
+      emailEnabled: checkEmailConfig(),
       passwordResetEnabled,
       showBirthdayIcon:
         isBirthday() ||

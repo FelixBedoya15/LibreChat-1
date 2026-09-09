@@ -42,13 +42,19 @@ function RequestPasswordReset() {
     formState: { errors },
   } = useForm<TRequestPasswordReset>();
   const [bodyText, setBodyText] = useState<ReactNode | undefined>(undefined);
+  const [serverError, setServerError] = useState<string | null>(null);
   const { startupConfig, setHeaderText } = useOutletContext<TLoginLayoutContext>();
 
   const requestPasswordReset = useRequestPasswordResetMutation();
   const { isLoading } = requestPasswordReset;
 
   const onSubmit = (data: TRequestPasswordReset) => {
-    requestPasswordReset.mutate(data, {
+    setServerError(null);
+    const cleanData: TRequestPasswordReset = {
+      ...data,
+      email: (data.email || '').trim().toLowerCase(),
+    };
+    requestPasswordReset.mutate(cleanData, {
       onSuccess: (data: TRequestPasswordResetResponse) => {
         if (data.link && !startupConfig?.emailEnabled) {
           setHeaderText('com_auth_reset_password');
@@ -66,9 +72,14 @@ function RequestPasswordReset() {
           setBodyText(<ResetPasswordBodyText />);
         }
       },
-      onError: () => {
-        setHeaderText('com_auth_reset_password_link_sent');
-        setBodyText(<ResetPasswordBodyText />);
+      onError: (error: any) => {
+        const errorMsg = error?.response?.data?.message || error?.message;
+        if (errorMsg && !errorMsg.includes('404')) {
+          setServerError(errorMsg);
+        } else {
+          setHeaderText('com_auth_reset_password_link_sent');
+          setBodyText(<ResetPasswordBodyText />);
+        }
       },
     });
   };
@@ -84,6 +95,11 @@ function RequestPasswordReset() {
       method="POST"
       onSubmit={handleSubmit(onSubmit)}
     >
+      {serverError && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-400">
+          {serverError}
+        </div>
+      )}
       <div className="space-y-2">
         <div className="relative">
           <input

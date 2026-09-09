@@ -242,7 +242,12 @@ const LoginForm: React.FC<TLoginFormProps> = ({ onSubmit, startupConfig, error, 
           className="mt-4"
           aria-label="Login form"
           method="POST"
-          onSubmit={handleSubmit((data) => onSubmit(data))}
+          onSubmit={handleSubmit((data) => {
+            if (data.email) {
+              data.email = data.email.trim();
+            }
+            onSubmit(data);
+          })}
         >
           <div className="mb-4">
             <div className="relative">

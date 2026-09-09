@@ -24,9 +24,14 @@ const { registerSchema } = require('~/strategies/validators');
 const { getAppConfig } = require('~/server/services/Config');
 const { sendEmail } = require('~/server/utils');
 
+const sanitizeDomain = (domain) => {
+  if (!domain) return 'https://wappy.club';
+  return domain.replace(/https?:\/\/wappy-ia\.com/g, 'https://wappy.club').replace(/\/+$/, '');
+};
+
 const domains = {
-  client: process.env.DOMAIN_CLIENT,
-  server: process.env.DOMAIN_SERVER,
+  client: sanitizeDomain(process.env.DOMAIN_CLIENT),
+  server: sanitizeDomain(process.env.DOMAIN_SERVER),
 };
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -175,7 +180,11 @@ const registerUser = async (user, additionalData = {}) => {
     return { status: 404, message: errorMessage };
   }
 
-  const { email, password, name, username, phoneNumber, ref } = user;
+  const { password, name, phoneNumber, ref } = user;
+  const cleanEmail = (user.email || '').trim().toLowerCase();
+  const cleanUsername = (user.username || cleanEmail.split('@')[0] || '').trim().toLowerCase();
+  const email = cleanEmail;
+  const username = cleanUsername;
 
   let newUserId;
   try {
@@ -187,7 +196,9 @@ const registerUser = async (user, additionalData = {}) => {
       return { status: 403, message: errorMessage };
     }
 
-    const existingUser = await findUser({ email }, 'email _id');
+    const existingUser = await findUser({
+      $or: [{ email: cleanEmail }, { username: cleanUsername }],
+    }, 'email _id');
 
     if (existingUser) {
       logger.info(
@@ -397,7 +408,8 @@ const registerUser = async (user, additionalData = {}) => {
  * @param {ServerRequest} req
  */
 const requestPasswordReset = async (req) => {
-  const { email } = req.body;
+  const rawEmail = req.body.email || '';
+  const email = rawEmail.trim().toLowerCase();
   const appConfig = await getAppConfig();
   if (!isEmailDomainAllowed(email, appConfig?.registration?.allowedDomains)) {
     const error = new Error(ErrorTypes.AUTH_FAILED);
@@ -405,7 +417,11 @@ const requestPasswordReset = async (req) => {
     error.message = 'Email domain not allowed';
     return error;
   }
-  const user = await findUser({ email }, 'email _id');
+  let user = await findUser({ email }, 'email _id name username');
+  if (!user && rawEmail.trim()) {
+    const escaped = rawEmail.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    user = await findUser({ email: { $regex: new RegExp(`^${escaped}$`, 'i') } }, 'email _id name username');
+  }
   const emailEnabled = checkEmailConfig();
 
   logger.warn(`[requestPasswordReset] [Password reset request initiated] [Email: ${email}]`);
@@ -431,23 +447,28 @@ const requestPasswordReset = async (req) => {
   const link = `${domains.client}/reset-password?token=${resetToken}&userId=${user._id}`;
 
   if (emailEnabled) {
-    await sendEmail({
-      email: user.email,
-      subject: 'Solicitud de restablecimiento de contraseña',
-      payload: {
-        appName: process.env.APP_TITLE || 'LibreChat',
-        name: user.name || user.username || user.email,
-        link: link,
-        year: new Date().getFullYear(),
-      },
-      template: 'requestPasswordReset.handlebars',
-    });
-    logger.info(
-      `[requestPasswordReset] Link emailed. [Email: ${email}] [ID: ${user._id}] [IP: ${req.ip}]`,
-    );
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: 'Solicitud de restablecimiento de contraseña',
+        payload: {
+          appName: process.env.APP_TITLE || 'WAPPY IA',
+          name: user.name || user.username || user.email,
+          link: link,
+          year: new Date().getFullYear(),
+        },
+        template: 'requestPasswordReset.handlebars',
+      });
+      logger.info(
+        `[requestPasswordReset] Link emailed successfully. [Email: ${user.email}] [ID: ${user._id}] [IP: ${req.ip}]`,
+      );
+    } catch (emailErr) {
+      logger.error(`[requestPasswordReset] Failed to send password reset email to ${user.email}:`, emailErr);
+      throw emailErr;
+    }
   } else {
     logger.info(
-      `[requestPasswordReset] Link issued. [Email: ${email}] [ID: ${user._id}] [IP: ${req.ip}]`,
+      `[requestPasswordReset] Link issued (email service disabled). [Email: ${user.email}] [ID: ${user._id}] [IP: ${req.ip}]`,
     );
     return { link };
   }
@@ -618,9 +639,14 @@ const setOpenIDAuthTokens = (tokenset, res, userId) => {
  */
 const resendVerificationEmail = async (req) => {
   try {
-    const { email } = req.body;
+    const rawEmail = req.body.email || '';
+    const email = rawEmail.trim().toLowerCase();
     await deleteTokens({ email });
-    const user = await findUser({ email }, 'email _id name');
+    let user = await findUser({ email }, 'email _id name');
+    if (!user && rawEmail.trim()) {
+      const escaped = rawEmail.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      user = await findUser({ email: { $regex: new RegExp(`^${escaped}$`, 'i') } }, 'email _id name');
+    }
 
     if (!user) {
       logger.warn(`[resendVerificationEmail] [No user found] [Email: ${email}]`);
