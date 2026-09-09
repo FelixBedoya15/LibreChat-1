@@ -21,6 +21,11 @@ function sanitizeTranscription(text) {
     if (!text || typeof text !== 'string') return text;
     let s = text;
 
+    // Filter out obvious Hindi/Urdu hallucinated chunks if Gemini STT drifted
+    if (/\b(aur|ek\s+chhat|hai\s+na|jo\s+hamara|system\s+hai\s+na)\b/i.test(s)) {
+        s = s.replace(/aur\s+ek\s+chhat\s+dil\s+consultant\s+jo\s+system\s+hai\s+na\s+jo\s+hamara\s+jo\s+system\s+hai/gi, 'abre el sistema o consultor de la plataforma');
+    }
+
     // Fix affirmative false cognates (e.g. Google STT hearing "bistro" for "listo")
     s = s.replace(/\b(bistro|visto|misto|cristo|pisto|disto)\b/gi, (match) => {
         return match[0] === match[0].toUpperCase() ? 'Listo' : 'listo';
@@ -213,17 +218,17 @@ class VoiceSession {
                     functionDeclarations: [
                         {
                             name: "wappy_navegar",
-                            description: "Navega a un módulo o vista de la plataforma WAPPY (ej: perfiles de cargo, huella biocéntrica, motor bio-individual, sgsst general, planes, matriz ipevar, matriz pesv, academia, blog, control acpm, automatizaciones).",
+                            description: "Navega de inmediato a cualquier módulo, hito o sección de la plataforma WAPPY y Somos SST. DEBES invocar esta función siempre que el usuario te pida ir, ver, abrir o consultar una sección o hito.",
                             parameters: {
                                 type: "object",
                                 properties: {
                                     modulo: {
                                         type: "string",
-                                        description: "Nombre de la sección destino (ej: 'perfiles_cargo', 'bio_motor', 'sgsst', 'planes', 'ipevar', 'pesv', 'quimicos', 'academia', 'blog', 'control')"
+                                        description: "Nombre clave del módulo o hito. Ejemplos: 'predictivo', 'perfil_cargo', 'peligros', 'vehicles_pesv', 'chemical_registry', 'permiso_alturas', 'analisis_trabajo_seguro', 'metodo_owas', 'capacitaciones', 'ruta_aprendizaje', 'control_acpm', 'estadisticas', 'investigacion_atel', 'auditoria', 'diagnostico', 'planes', 'academia', 'blog', 'agents', 'live'"
                                     },
                                     ruta: {
                                         type: "string",
-                                        description: "Ruta URL interna opcional (ej: '/sgsst?super=bio_motor', '/planes', '/sgsst/control')"
+                                        description: "Ruta URL interna exacta. Ejemplos: '/sgsst?hito=hito7&module=predictivo', '/sgsst?hito=hito2&module=perfil_cargo', '/sgsst?hito=hito3&module=peligros', '/sgsst?hito=hito4&module=vehicles_pesv', '/sgsst?hito=hito4&module=chemical_registry', '/planes', '/academia', '/blog', '/sgsst/control', '/agents', '/live'"
                                     }
                                 },
                                 required: ["modulo"]
@@ -260,19 +265,125 @@ class VoiceSession {
                                 },
                                 required: ["accion"]
                             }
+                        },
+                        {
+                            name: "wappy_abrir_chat_agente",
+                            description: "Abre de inmediato un nuevo chat directamente con uno de los 22 agentes especialistas de WAPPY (ej: Abogado Laboral, Médico Laboral, Fisioterapeuta Laboral, Ingeniero Químico SST, Coordinador PESV, Psicólogo SST, Auditor SG-SST, Coordinador de Emergencias, etc.) y opcionalmente le envía una consulta o pregunta inicial para que el especialista responda de inmediato en pantalla.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    agente: {
+                                        type: "string",
+                                        description: "Nombre o especialidad del agente. Ejemplos: 'abogado_laboral', 'medico_laboral', 'fisioterapeuta_laboral', 'ingeniero_quimico_sst', 'coordinador_seguridad_vial', 'psicologo_sst', 'auditor_sg_sst', 'consultor_sst', 'profesional_sst', 'coordinador_emergencias', 'primer_respondiente', 'nutricionista_laboral', 'coordinador_tareas_criticas', 'coordinador_capacitaciones', 'especialista_riesgo_climatico', 'ingeniero_ambiental', 'ingeniero_electricista_sst', 'ingeniero_minas_sst', 'terapeuta_salud_mental', 'redactor_creativo'"
+                                    },
+                                    pregunta: {
+                                        type: "string",
+                                        description: "Pregunta, consulta o instrucción que el usuario desea hacerle al especialista. Opcional si solo desea abrir el chat."
+                                    }
+                                },
+                                required: ["agente"]
+                            }
                         }
                     ]
                 }
             ];
 
-            this.liveConfig.systemInstruction = `Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administras la plataforma central Somos SST. 
-Tienes acceso en vivo para hablar por voz con el usuario y controlar la pantalla de WAPPY en tiempo real mientras el usuario la observa.
+            this.liveConfig.systemInstruction = `[DIRECTIVA CRÍTICA DE IDIOMA Y AUDICIÓN]:
+- IDIOMA EXCLUSIVO: ESPAÑOL DE COLOMBIA / LATINOAMÉRICA.
+- El usuario habla ÚNICA Y EXCLUSIVAMENTE en ESPAÑOL.
+- ESTÁ TERMINANTEMENTE PROHIBIDO interpretar, decodificar o transcribir el audio del usuario en hindi, urdu, árabe, inglés o cualquier otro idioma ajeno.
+- Cualquier sonido, palabra o fonema ambiguo DEBE ser interpretado en español dentro del contexto de WAPPY, Somos SST y la gestión de empresas.
+- Responde SIEMPRE en español de Colombia/Latinoamérica, con el estilo fresco, empático, profesional y cercano de Tenshi ("de una", "parce", "listo", "hágale", "vamos para allá").
 
-REGLAS DE INTERACCIÓN EN VIVO:
-1. **CONCISIÓN Y FLUIDEZ ORAL:** Responde siempre en español conversacional, fresco, empático y natural con el toque amable y cercano de Tenshi ("parce", "listo", "de una", "hágale"). Habla en 1 o 2 oraciones cortas por turno para mantener un diálogo dinámico. Cero monólogos largos.
-2. **ACCIÓN INMEDIATA EN PANTALLA:** Si el usuario te pide navegar o realizar una acción (ej: "ve a perfiles de cargo", "activa la empresa X", "ayúdame a configurar un plan"), invoca inmediatamente la herramienta adecuada ('wappy_navegar', 'wappy_seleccionar_empresa', 'operar_interfaz_visual') para que la pantalla se mueva en vivo mientras le confirmas brevemente con tu voz lo que acabas de hacer.
-3. **RESPETO DE RESTRICCIONES:** Si el usuario te dice "no edites nada solo ayúdame a configurar...", respeta estrictamente su instrucción: navega y ayúdale a visualizar o estructurar el plan sin modificar datos preexistentes.
-4. **INTERRUPCIÓN:** Si el usuario empieza a hablarte mientras estás respondiendo, detente de inmediato y atiende su nueva indicación.`;
+[ROL Y MISIÓN]:
+Eres Tenshi, la IA estrella, guía oficial, orquestadora y copiloto de WAPPY IA y Somos SST. Administras la plataforma central.
+Tienes control en tiempo real de la plataforma mientras hablas por voz con el usuario.
+
+[MAPA COMPLETO DE NAVEGACIÓN DE WAPPY - 7 HITOS DE SOMOS SST Y SECCIONES]:
+1. **HITO 1 - Gobernanza y Cimiento Legal:**
+   - Diagnóstico Estándares 0312: modulo 'diagnostico', ruta '/sgsst?hito=hito1&module=diagnostico'
+   - Política y Objetivos SST: modulo 'politica', ruta '/sgsst?hito=hito1&module=politica'
+   - Matriz Legal: modulo 'legal', ruta '/sgsst?hito=hito1&module=legal'
+   - Reglamentos e Higiene (RHS / RIT): modulo 'rhs', ruta '/sgsst?hito=hito1&module=rhs'
+   - Plan de Emergencias y Vulnerabilidad: modulo 'vulnerabilidad', ruta '/sgsst?hito=hito1&module=vulnerabilidad'
+
+2. **HITO 2 - Huella Biocéntrica (El Ser Humano):**
+   - Perfiles de Cargo y Profesigramas: modulo 'perfil_cargo', ruta '/sgsst?hito=hito2&module=perfil_cargo'
+   - Perfil Sociodemográfico: modulo 'perfil_socio', ruta '/sgsst?hito=hito2&module=perfil_socio'
+   - Exámenes y Condiciones de Salud: modulo 'condiciones_salud', ruta '/sgsst?hito=hito2&module=condiciones_salud'
+
+3. **HITO 3 - Evaluación Dinámica de Riesgos:**
+   - Matriz Bio-IPEVAR / Peligros GTC-45: modulo 'peligros', ruta '/sgsst?hito=hito3&module=peligros'
+   - Termómetro Psicosocial / Ánimo y Clima: modulo 'animo', ruta '/sgsst?hito=hito3&module=animo'
+   - Participación IPEVAR Colaboradores: modulo 'participacion_ipevar', ruta '/sgsst?hito=hito3&module=participacion_ipevar'
+
+4. **HITO 4 - Dinámica Operativa y Terreno (Controles Críticos):**
+   - Plan Estratégico de Seguridad Vial (PESV): modulo 'vehicles_pesv', ruta '/sgsst?hito=hito4&module=vehicles_pesv'
+   - Matriz de Compatibilidad Química y Fichas SGA: modulo 'chemical_registry', ruta '/sgsst?hito=hito4&module=chemical_registry'
+   - Permisos de Alturas: modulo 'permiso_alturas', ruta '/sgsst?hito=hito4&module=permiso_alturas'
+   - Análisis de Trabajo Seguro (ATS): modulo 'analisis_trabajo_seguro', ruta '/sgsst?hito=hito4&module=analisis_trabajo_seguro'
+   - Ergonomía y Método OWAS: modulo 'metodo_owas', ruta '/sgsst?hito=hito4&module=metodo_owas'
+   - Matriz y Entrega de EPP: modulo 'epp_delivery', ruta '/sgsst?hito=hito4&module=epp_delivery'
+   - Equipos y Líneas de Vida: modulo 'heights_lifecycle', ruta '/sgsst?hito=hito4&module=heights_lifecycle'
+
+5. **HITO 5 - Cultura, Escuela e Innovación:**
+   - Programa de Capacitación SST: modulo 'capacitaciones', ruta '/sgsst?hito=hito5&module=capacitaciones'
+   - Rutas de Aprendizaje LMS: modulo 'ruta_aprendizaje', ruta '/sgsst?hito=hito5&module=ruta_aprendizaje'
+   - Reporte de Actos y Condiciones Inseguras: modulo 'reporte_actos', ruta '/sgsst?hito=hito5&module=reporte_actos'
+   - Constructor de Micro-Apps (App Builder): modulo 'app_builder', ruta '/sgsst?hito=hito5&module=app_builder'
+
+6. **HITO 6 - Auditoría, Causalidad & Cierre de Ciclo:**
+   - Estadísticas e Indicadores ATEL: modulo 'estadisticas', ruta '/sgsst?hito=hito6&module=estadisticas'
+   - Investigación Forense de Causalidad (Accidentes): modulo 'investigacion_atel', ruta '/sgsst?hito=hito6&module=investigacion_atel'
+   - Tablero Kanban ACPM (Acciones Correctivas): modulo 'control_acpm', ruta '/sgsst?hito=hito6&module=control_acpm'
+   - Auditoría de Estándares Mínimos: modulo 'auditoria', ruta '/sgsst?hito=hito6&module=auditoria'
+   - Revisión por la Alta Dirección: modulo 'alta_direccion', ruta '/sgsst?hito=hito6&module=alta_direccion'
+
+7. **HITO 7 - Inteligencia Artificial & Oráculo Predictivo (El Pináculo de WAPPY):**
+   - Oráculo Predictivo, Gemelo Digital y Modelos de Siniestralidad: modulo 'predictivo', ruta '/sgsst?hito=hito7&module=predictivo'
+
+8. **SECCIONES PRINCIPALES ADICIONALES DE WAPPY:**
+   - Centro de Control General / Kanban ACPM: modulo 'control', ruta '/sgsst/control'
+   - Suscripciones y Planes de WAPPY: modulo 'planes', ruta '/planes'
+   - Academia y Formación LMS (Cursos interactivos): modulo 'academia', ruta '/academia?tab=cursos'
+   - Blog de Artículos y Conocimiento: modulo 'blog', ruta '/blog'
+   - Catálogo / Marketplace de Agentes: modulo 'agents', ruta '/agents'
+   - Videollamada en Vivo con Visión Artificial y Biomecánica: modulo 'live', ruta '/live'
+   - Chat General de Consultas: modulo 'chat', ruta '/c/new'
+
+[CATÁLOGO DE AGENTES ESPECIALISTAS DE WAPPY DISPONIBLES]:
+- 'abogado_laboral': Abogado Laboral (normativa laboral colombiana, contratos, RIT, descargos, Ley 1010/2365).
+- 'medico_laboral': Médico Laboral (exámenes ocupacionales, restricciones médicas, ausentismo, PVE).
+- 'fisioterapeuta_laboral': Fisioterapeuta Laboral (ergonomía, ROSA/RULA/OWAS, puestos de trabajo).
+- 'psicologo_sst': Psicólogo SST (riesgo psicosocial, batería MinTrabajo, estrés laboral).
+- 'terapeuta_salud_mental': Terapeuta en Salud Mental (apoyo emocional, burnout, autocuidado).
+- 'nutricionista_laboral': Nutricionista Laboral (hábitos saludables, riesgo cardiovascular).
+- 'primer_respondiente': Primer Respondiente (primeros auxilios, RCP básica, botiquín).
+- 'coordinador_emergencias': Coordinador de Emergencias (plan de emergencias PAE, brigadas, simulacros).
+- 'especialista_bioseguridad': Especialista en Bioseguridad (riesgos biológicos, PGIRH, vacunación).
+- 'ingeniero_electricista_sst': Ingeniero Electricista SST (RETIE, riesgo eléctrico, LOTO).
+- 'ingeniero_quimico_sst': Ingeniero Químico SST (SGA, fichas de datos FDS/HDS, compatibilidad química).
+- 'coordinador_seguridad_vial': Coordinador de Seguridad Vial (PESV, planes viales, ANSV).
+- 'coordinador_tareas_criticas': Coordinador de Tareas Críticas (alturas, confinados, caliente, excavación).
+- 'ingeniero_minas_sst': Ingeniero de Minas SST (minería subterránea, gases, ventilación).
+- 'auditor_sg_sst': Auditor SG-SST (auditorías Resolución 0312, ciclo PHVA).
+- 'ingeniero_ambiental': Ingeniero Ambiental (residuos, vertimientos, gestión ambiental).
+- 'especialista_riesgo_climatico': Especialista en Riesgo Climático (estrés térmico, radiación UV).
+- 'coordinador_capacitaciones': Coordinador de Capacitaciones (Plan Anual de Capacitación PAC, inducciones).
+- 'consultor_sst' / 'profesional_sst': Consultor SG-SST (asesoría integral SST).
+- 'redactor_creativo': Redactor Creativo (artículos del blog).
+- 'simulador_accidentes': Simulador de Accidentes SST (árbol de causas, lecciones aprendidas).
+
+[DIRECTIVAS DE ACCIÓN INMEDIATA, AGENTES Y NAVEGACIÓN]:
+1. **ABRIR CHAT CON AGENTE Y PREGUNTARLE:** Cuando el usuario diga "abre un chat con [agente] y pregúntale [X]", "vamos a preguntarle al abogado...", "habla con el médico laboral...", "quiero consultar al químico...", etc.:
+   - DEBES INVOCAR INMEDIATAMENTE la herramienta 'wappy_abrir_chat_agente' pasando el 'agente' y la 'pregunta' indicada.
+   - Responde oralmente en una sola frase breve: "¡Listo! Abriendo el chat con el [Nombre del Agente] y transmitiéndole tu consulta."
+2. **ACADEMIA Y CURSOS:** Cuando el usuario pida ir a la academia o ver cursos ("llévame a la academia a un curso", "muéstrame los cursos", "abre la academia"):
+   - DEBES INVOCAR INMEDIATAMENTE 'wappy_navegar' con modulo: 'academia', ruta: '/academia?tab=cursos'.
+   - Responde oralmente en una sola frase breve: "¡De una! Te llevo al aula de cursos de la Academia WAPPY."
+3. **NAVEGAR A CUALQUIER MÓDULO O HITO:** Si el usuario pide ir o ver cualquier hito o sección (ej: "vamos a perfiles de cargo", "ábreme la matriz pesv", "muéstrame los planes", "quiero ver el oráculo"): INVOCA INMEDIATAMENTE 'wappy_navegar'. Cero preguntas redundantes si el usuario ya mencionó el módulo.
+4. **RESPUESTA ORAL SÚPER CONCISA:** Habla en 1 o máximo 2 frases cortas confirmando la acción. Cero monólogos largos.
+5. **INTERRUPCIÓN:** Si el usuario empieza a hablarte mientras respondes, calla de inmediato y atiende su nueva orden.`;
         } else {
             // Herramientas nativas para agentes SST y Fisioterapeuta Laboral
             const reportTool = {
@@ -521,7 +632,16 @@ REGLAS DE INTERACCIÓN EN VIVO:
             logger.info(`[VoiceSession] AI transcription received: "${text}"`);
             // Accumulate AI text (both buffers, so the trigger can find the phrase)
             this.aiResponseText += text;
-            this.aiTranscriptionBuffer += text; // ← NEW
+            this.aiTranscriptionBuffer += text;
+
+            // Forward full cumulative text to client so assistant chat bubble updates in real time
+            this.sendToClient({
+                type: 'text',
+                data: {
+                    text: this.aiResponseText,
+                    isUserTranscription: false
+                }
+            });
         });
 
         // Listen for AI TEXT response
@@ -2297,6 +2417,29 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
             }
         }
 
+        // MODO TENSHI VOICE: Orquestadora oficial de WAPPY IA con control de plataforma
+        if (config.mode === 'tenshi_voice') {
+            logger.info(`[VoiceSession] Initializing Tenshi Voice Mode (Orchestrator, platform control enabled)`);
+            const agentObj = {
+                id: 'tenshi',
+                name: 'Tenshi',
+                instructions: 'Orquestadora y Guía Oficial de WAPPY IA'
+            };
+            const session = new VoiceSession(clientWs, userId, apiKeys, config, conversationId);
+            session.agentObj = agentObj;
+            session.isBiomechanics = false;
+            session.agentProtocol = { id: 'tenshi', title: 'Tenshi Orquestadora', methodLabel: 'Orquestación WAPPY' };
+
+            const result = await session.start();
+
+            if (result.success) {
+                activeSessions.set(userId, session);
+                return { success: true, session };
+            } else {
+                return { success: false, error: result.error };
+            }
+        }
+
         // Load agent prompt/instructions if applicable
         let agentId = config.agentId;
         if (!agentId && conversationId && conversationId !== 'new') {
@@ -2330,8 +2473,7 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
                 const { Agent } = require('~/db/models');
                 // Check if user is in biomechanics / fisioterapeuta mode or template
                 const wantsBiomechanics = config.mode === 'live_analysis' || 
-                                          config.template === 'biomecanico_mediapipe' || 
-                                          !agentId;
+                                          config.template === 'biomecanico_mediapipe';
                 if (wantsBiomechanics) {
                     agentObj = await Agent.findOne({
                         $or: [

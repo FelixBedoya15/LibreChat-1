@@ -283,6 +283,14 @@ export default function useQueryParams({
   }, [methods, submitMessage, conversation]);
 
   useEffect(() => {
+    if (searchParams.has('agent_id') || searchParams.has('prompt') || searchParams.has('q')) {
+      processedRef.current = false;
+      attemptsRef.current = 0;
+      submissionHandledRef.current = false;
+      pendingSubmitRef.current = false;
+      settingsAppliedRef.current = false;
+    }
+
     const processQueryParams = () => {
       const queryParams: Record<string, string> = {};
       searchParams.forEach((value, key) => {

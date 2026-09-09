@@ -270,9 +270,15 @@ class GeminiLiveClient extends EventEmitter {
                 systemInstruction: {
                     parts: [
                         {
-                            text: this.config.systemInstruction
-                                ? `${this.config.systemInstruction}\n\n${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.config.conversationContext}` : ''}`
-                                : `Eres un Asistente Senior en Seguridad y Salud en el Trabajo (SST/HSE) de WAPPY IA. Tienes capacidades multimodales: puedes escuchar, hablar y ver por la cámara del usuario en tiempo real.
+                            text: (() => {
+                                const spanishAudioLock = `[DIRECTIVA OBLIGATORIA DE IDIOMA Y AUDIO]:
+- IDIOMA EXCLUSIVO: ESPAÑOL (Colombia / Latinoamérica).
+- El usuario habla SIEMPRE en ESPAÑOL.
+- ESTÁ TERMINANTEMENTE PROHIBIDO transcribir, interpretar o decodificar el audio recibido en hindi, urdu, árabe, inglés o cualquier otro idioma ajeno. Interpreta todos los sonidos acústicos como palabras en español.`;
+
+                                let base = this.config.systemInstruction
+                                    ? `${this.config.systemInstruction}\n\n${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.config.conversationContext}` : ''}`
+                                    : `Eres un Asistente Senior en Seguridad y Salud en el Trabajo (SST/HSE) de WAPPY IA. Tienes capacidades multimodales: puedes escuchar, hablar y ver por la cámara del usuario en tiempo real.
 
 INSTRUCCIONES DE COMPORTAMIENTO EN VIVO:
 1. **CONCISIÓN Y FLUIDEZ ORAL:** Responde siempre en español conversacional, claro y natural. Habla en 1 o 2 oraciones por turno para mantener un diálogo dinámico. No des monólogos largos.
@@ -281,7 +287,13 @@ INSTRUCCIONES DE COMPORTAMIENTO EN VIVO:
 4. **CAPACIDAD VISUAL:** Tienes acceso visual activo a la cámara del usuario. Observa su postura o entorno y dale retroalimentación amable, técnica y práctica.
 5. **INTERRUPCIÓN:** Si el usuario te habla o pide parar, detén la respuesta actual y atiende su nueva orden.
 
-${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.config.conversationContext}` : ''}`,
+${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.config.conversationContext}` : ''}`;
+
+                                if (!base.includes('DIRECTIVA CRÍTICA DE IDIOMA') && !base.includes('DIRECTIVA OBLIGATORIA DE IDIOMA')) {
+                                    base = `${spanishAudioLock}\n\n${base}`;
+                                }
+                                return base;
+                            })(),
                         },
                     ],
                 },

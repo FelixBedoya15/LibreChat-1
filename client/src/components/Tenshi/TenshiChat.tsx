@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { X, Send, Sparkles, RotateCcw, FileText, Edit2, Trash2, RefreshCw, Mic, Volume2 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
+import { useListAgentsQuery } from '~/data-provider';
 import { useRecoilValue } from 'recoil';
 import store from '~/store';
 import Markdown from '~/components/Chat/Messages/Content/Markdown';
@@ -11,9 +12,91 @@ import { getDehydratedDOM, executeGUIAction } from '../Chat/TenshiPageController
 import { useVoiceSession } from '~/hooks/useVoiceSession';
 import { cn } from '~/utils';
 
+const normalizeStr = (s: string) =>
+  (s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .trim();
+
+const findMatchingAgent = (targetName: string, agentsList: any[]) => {
+  if (!targetName || !agentsList?.length) return null;
+  const target = normalizeStr(targetName);
+
+  // 1. Coincidencia exacta de nombre
+  let found = agentsList.find((a) => normalizeStr(a.name) === target);
+  if (found) return found;
+
+  // 2. Coincidencia por inclusión
+  found = agentsList.find(
+    (a) =>
+      normalizeStr(a.name).includes(target) ||
+      target.includes(normalizeStr(a.name))
+  );
+  if (found) return found;
+
+  // 3. Diccionario de palabras clave para los 22 agentes de WAPPY SST
+  const KEYWORD_MAP: { keywords: string[]; agentName: string }[] = [
+    { keywords: ['abogad', 'juridic', 'laboral', 'contrat', 'disciplinari', 'ley 1010', 'ley 2365', 'rit'], agentName: 'abogado laboral' },
+    { keywords: ['medic', 'doctor', 'salud ocupacional', 'origen', 'restriccion', 'ausentism', 'epidemiolog'], agentName: 'medico laboral' },
+    { keywords: ['fisioterap', 'ergonom', 'postur', 'musculoesquelet', 'owas', 'rosa', 'rula', 'biomecan'], agentName: 'fisioterapeuta laboral' },
+    { keywords: ['psicolog', 'psicosocial', 'estres', 'bateria', 'acoso', 'clima'], agentName: 'psicologo sst' },
+    { keywords: ['salud mental', 'terapeuta', 'burnout', 'agotamiento', 'emocional'], agentName: 'terapeuta en salud mental' },
+    { keywords: ['nutricion', 'dieta', 'aliment', 'cardiovascular'], agentName: 'nutricionista laboral' },
+    { keywords: ['primer respondiente', 'primeros auxilios', 'rcp', 'botiquin', 'hemorragia'], agentName: 'primer respondiente' },
+    { keywords: ['emergencia', 'pae', 'evacuacion', 'brigada', 'simulacro'], agentName: 'coordinador de emergencias' },
+    { keywords: ['bioseguridad', 'biologic', 'vacun', 'pgirh', 'infecc'], agentName: 'especialista en bioseguridad' },
+    { keywords: ['electric', 'retie', 'arco electrico', 'loto', 'energias peligrosas'], agentName: 'ingeniero electricista sst' },
+    { keywords: ['quimic', 'sga', 'fds', 'hds', 'derrame', 'sustancias', 'hoja de seguridad', 'rotulado'], agentName: 'ingeniero quimico sst' },
+    { keywords: ['vial', 'pesv', 'transito', 'vehicul', 'conductor', 'ansv', 'carretera'], agentName: 'coordinador de seguridad vial' },
+    { keywords: ['tareas criticas', 'alturas', 'tsa', 'confinados', 'caliente', 'excavacion', 'permiso'], agentName: 'coordinador de tareas criticas' },
+    { keywords: ['minas', 'minero', 'subterranea', 'tunel', 'explosivo'], agentName: 'ingeniero de minas sst' },
+    { keywords: ['auditor', '0312', 'estandares', 'phva', 'auditoria'], agentName: 'auditor sg-sst' },
+    { keywords: ['ambiental', 'residuo', 'vertimiento', 'ecolog'], agentName: 'ingeniero ambiental' },
+    { keywords: ['climatic', 'estres termico', 'radiacion uv', 'clima extremo'], agentName: 'especialista en riesgo climatico' },
+    { keywords: ['redactor', 'blog', 'articulo', 'publicacion'], agentName: 'redactor creativo' },
+    { keywords: ['simulador', 'siniestro', 'causa raiz', 'investigacion'], agentName: 'simulador de accidentes sst' },
+    { keywords: ['capacitacion', 'pac', 'induccion', 'charla 5 min', 'formacion'], agentName: 'coordinador de capacitaciones' },
+    { keywords: ['profesional sst', 'campo', 'inspeccion'], agentName: 'profesional sst' },
+    { keywords: ['consultor', 'general', 'sst'], agentName: 'consultor sg-sst' },
+  ];
+
+  for (const entry of KEYWORD_MAP) {
+    if (entry.keywords.some((kw) => target.includes(kw))) {
+      found = agentsList.find((a) => normalizeStr(a.name).includes(entry.agentName));
+      if (found) return found;
+    }
+  }
+
+  // 4. Búsqueda por coincidencia de tokens
+  const targetWords = target.split(/\s+/).filter((w) => w.length > 2);
+  let bestMatch = null;
+  let bestOverlap = 0;
+  for (const a of agentsList) {
+    const aName = normalizeStr(a.name);
+    const aWords = aName.split(/\s+/);
+    const overlap = targetWords.filter((w) => aWords.some((aw) => aw.includes(w) || w.includes(aw))).length;
+    if (overlap > bestOverlap) {
+      bestOverlap = overlap;
+      bestMatch = a;
+    }
+  }
+
+  return bestOverlap > 0 ? bestMatch : null;
+};
+
 export default function TenshiChat() {
   const navigate = useNavigate();
   const { isAuthenticated, token } = useAuthContext();
+  const { data: agentsData } = useListAgentsQuery({ requiredPermission: 1, limit: 100 });
+  const agentsRef = useRef<any[]>([]);
+
+  useEffect(() => {
+    if (agentsData?.data) {
+      agentsRef.current = agentsData.data;
+    }
+  }, [agentsData]);
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<
     { _id?: string; role: string; content: string; htmlReport?: string }[]
@@ -195,46 +278,171 @@ export default function TenshiChat() {
 
         try {
           if (action.name === 'wappy_navegar') {
-            const modulo = (action.args?.modulo || '').toLowerCase();
-            const ruta = action.args?.ruta;
+            const rawModulo = (action.args?.modulo || '').toLowerCase().trim();
+            const rawRuta = action.args?.ruta;
 
-            if (ruta) {
-              navigate(ruta);
-              resultMsg = `Navegación a ${ruta} completada`;
-            } else if (modulo.includes('perfil') || modulo.includes('cargo') || modulo.includes('bio_motor')) {
-              navigate('/sgsst?super=bio_motor');
-              resultMsg = 'Navegado a Huella Biocéntrica (Perfiles de Cargo)';
-              setTimeout(() => {
-                const elements = document.querySelectorAll('button, div, span, a');
-                for (const el of Array.from(elements)) {
-                  if ((el.textContent || '').toLowerCase().includes('perfiles de cargo')) {
-                    (el as HTMLElement).click();
-                    break;
-                  }
-                }
-              }, 400);
-            } else if (modulo.includes('ipevar') || modulo.includes('matriz')) {
-              navigate('/sgsst?super=bio_motor');
-              resultMsg = 'Navegado a Matriz IPEVAR';
-            } else if (modulo.includes('pesv') || modulo.includes('vial')) {
-              navigate('/sgsst');
-              resultMsg = 'Navegado a Módulo PESV (Seguridad Vial)';
-            } else if (modulo.includes('plan')) {
-              navigate('/planes');
-              resultMsg = 'Navegado a Sección de Planes';
-            } else if (modulo.includes('control') || modulo.includes('acpm')) {
-              navigate('/sgsst/control');
-              resultMsg = 'Navegado a Centro de Control ACPM';
-            } else if (modulo.includes('academia') || modulo.includes('curso')) {
-              navigate('/academia');
-              resultMsg = 'Navegado a Academia y Formación';
-            } else if (modulo.includes('blog')) {
-              navigate('/blog');
-              resultMsg = 'Navegado a Blog';
-            } else {
-              navigate('/sgsst');
-              resultMsg = `Navegado a ${modulo}`;
+            const HITO_MAP: Record<string, { route: string; sgsstModule?: string }> = {
+              // Hito 1: Gobernanza y Cimiento Legal
+              diagnostico: { route: '/sgsst?hito=hito1&module=diagnostico', sgsstModule: 'diagnostico' },
+              '0312': { route: '/sgsst?hito=hito1&module=diagnostico', sgsstModule: 'diagnostico' },
+              responsable: { route: '/sgsst?hito=hito1&module=responsable', sgsstModule: 'responsable' },
+              politica: { route: '/sgsst?hito=hito1&module=politica', sgsstModule: 'politica' },
+              objetivos: { route: '/sgsst?hito=hito1&module=objetivos', sgsstModule: 'objetivos' },
+              legal: { route: '/sgsst?hito=hito1&module=legal', sgsstModule: 'legal' },
+              matriz_legal: { route: '/sgsst?hito=hito1&module=legal', sgsstModule: 'legal' },
+              rhs: { route: '/sgsst?hito=hito1&module=rhs', sgsstModule: 'rhs' },
+              rit: { route: '/sgsst?hito=hito1&module=rit', sgsstModule: 'rit' },
+              reglamento: { route: '/sgsst?hito=hito1&module=rhs', sgsstModule: 'rhs' },
+              vulnerabilidad: { route: '/sgsst?hito=hito1&module=vulnerabilidad', sgsstModule: 'vulnerabilidad' },
+              emergencias: { route: '/sgsst?hito=hito1&module=vulnerabilidad', sgsstModule: 'vulnerabilidad' },
+              hito1: { route: '/sgsst?hito=hito1', sgsstModule: 'diagnostico' },
+
+              // Hito 2: Huella Biocéntrica
+              perfil_cargo: { route: '/sgsst?hito=hito2&module=perfil_cargo', sgsstModule: 'perfil_cargo' },
+              cargo: { route: '/sgsst?hito=hito2&module=perfil_cargo', sgsstModule: 'perfil_cargo' },
+              profesigrama: { route: '/sgsst?hito=hito2&module=perfil_cargo', sgsstModule: 'perfil_cargo' },
+              perfil_socio: { route: '/sgsst?hito=hito2&module=perfil_socio', sgsstModule: 'perfil_socio' },
+              sociodemografico: { route: '/sgsst?hito=hito2&module=perfil_socio', sgsstModule: 'perfil_socio' },
+              condiciones_salud: { route: '/sgsst?hito=hito2&module=condiciones_salud', sgsstModule: 'condiciones_salud' },
+              salud: { route: '/sgsst?hito=hito2&module=condiciones_salud', sgsstModule: 'condiciones_salud' },
+              bio_motor: { route: '/sgsst?hito=hito2&module=perfil_cargo', sgsstModule: 'perfil_cargo' },
+              hito2: { route: '/sgsst?hito=hito2', sgsstModule: 'perfil_cargo' },
+
+              // Hito 3: Evaluación Dinámica de Riesgos
+              peligros: { route: '/sgsst?hito=hito3&module=peligros', sgsstModule: 'peligros' },
+              ipevar: { route: '/sgsst?hito=hito3&module=peligros', sgsstModule: 'peligros' },
+              matriz_gtc45: { route: '/sgsst?hito=hito3&module=peligros', sgsstModule: 'peligros' },
+              gtc45: { route: '/sgsst?hito=hito3&module=peligros', sgsstModule: 'peligros' },
+              animo: { route: '/sgsst?hito=hito3&module=animo', sgsstModule: 'animo' },
+              psicosocial: { route: '/sgsst?hito=hito3&module=animo', sgsstModule: 'animo' },
+              clima: { route: '/sgsst?hito=hito3&module=animo', sgsstModule: 'animo' },
+              participacion_ipevar: { route: '/sgsst?hito=hito3&module=participacion_ipevar', sgsstModule: 'participacion_ipevar' },
+              hito3: { route: '/sgsst?hito=hito3', sgsstModule: 'peligros' },
+
+              // Hito 4: Dinámica Operativa y Terreno
+              vehicles_pesv: { route: '/sgsst?hito=hito4&module=vehicles_pesv', sgsstModule: 'vehicles_pesv' },
+              pesv: { route: '/sgsst?hito=hito4&module=vehicles_pesv', sgsstModule: 'vehicles_pesv' },
+              vial: { route: '/sgsst?hito=hito4&module=vehicles_pesv', sgsstModule: 'vehicles_pesv' },
+              chemical_registry: { route: '/sgsst?hito=hito4&module=chemical_registry', sgsstModule: 'chemical_registry' },
+              quimicos: { route: '/sgsst?hito=hito4&module=chemical_registry', sgsstModule: 'chemical_registry' },
+              sga: { route: '/sgsst?hito=hito4&module=chemical_registry', sgsstModule: 'chemical_registry' },
+              permiso_alturas: { route: '/sgsst?hito=hito4&module=permiso_alturas', sgsstModule: 'permiso_alturas' },
+              alturas: { route: '/sgsst?hito=hito4&module=permiso_alturas', sgsstModule: 'permiso_alturas' },
+              analisis_trabajo_seguro: { route: '/sgsst?hito=hito4&module=analisis_trabajo_seguro', sgsstModule: 'analisis_trabajo_seguro' },
+              ats: { route: '/sgsst?hito=hito4&module=analisis_trabajo_seguro', sgsstModule: 'analisis_trabajo_seguro' },
+              metodo_owas: { route: '/sgsst?hito=hito4&module=metodo_owas', sgsstModule: 'metodo_owas' },
+              owas: { route: '/sgsst?hito=hito4&module=metodo_owas', sgsstModule: 'metodo_owas' },
+              ergonomia: { route: '/sgsst?hito=hito4&module=metodo_owas', sgsstModule: 'metodo_owas' },
+              epp_delivery: { route: '/sgsst?hito=hito4&module=epp_delivery', sgsstModule: 'epp_delivery' },
+              epp: { route: '/sgsst?hito=hito4&module=epp_delivery', sgsstModule: 'epp_delivery' },
+              heights_lifecycle: { route: '/sgsst?hito=hito4&module=heights_lifecycle', sgsstModule: 'heights_lifecycle' },
+              hito4: { route: '/sgsst?hito=hito4', sgsstModule: 'vehicles_pesv' },
+
+              // Hito 5: Cultura, Escuela e Innovación
+              capacitaciones: { route: '/sgsst?hito=hito5&module=capacitaciones', sgsstModule: 'capacitaciones' },
+              ruta_aprendizaje: { route: '/sgsst?hito=hito5&module=ruta_aprendizaje', sgsstModule: 'ruta_aprendizaje' },
+              reporte_actos: { route: '/sgsst?hito=hito5&module=reporte_actos', sgsstModule: 'reporte_actos' },
+              actos: { route: '/sgsst?hito=hito5&module=reporte_actos', sgsstModule: 'reporte_actos' },
+              app_builder: { route: '/sgsst?hito=hito5&module=app_builder', sgsstModule: 'app_builder' },
+              hito5: { route: '/sgsst?hito=hito5', sgsstModule: 'capacitaciones' },
+
+              // Hito 6: Auditoría, Causalidad & Cierre de Ciclo
+              estadisticas: { route: '/sgsst?hito=hito6&module=estadisticas', sgsstModule: 'estadisticas' },
+              atel: { route: '/sgsst?hito=hito6&module=estadisticas', sgsstModule: 'estadisticas' },
+              investigacion_atel: { route: '/sgsst?hito=hito6&module=investigacion_atel', sgsstModule: 'investigacion_atel' },
+              accidentes: { route: '/sgsst?hito=hito6&module=investigacion_atel', sgsstModule: 'investigacion_atel' },
+              control_acpm: { route: '/sgsst?hito=hito6&module=control_acpm', sgsstModule: 'control_acpm' },
+              acpm: { route: '/sgsst?hito=hito6&module=control_acpm', sgsstModule: 'control_acpm' },
+              auditoria: { route: '/sgsst?hito=hito6&module=auditoria', sgsstModule: 'auditoria' },
+              alta_direccion: { route: '/sgsst?hito=hito6&module=alta_direccion', sgsstModule: 'alta_direccion' },
+              hito6: { route: '/sgsst?hito=hito6', sgsstModule: 'estadisticas' },
+
+              // Hito 7: Inteligencia Artificial & Oráculo Predictivo
+              predictivo: { route: '/sgsst?hito=hito7&module=predictivo', sgsstModule: 'predictivo' },
+              oraculo: { route: '/sgsst?hito=hito7&module=predictivo', sgsstModule: 'predictivo' },
+              oraculo_predictivo: { route: '/sgsst?hito=hito7&module=predictivo', sgsstModule: 'predictivo' },
+              siniestralidad: { route: '/sgsst?hito=hito7&module=predictivo', sgsstModule: 'predictivo' },
+              hito7: { route: '/sgsst?hito=hito7', sgsstModule: 'predictivo' },
+
+              // Módulos Generales de WAPPY
+              planes: { route: '/planes' },
+              precios: { route: '/planes' },
+              tarifas: { route: '/planes' },
+              academia: { route: '/academia?tab=cursos' },
+              cursos: { route: '/academia?tab=cursos' },
+              curso: { route: '/academia?tab=cursos' },
+              training: { route: '/academia?tab=cursos' },
+              rutas: { route: '/academia?tab=rutas' },
+              ruta: { route: '/academia?tab=rutas' },
+              meet: { route: '/academia?tab=meet' },
+              clases: { route: '/academia?tab=meet' },
+              blog: { route: '/blog' },
+              control: { route: '/sgsst/control' },
+              kanban: { route: '/sgsst/control' },
+              agents: { route: '/agents' },
+              agentes: { route: '/agents' },
+              live: { route: '/live' },
+              inspeccion: { route: '/live' },
+              biomecanica: { route: '/live' },
+              chat: { route: '/c/new' },
+            };
+
+            let targetRoute = rawRuta;
+            let targetSgsstModule: string | undefined = undefined;
+
+            if (!targetRoute) {
+              const matchedKey = Object.keys(HITO_MAP).find((k) => rawModulo.includes(k));
+              if (matchedKey && HITO_MAP[matchedKey]) {
+                targetRoute = HITO_MAP[matchedKey].route;
+                targetSgsstModule = HITO_MAP[matchedKey].sgsstModule;
+              } else {
+                targetRoute = '/sgsst';
+              }
             }
+
+            // Extract sgsst module from targetRoute if present
+            if (targetRoute.includes('/sgsst') && targetRoute.includes('module=')) {
+              try {
+                const urlMatch = targetRoute.match(/module=([^&]+)/);
+                if (urlMatch && urlMatch[1]) {
+                  targetSgsstModule = urlMatch[1];
+                }
+              } catch (_) {}
+            }
+
+            navigate(targetRoute);
+
+            // Emit live event so active SGSST Dashboard updates immediately without full page reload
+            if (targetSgsstModule) {
+              window.dispatchEvent(
+                new CustomEvent('navigate-sgsst', { detail: { module: targetSgsstModule } })
+              );
+            }
+
+            resultMsg = `Navegación exitosa a ${targetRoute}`;
+          } else if (action.name === 'wappy_abrir_chat_agente') {
+            const rawAgente = (action.args?.agente || '').trim();
+            const pregunta = (action.args?.pregunta || '').trim();
+            const matchedAgent = findMatchingAgent(rawAgente, agentsRef.current);
+
+            const params = new URLSearchParams();
+            if (matchedAgent?.id) {
+              params.set('agent_id', matchedAgent.id);
+            }
+            if (pregunta) {
+              params.set('prompt', pregunta);
+              params.set('submit', 'true');
+            }
+
+            const targetRoute = `/c/new${params.toString() ? `?${params.toString()}` : ''}`;
+            navigate(targetRoute);
+
+            // Cerrar el drawer lateral para ver directamente el chat del agente especializado
+            setIsOpen(false);
+
+            resultMsg = matchedAgent
+              ? `Chat abierto con ${matchedAgent.name}${pregunta ? ` y consulta enviada: "${pregunta}"` : ''}`
+              : `Nuevo chat abierto${pregunta ? ` con la consulta: "${pregunta}"` : ''}`;
           } else if (action.name === 'wappy_seleccionar_empresa') {
             const companyName = action.args?.nombre_o_id;
             resultMsg = `Empresa "${companyName}" seleccionada y activa en el sistema`;
@@ -268,6 +476,7 @@ export default function TenshiChat() {
         } else if (newStatus === 'interrupted') {
           clearAudioQueue();
           setVoiceStatusText('Interrumpido. Escuchando...');
+          setMessages((prev) => prev.map((m) => ({ ...m, isLiveVoice: false })));
         }
       },
       onError: (err: string) => {
