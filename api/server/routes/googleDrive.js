@@ -27,7 +27,8 @@ const SCOPES = [
 ];
 
 const getOAuth2Client = (redirectUri) => {
-  const domain = (process.env.DOMAIN_SERVER || '').replace(/\/$/, '');
+  const rawDomain = process.env.DOMAIN_SERVER || process.env.DOMAIN_CLIENT || 'https://wappy.club';
+  const domain = rawDomain.replace(/https?:\/\/wappy-ia\.com/g, 'https://wappy.club').replace(/\/+$/, '');
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
@@ -46,11 +47,12 @@ router.get('/auth', requireJwtAuth, async (req, res) => {
     const companyId = company ? String(company._id) : null;
 
     // Get the referer to redirect back to the correct domain
-    const referer = req.headers.referer || req.headers.origin || process.env.DOMAIN_CLIENT;
-    let clientDomain = process.env.DOMAIN_CLIENT;
+    const defaultClient = (process.env.DOMAIN_CLIENT || 'https://wappy.club').replace(/https?:\/\/wappy-ia\.com/g, 'https://wappy.club').replace(/\/+$/, '');
+    const referer = req.headers.referer || req.headers.origin || defaultClient;
+    let clientDomain = defaultClient;
     try {
       const parsedUrl = new URL(referer);
-      clientDomain = `${parsedUrl.protocol}//${parsedUrl.host}`;
+      clientDomain = `${parsedUrl.protocol}//${parsedUrl.host}`.replace(/https?:\/\/wappy-ia\.com/g, 'https://wappy.club');
     } catch (e) {
       // Fallback to DOMAIN_CLIENT
     }
@@ -81,12 +83,12 @@ router.get('/callback', async (req, res) => {
   const { code, state, error } = req.query;
 
   // We need to parse clientDomain even if there is an error to redirect the user to the correct site.
-  let clientDomain = process.env.DOMAIN_CLIENT;
+  let clientDomain = (process.env.DOMAIN_CLIENT || 'https://wappy.club').replace(/https?:\/\/wappy-ia\.com/g, 'https://wappy.club').replace(/\/+$/, '');
   try {
     if (state) {
       const decoded = jwt.verify(state, process.env.JWT_SECRET);
       if (decoded.clientDomain) {
-        clientDomain = decoded.clientDomain;
+        clientDomain = decoded.clientDomain.replace(/https?:\/\/wappy-ia\.com/g, 'https://wappy.club').replace(/\/+$/, '');
       }
     }
   } catch (e) {

@@ -27,6 +27,11 @@ const moodTelemetrySchema = new mongoose.Schema(
       default: '',
       index: true,
     }, // Opcional (ej: 'Operaciones', 'Ventas')
+    deviceId: {
+      type: String,
+      default: '',
+      index: true,
+    }, // Identificador anónimo del dispositivo / equipo
   },
   {
     timestamps: true, // Esto nos provee automáticamente createdAt y updatedAt

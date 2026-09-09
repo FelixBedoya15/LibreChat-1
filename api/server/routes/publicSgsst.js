@@ -872,7 +872,7 @@ router.post('/perfil-update/:companyId/:workerId?', async (req, res) => {
 router.post('/mood/:companyId', async (req, res) => {
   try {
     const { companyId } = req.params;
-    const { mood, department } = req.body;
+    const { mood, department, deviceId } = req.body;
 
     if (!mood || !['happy', 'neutral', 'sad'].includes(mood)) {
       return res.status(400).json({ error: 'Estado de ánimo inválido o ausente.' });
@@ -884,10 +884,35 @@ router.post('/mood/:companyId', async (req, res) => {
     }
 
     const MoodTelemetry = require('~/models/MoodTelemetry');
+
+    // Validación de 1 reporte por día por dispositivo / equipo
+    if (deviceId && typeof deviceId === 'string' && deviceId.trim()) {
+      const cleanDeviceId = deviceId.trim();
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const endOfDay = new Date();
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const existingRecord = await MoodTelemetry.findOne({
+        companyId: company._id,
+        deviceId: cleanDeviceId,
+        createdAt: { $gte: startOfDay, $lte: endOfDay },
+      });
+
+      if (existingRecord) {
+        return res.status(429).json({
+          error: 'Ya has registrado tu estado de ánimo el día de hoy desde este equipo.',
+          alreadyReportedToday: true,
+        });
+      }
+    }
+
     const telemetry = new MoodTelemetry({
       companyId: company._id,
       mood,
       department: department || '',
+      deviceId: deviceId ? String(deviceId).trim() : '',
     });
 
     await telemetry.save();

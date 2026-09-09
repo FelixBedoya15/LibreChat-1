@@ -55,7 +55,8 @@ class GoogleGmailTool extends Tool {
         const PESVWorkspaceSession = require('~/models/PESVWorkspaceSession');
         const ChemicalCompatibilitySession = require('~/models/ChemicalCompatibilitySession');
 
-        const domain = (process.env.DOMAIN_CLIENT || '').replace(/\/$/, '');
+        const rawDomain = process.env.DOMAIN_CLIENT || 'https://wappy.club';
+        const domain = rawDomain.replace(/https?:\/\/wappy-ia\.com/g, 'https://wappy.club').replace(/\/+$/, '');
         const links = [];
 
         // 1. Check Canvas Session

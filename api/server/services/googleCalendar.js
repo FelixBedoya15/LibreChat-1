@@ -8,7 +8,8 @@ const { getScopedAuthValue, updateScopedAuthValue } = require('./googleAuthHelpe
  * Returns null if the user has not connected Google Drive/Workspace.
  */
 const getOAuth2Client = (redirectUri) => {
-  const domain = (process.env.DOMAIN_SERVER || '').replace(/\/$/, '');
+  const rawDomain = process.env.DOMAIN_SERVER || process.env.DOMAIN_CLIENT || 'https://wappy.club';
+  const domain = rawDomain.replace(/https?:\/\/wappy-ia\.com/g, 'https://wappy.club').replace(/\/+$/, '');
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,

@@ -4,7 +4,7 @@ import { useToastContext } from '@librechat/client';
 import { 
   Building2, QrCode, Printer, Heart, Smile, Meh, Frown, 
   TrendingUp, Sparkles, Users, BarChart2, Calendar, 
-  ArrowLeft, Download, Eye, AlertCircle, Loader2
+  ArrowLeft, Download, Eye, AlertCircle, Loader2, Trash2
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -34,8 +34,46 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
   const [moodData, setMoodData] = useState<MoodRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterDays, setFilterDays] = useState<number>(30);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [recordToDelete, setRecordToDelete] = useState<MoodRecord | null>(null);
+  const [showClearAllModal, setShowClearAllModal] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
 
   const showFullView = isMaximized === undefined || isMaximized === true;
+
+  const handleDeleteRecord = async (id: string) => {
+    try {
+      setDeletingId(id);
+      await axios.delete(`/api/sgsst/estadisticas/mood/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setMoodData(prev => prev.filter(item => item._id !== id));
+      showToast({ message: 'Registro eliminado exitosamente.', status: 'success' });
+      setRecordToDelete(null);
+    } catch (error) {
+      console.error('Error deleting record:', error);
+      showToast({ message: 'Error al eliminar el registro.', status: 'error' });
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleClearAllRecords = async () => {
+    try {
+      setIsDeletingAll(true);
+      await axios.delete('/api/sgsst/estadisticas/mood', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setMoodData([]);
+      showToast({ message: 'Todos los registros han sido eliminados.', status: 'success' });
+      setShowClearAllModal(false);
+    } catch (error) {
+      console.error('Error clearing records:', error);
+      showToast({ message: 'Error al vaciar los registros.', status: 'error' });
+    } finally {
+      setIsDeletingAll(false);
+    }
+  };
 
   useEffect(() => {
     if (!token) return;
@@ -174,71 +212,96 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
               width: 100%;
               max-width: 650px;
               background: white;
-              border: 3px solid #0e9f6e;
+              border: 2px solid #10b981;
               border-radius: 32px;
-              padding: 50px 40px;
-              box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+              padding: 45px 40px;
+              box-shadow: 0 20px 25px -5px rgba(0,0,0,0.06);
               text-align: center;
               box-sizing: border-box;
             }
-            .logo-placeholder {
-              font-size: 28px;
+            .brand-badge {
+              display: inline-flex;
+              align-items: center;
+              gap: 8px;
+              padding: 6px 16px;
+              border-radius: 9999px;
+              background: #ecfdf5;
+              border: 1px solid #a7f3d0;
+              color: #047857;
+              font-size: 11px;
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              margin-bottom: 20px;
+            }
+            .company-logo {
+              max-height: 55px;
+              max-width: 180px;
+              object-contain: contain;
+              margin: 0 auto 15px auto;
+              display: block;
+            }
+            .company-name {
+              font-size: 24px;
               font-weight: 800;
-              color: #0e9f6e;
-              margin-bottom: 25px;
+              color: #0f172a;
+              margin-bottom: 20px;
+              letter-spacing: -0.5px;
             }
             h1 {
-              font-size: 38px;
+              font-size: 34px;
               font-weight: 800;
-              margin: 0 0 10px 0;
-              color: #111827;
+              margin: 0 0 8px 0;
+              color: #0f172a;
               letter-spacing: -1px;
             }
             h2 {
-              font-size: 20px;
+              font-size: 18px;
               font-weight: 600;
               color: #059669;
-              margin: 0 0 30px 0;
+              margin: 0 0 25px 0;
             }
             .desc {
-              font-size: 16px;
-              color: #4b5563;
+              font-size: 15px;
+              color: #475569;
               line-height: 1.6;
-              margin-bottom: 40px;
-              padding: 0 20px;
+              margin-bottom: 30px;
+              padding: 0 15px;
             }
             .qr-wrapper {
               display: inline-block;
-              padding: 20px;
-              background: #f3f4f6;
-              border-radius: 24px;
-              border: 1px dashed #d1d5db;
-              margin-bottom: 30px;
+              padding: 22px;
+              background: #f8fafc;
+              border-radius: 28px;
+              border: 2px dashed #cbd5e1;
+              margin-bottom: 25px;
+              box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
             }
             .qr-img {
-              width: 230px;
-              height: 230px;
+              width: 220px;
+              height: 220px;
               display: block;
+              border-radius: 12px;
             }
             .tagline {
-              font-size: 15px;
-              font-weight: 600;
-              color: #6d28d9;
-              margin-bottom: 20px;
+              font-size: 14px;
+              font-weight: 700;
+              color: #047857;
+              margin-bottom: 15px;
             }
             .footer {
-              font-size: 12px;
-              color: #9ca3af;
-              margin-top: 40px;
-              border-top: 1px solid #e5e7eb;
-              padding-top: 20px;
+              font-size: 11px;
+              color: #94a3b8;
+              margin-top: 30px;
+              border-top: 1px solid #f1f5f9;
+              padding-top: 15px;
             }
             @media print {
               body { background: white; }
               .poster-card {
-                border: none;
+                border: 2px solid #10b981;
                 box-shadow: none;
-                padding: 20px;
+                padding: 30px 20px;
                 max-width: 100%;
               }
               .no-print { display: none; }
@@ -247,18 +310,20 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
         </head>
         <body>
           <div class="poster-card">
-            <div class="logo-placeholder">${companyInfo?.companyName?.toUpperCase() || 'MI EMPRESA'}</div>
+            <div class="brand-badge">WAPPY SG-SST • BIENESTAR LABORAL</div>
+            ${companyInfo?.logoBase64 ? `<img src="${companyInfo.logoBase64}" class="company-logo" alt="Logo" />` : ''}
+            <div class="company-name">${companyInfo?.companyName || 'MI EMPRESA'}</div>
             <h1>¿Cómo te sientes hoy?</h1>
             <h2>Termómetro Psicosocial Confidencial</h2>
             <p class="desc">
-              Tu salud mental y bienestar son la máxima prioridad para nosotros. Escanea el código QR de abajo con la cámara de tu celular, cuéntanos tu estado de ánimo de hoy y conversa si lo deseas con nuestro Psicólogo Especialista en SST. Es 100% privado y anónimo.
+              Tu salud mental y bienestar son nuestra prioridad. Escanea el código QR con la cámara de tu celular, indícanos cómo te sientes hoy y recibe acompañamiento confidencial con nuestro Terapeuta Especialista en Salud Mental y Riesgo Psicosocial. Es 100% anónimo y toma menos de un minuto.
             </p>
             <div class="qr-wrapper">
               <img class="qr-img" src="${qrImageSrc}" alt="QR code" />
             </div>
             <div class="tagline">¡Tu voz importa, cuidémonos juntos!</div>
             <div class="footer">
-              En cumplimiento con las normas éticas de la Batería de Riesgo Psicosocial.
+              En estricto cumplimiento con las normas éticas de la Batería de Riesgo Psicosocial. Desarrollado de forma segura por WAPPY IA.
             </div>
           </div>
           <script>
@@ -565,11 +630,11 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
 
         </div>
 
-        {/* Right Side: Recent AI Psychologist Conversations (Confidential details) */}
+        {/* Right Side: Recent Therapist Conversations (Confidential details) */}
         <div className="bg-surface-primary border border-border-medium rounded-2xl p-6 space-y-4 shadow-sm flex flex-col h-full">
           <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
             <Heart className="w-4 h-4 text-red-500 animate-pulse" />
-            Hallazgos y Comentarios de IA Psicólogo (Anónimos)
+            Hallazgos y Comentarios del Terapeuta (Anónimos)
           </h3>
           
           <div className="flex-1 overflow-y-auto space-y-4 max-h-[400px] scrollbar-thin pr-1 pt-2">
@@ -577,7 +642,7 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
               filteredData
                 .filter(d => d.details)
                 .map((d, i) => (
-                  <div key={i} className="p-3.5 bg-surface-secondary border border-border-light rounded-xl space-y-2 text-xs">
+                  <div key={d._id || i} className="p-3.5 bg-surface-secondary border border-border-light rounded-xl space-y-2 text-xs relative group">
                     <div className="flex items-center justify-between text-[10px] text-text-secondary font-bold uppercase tracking-wider">
                       <span className="flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5" />
@@ -585,15 +650,24 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
                           day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
                         })}
                       </span>
-                      <span className={`px-2 py-0.5 rounded-full border text-[9px] font-bold ${
-                        d.mood === 'happy'
-                          ? 'bg-emerald-55 border-emerald-200 text-emerald-600 dark:bg-emerald-950/20 dark:border-emerald-800 dark:text-emerald-400'
-                          : d.mood === 'neutral'
-                          ? 'bg-amber-50 border-amber-200 text-amber-600 dark:bg-amber-950/20 dark:border-amber-800 dark:text-amber-400'
-                          : 'bg-red-50 border-red-200 text-red-600 dark:bg-red-950/20 dark:border-red-800 dark:text-red-400'
-                      }`}>
-                        {d.mood === 'happy' ? 'Feliz' : d.mood === 'neutral' ? 'Neutral' : 'Estresado'}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`px-2 py-0.5 rounded-full border text-[9px] font-bold ${
+                          d.mood === 'happy'
+                            ? 'bg-emerald-55 border-emerald-200 text-emerald-600 dark:bg-emerald-950/20 dark:border-emerald-800 dark:text-emerald-400'
+                            : d.mood === 'neutral'
+                            ? 'bg-amber-50 border-amber-200 text-amber-600 dark:bg-amber-950/20 dark:border-amber-800 dark:text-amber-400'
+                            : 'bg-red-50 border-red-200 text-red-600 dark:bg-red-950/20 dark:border-red-800 dark:text-red-400'
+                        }`}>
+                          {d.mood === 'happy' ? 'Feliz' : d.mood === 'neutral' ? 'Neutral' : 'Estresado'}
+                        </span>
+                        <button
+                          onClick={() => setRecordToDelete(d)}
+                          title="Eliminar este registro"
+                          className="p-1 rounded-md text-text-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
 
                     <p className="text-text-primary leading-relaxed font-medium">
@@ -623,6 +697,176 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
         </div>
 
       </div>
+      )}
+
+      {/* Full Records History Table */}
+      {showFullView && (
+        <div className="bg-surface-primary border border-border-medium rounded-2xl p-6 space-y-4 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
+                <Users className="w-4 h-4 text-emerald-500" />
+                Historial Detallado de Registros
+              </h3>
+              <p className="text-xs text-text-secondary mt-0.5">
+                Respuestas registradas en el periodo seleccionado ({filteredData.length} registros)
+              </p>
+            </div>
+
+            {moodData.length > 0 && (
+              <button
+                onClick={() => setShowClearAllModal(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 text-xs font-semibold transition-all self-start sm:self-center"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Vaciar Registros
+              </button>
+            )}
+          </div>
+
+          {filteredData.length > 0 ? (
+            <div className="overflow-x-auto pt-2">
+              <table className="w-full text-xs text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-border-light text-text-secondary font-bold">
+                    <th className="pb-2.5">Fecha y Hora</th>
+                    <th className="pb-2.5">Estado de Ánimo</th>
+                    <th className="pb-2.5">Área / Depto</th>
+                    <th className="pb-2.5">Factores de Estrés</th>
+                    <th className="pb-2.5">Detalle / Terapeuta</th>
+                    <th className="pb-2.5 text-right">Acción</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border-light">
+                  {filteredData.map((record) => (
+                    <tr key={record._id} className="hover:bg-surface-secondary/40 transition-colors">
+                      <td className="py-3 text-text-secondary font-medium whitespace-nowrap">
+                        {new Date(record.createdAt).toLocaleDateString('es-CO', {
+                          day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                        })}
+                      </td>
+                      <td className="py-3 whitespace-nowrap">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[10px] font-bold ${
+                          record.mood === 'happy'
+                            ? 'bg-emerald-50 border-emerald-200 text-emerald-600 dark:bg-emerald-950/20 dark:border-emerald-800 dark:text-emerald-400'
+                            : record.mood === 'neutral'
+                            ? 'bg-amber-50 border-amber-200 text-amber-600 dark:bg-amber-950/20 dark:border-amber-800 dark:text-amber-400'
+                            : 'bg-red-50 border-red-200 text-red-600 dark:bg-red-950/20 dark:border-red-800 dark:text-red-400'
+                        }`}>
+                          {record.mood === 'happy' ? '😄 Feliz' : record.mood === 'neutral' ? '😐 Normal' : '😩 Estresado'}
+                        </span>
+                      </td>
+                      <td className="py-3 font-semibold text-text-primary">
+                        {record.department?.trim() || 'General'}
+                      </td>
+                      <td className="py-3">
+                        {record.stressors && record.stressors.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {record.stressors.map((st, sIdx) => {
+                              const tag = stressorsList.find(x => x.id === st);
+                              return (
+                                <span key={sIdx} className="bg-purple-50 border border-purple-200 text-purple-600 dark:bg-purple-950/20 dark:border-purple-800 dark:text-purple-300 text-[9px] font-bold px-1.5 py-0.5 rounded">
+                                  {tag?.label || st}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <span className="text-text-secondary/60 italic">Ninguno</span>
+                        )}
+                      </td>
+                      <td className="py-3 text-text-secondary max-w-[260px] truncate" title={record.details || ''}>
+                        {record.details ? record.details : <span className="text-text-secondary/40 italic">Sin conversación</span>}
+                      </td>
+                      <td className="py-3 text-right">
+                        <button
+                          onClick={() => setRecordToDelete(record)}
+                          disabled={deletingId === record._id}
+                          title="Eliminar este registro"
+                          className="inline-flex items-center justify-center p-1.5 rounded-lg text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-xs text-text-secondary">
+              No hay registros en los últimos {filterDays} días.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Modal: Confirm Delete Single Record */}
+      {recordToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fadeIn">
+          <div className="bg-surface-primary border border-border-medium rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-xl">
+            <div className="flex items-center gap-3 text-red-500">
+              <div className="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <h3 className="text-base font-bold text-text-primary">¿Eliminar registro?</h3>
+            </div>
+            <p className="text-xs text-text-secondary leading-relaxed">
+              Se eliminará de forma permanente este reporte de estado de ánimo (del {new Date(recordToDelete.createdAt).toLocaleDateString('es-CO')}). Los cálculos y estadísticas se actualizarán automáticamente.
+            </p>
+            <div className="flex gap-2 justify-end pt-2">
+              <button
+                onClick={() => setRecordToDelete(null)}
+                disabled={deletingId === recordToDelete._id}
+                className="px-4 py-2 rounded-xl border border-border-medium text-xs font-semibold text-text-secondary hover:bg-surface-secondary transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleDeleteRecord(recordToDelete._id)}
+                disabled={deletingId === recordToDelete._id}
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all flex items-center gap-1.5"
+              >
+                {deletingId === recordToDelete._id && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Confirm Clear All Records */}
+      {showClearAllModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fadeIn">
+          <div className="bg-surface-primary border border-border-medium rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-xl">
+            <div className="flex items-center gap-3 text-red-500">
+              <div className="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <h3 className="text-base font-bold text-text-primary">¿Vaciar todos los registros?</h3>
+            </div>
+            <p className="text-xs text-text-secondary leading-relaxed">
+              Esta acción eliminará <strong>todos los registros ({moodData.length})</strong> del Termómetro Psicosocial para tu empresa. Se recomienda si deseas reiniciar las pruebas. Esta acción no se puede deshacer.
+            </p>
+            <div className="flex gap-2 justify-end pt-2">
+              <button
+                onClick={() => setShowClearAllModal(false)}
+                disabled={isDeletingAll}
+                className="px-4 py-2 rounded-xl border border-border-medium text-xs font-semibold text-text-secondary hover:bg-surface-secondary transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleClearAllRecords}
+                disabled={isDeletingAll}
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all flex items-center gap-1.5"
+              >
+                {isDeletingAll && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                Sí, vaciar todo
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

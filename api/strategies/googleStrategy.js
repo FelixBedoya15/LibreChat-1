@@ -12,13 +12,17 @@ const getProfileDetails = ({ profile }) => ({
 
 const googleLogin = socialLogin('google', getProfileDetails);
 
-module.exports = () =>
-  new GoogleStrategy(
+module.exports = () => {
+  const rawServer = process.env.DOMAIN_SERVER || 'https://wappy.club';
+  const domainServer = rawServer.replace(/https?:\/\/wappy-ia\.com/g, 'https://wappy.club').replace(/\/+$/, '');
+  const callbackPath = process.env.GOOGLE_CALLBACK_URL || '/oauth/google/callback';
+  return new GoogleStrategy(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: `${process.env.DOMAIN_SERVER}${process.env.GOOGLE_CALLBACK_URL}`,
+      callbackURL: `${domainServer}${callbackPath}`,
       proxy: true,
     },
     googleLogin,
   );
+};

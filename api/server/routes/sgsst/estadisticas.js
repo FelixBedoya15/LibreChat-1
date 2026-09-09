@@ -334,6 +334,61 @@ router.get('/mood', requireJwtAuth, async (req, res) => {
     }
 });
 
+/**
+ * DELETE /api/sgsst/estadisticas/mood/:id
+ * Deletes an individual mood telemetry record belonging to the user's active company.
+ */
+router.delete('/mood/:id', requireJwtAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const company = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean()
+            || await CompanyInfo.findOne({ user: req.user.id }).lean();
+
+        if (!company) {
+            return res.status(404).json({ error: 'Empresa no encontrada.' });
+        }
+
+        const MoodTelemetry = require('~/models/MoodTelemetry');
+        const deleted = await MoodTelemetry.findOneAndDelete({ _id: id, companyId: company._id });
+
+        if (!deleted) {
+            return res.status(404).json({ error: 'Registro no encontrado o no pertenece a su empresa.' });
+        }
+
+        return res.json({ success: true, message: 'Registro eliminado exitosamente.' });
+    } catch (error) {
+        logger.error('[SGSST Estadísticas] Delete mood telemetry error:', error);
+        res.status(500).json({ error: 'Error interno al eliminar el registro.' });
+    }
+});
+
+/**
+ * DELETE /api/sgsst/estadisticas/mood
+ * Clears all mood telemetry records for the user's active company.
+ */
+router.delete('/mood', requireJwtAuth, async (req, res) => {
+    try {
+        const company = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean()
+            || await CompanyInfo.findOne({ user: req.user.id }).lean();
+
+        if (!company) {
+            return res.status(404).json({ error: 'Empresa no encontrada.' });
+        }
+
+        const MoodTelemetry = require('~/models/MoodTelemetry');
+        const result = await MoodTelemetry.deleteMany({ companyId: company._id });
+
+        return res.json({ 
+            success: true, 
+            message: `Se eliminaron ${result.deletedCount} registros exitosamente.`,
+            deletedCount: result.deletedCount 
+        });
+    } catch (error) {
+        logger.error('[SGSST Estadísticas] Clear mood telemetry error:', error);
+        res.status(500).json({ error: 'Error interno al vaciar los registros.' });
+    }
+});
+
 // Helpers
 function cleanHtmlOutput(text) {
     return text.replace(/```html\n?/g, '').replace(/```\n?/g, '')

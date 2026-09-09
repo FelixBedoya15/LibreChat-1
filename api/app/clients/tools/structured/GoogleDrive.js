@@ -61,10 +61,11 @@ class GoogleDriveTool extends Tool {
     const expiryStr = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EXPIRY', true);
     const expiry = Number(expiryStr);
 
+    const serverDomain = (process.env.DOMAIN_SERVER || 'https://wappy.club').replace(/https?:\/\/wappy-ia\.com/g, 'https://wappy.club').replace(/\/+$/, '');
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      `${process.env.DOMAIN_SERVER}/api/google-drive/callback`
+      `${serverDomain}/api/google-drive/callback`
     );
 
     oauth2Client.setCredentials({

@@ -18,9 +18,14 @@ const setBalanceConfig = createSetBalanceConfig({
 
 const router = express.Router();
 
+const sanitizeDomain = (domain) => {
+  if (!domain) return 'https://wappy.club';
+  return domain.replace(/https?:\/\/wappy-ia\.com/g, 'https://wappy.club').replace(/\/+$/, '');
+};
+
 const domains = {
-  client: process.env.DOMAIN_CLIENT,
-  server: process.env.DOMAIN_SERVER,
+  client: sanitizeDomain(process.env.DOMAIN_CLIENT),
+  server: sanitizeDomain(process.env.DOMAIN_SERVER),
 };
 
 router.use(logHeaders);
