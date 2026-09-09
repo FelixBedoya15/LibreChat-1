@@ -15,6 +15,7 @@
 - **`publish-blog-article`**: [.agents/skills/publish-blog-article/SKILL.md](file:///.agents/skills/publish-blog-article/SKILL.md) - Redacción de artículos para el blog optimizados para SEO/AEO y distribución multicanal.
 - **`tool-matriz-pesv`**: [.agents/skills/tool-matriz-pesv/SKILL.md](file:///.agents/skills/tool-matriz-pesv/SKILL.md) - Instrucciones de uso, fórmulas y evaluación de la herramienta de Matriz PESV (Seguridad Vial).
 - **`tool-matriz-compatibilidad`**: [.agents/skills/tool-matriz-compatibilidad/SKILL.md](file:///.agents/skills/tool-matriz-compatibilidad/SKILL.md) - Instrucciones de uso, clasificación ONU y reglas de almacenamiento para la herramienta de Compatibilidad Química (SGA).
+- **`tool-notebooklm`**: [.agents/skills/tool-notebooklm/SKILL.md](file:///.agents/skills/tool-notebooklm/SKILL.md) - Integración y consulta de cuadernos de Google NotebookLM / Gemini Notebook vía MCP para todos los agentes de WAPPY.
 
 ---
 

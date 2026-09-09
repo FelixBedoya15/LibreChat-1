@@ -20,6 +20,7 @@ import {
   useQueryParams,
   useSubmitMessage,
   useFocusChatEffect,
+  useSelectAgent,
 } from '~/hooks';
 import useRolePermissions from '~/hooks/Roles/useRolePermissions';
 import { mainTextareaId, BadgeItem } from '~/common';
@@ -73,6 +74,7 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
   const { hasPermission } = useRolePermissions();
 
   const { requiresKey } = useRequiresKey();
+  const { onSelect: onSelectAgent } = useSelectAgent();
   const methods = useChatFormContext();
   const {
     files,
@@ -221,28 +223,40 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
 
   // Listener para auto-envío de consultas delegadas por Tenshi
   useEffect(() => {
-    const handleTenshiSubmit = (e: any) => {
-      const { prompt } = e.detail || {};
+    const handleTenshiSubmit = async (e: any) => {
+      const { agentId, prompt } = e.detail || {};
+      console.log('[ChatForm] tenshi-submit-agent-prompt recibido:', { agentId, prompt });
+
+      // 1. Si se especificó un agente y es diferente al actual, seleccionarlo formalmente
+      if (agentId && conversation?.agent_id !== agentId) {
+        try {
+          await onSelectAgent(agentId);
+        } catch (err) {
+          console.error('[ChatForm] Error al seleccionar agente delegado por Tenshi:', err);
+        }
+      }
+
       if (!prompt) return;
 
-      console.log('[ChatForm] tenshi-submit-agent-prompt recibido:', prompt);
+      // 2. Colocar el texto en react-hook-form y en el textarea para feedback visual inmediato
       methods.setValue('text', prompt, { shouldValidate: true });
       if (textAreaRef.current) {
         textAreaRef.current.value = prompt;
         textAreaRef.current.focus();
       }
 
+      // 3. Enviar el mensaje una vez que el agente esté sincronizado
       setTimeout(() => {
         methods.setValue('text', prompt, { shouldValidate: true });
         submitMessage({ text: prompt });
-      }, 400);
+      }, 500);
     };
 
     window.addEventListener('tenshi-submit-agent-prompt', handleTenshiSubmit);
     return () => {
       window.removeEventListener('tenshi-submit-agent-prompt', handleTenshiSubmit);
     };
-  }, [methods, submitMessage, textAreaRef]);
+  }, [methods, submitMessage, textAreaRef, onSelectAgent, conversation?.agent_id]);
 
   const isMoreThanThreeRows = visualRowCount > 3;
 

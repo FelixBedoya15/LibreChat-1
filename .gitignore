@@ -142,3 +142,8 @@ helm/**/.values.yaml
 # Scratch and local scripts
 scratch/
 
+# NotebookLM credentials and browser session
+config/notebooklm/
+!config/notebooklm/.gitkeep
+
+

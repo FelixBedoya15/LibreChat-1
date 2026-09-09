@@ -20,54 +20,238 @@ const normalizeStr = (s: string) =>
     .replace(/[^a-z0-9\s]/g, ' ')
     .trim();
 
+const AGENT_TAXONOMY: { id: string; aliases: string[]; keywords: string[]; fallbackId?: string }[] = [
+  {
+    id: 'fisioterapeuta_laboral',
+    aliases: ['fisioterapeuta laboral', 'fisioterapeuta', 'especialista en biomecanica laboral', 'biomecanica laboral', 'analista ergonomico rosa', 'ergonomia', 'inspector de puesto de trabajo ipt'],
+    keywords: ['fisioterap', 'ergonom', 'biomecan', 'postur', 'musculoesquelet', 'owas', 'rosa', 'rula'],
+  },
+  {
+    id: 'abogado_laboral',
+    aliases: ['abogado laboral', 'abogado', 'consultor juridico laboral', 'consultor juridico rit', 'consultor de debido proceso y despidos', 'consultor de protocolo de acoso sexual', 'abogado rit', 'abogado procesos disciplinarios', 'abogado acoso sexual'],
+    keywords: ['abogad', 'juridic', 'disciplinari', 'ley 1010', 'ley 2365', 'rit', 'derecho laboral', 'despido', 'contrato laboral'],
+  },
+  {
+    id: 'medico_laboral',
+    aliases: ['medico laboral', 'consultor medico ocupacional', 'medico', 'medic laboral'],
+    keywords: ['medic', 'doctor', 'salud ocupacional', 'origen', 'restriccion', 'ausentism', 'epidemiolog', 'examenes ocupacionales'],
+  },
+  {
+    id: 'ingeniero_quimico_sst',
+    aliases: ['ingeniero quimico sst', 'especialista en riesgo quimico', 'quimico sst', 'expert en riesgo quimico', 'experto en riesgo quimico'],
+    keywords: ['quimic', 'sga', 'fds', 'hds', 'derrame', 'sustancias peligrosas', 'hoja de seguridad', 'rotulado'],
+  },
+  {
+    id: 'coordinador_seguridad_vial',
+    aliases: ['coordinador de seguridad vial', 'especialista en riesgo vial', 'expert en riesgo vial', 'experto en riesgo vial', 'seguridad vial', 'pesv'],
+    keywords: ['seguridad vial', 'pesv', 'transito', 'vehicul', 'conductor', 'ansv', 'carretera', 'vial'],
+  },
+  {
+    id: 'psicologo_sst',
+    aliases: ['psicologo sst', 'especialista en riesgo psicosocial', 'psicolog especialista sst', 'psicologo especialista sst'],
+    keywords: ['psicolog', 'psicosocial', 'bateria', 'acoso', 'clima laboral', 'estres laboral'],
+  },
+  {
+    id: 'terapeuta_salud_mental',
+    aliases: ['terapeuta en salud mental', 'consultor de bienestar y salud mental', 'salud mental', 'asistente de salud mental'],
+    keywords: ['salud mental', 'terapeuta', 'burnout', 'agotamiento', 'emocional', 'bienestar emocional'],
+  },
+  {
+    id: 'nutricionista_laboral',
+    aliases: ['nutricionista laboral', 'consultor nutricional corporativo', 'nutricionista', 'asistente en nutricion'],
+    keywords: ['nutricion', 'dieta', 'aliment', 'cardiovascular'],
+  },
+  {
+    id: 'primer_respondiente',
+    aliases: ['primer respondiente', 'gestor clinico de primeros auxilios', 'primeros auxilios', 'asistente en primeros auxilios'],
+    keywords: ['primer respondiente', 'primeros auxilios', 'rcp', 'botiquin', 'hemorragia'],
+  },
+  {
+    id: 'coordinador_emergencias',
+    aliases: ['coordinador de emergencias', 'especialista en prevencion y emergencias', 'expert en emergencias', 'experto en emergencias', 'emergencias'],
+    keywords: ['emergencia', 'pae', 'evacuacion', 'brigada', 'simulacro'],
+  },
+  {
+    id: 'especialista_bioseguridad',
+    aliases: ['especialista en bioseguridad', 'especialista en riesgo biologico', 'expert en riesgo biologico', 'experto en riesgo biologico', 'bioseguridad'],
+    keywords: ['bioseguridad', 'biologic', 'vacun', 'pgirh', 'infecc'],
+  },
+  {
+    id: 'ingeniero_electricista_sst',
+    aliases: ['ingeniero electricista sst', 'especialista en riesgo electrico', 'expert en riesgo electrico', 'experto en riesgo electrico', 'electricista sst'],
+    keywords: ['electric', 'retie', 'arco electrico', 'loto', 'energias peligrosas'],
+  },
+  {
+    id: 'coordinador_tareas_criticas',
+    aliases: ['coordinador de tareas criticas', 'especialista en tareas criticas', 'expert en tareas de alto riesgo', 'experto en tareas de alto riesgo', 'gestor de permisos de trabajo tsa'],
+    keywords: ['tareas criticas', 'alturas', 'tsa', 'confinados', 'caliente', 'excavacion', 'alto riesgo'],
+  },
+  {
+    id: 'ingeniero_minas_sst',
+    aliases: ['ingeniero de minas sst', 'especialista en mineria subterranea y alto riesgo', 'experto mineria subterranea', 'minas sst'],
+    keywords: ['minas', 'minero', 'subterranea', 'tunel', 'explosivo'],
+  },
+  {
+    id: 'auditor_sg_sst',
+    aliases: ['auditor sg sst', 'auditor integral sg sst', 'auditor sst', 'auditor'],
+    keywords: ['auditor', '0312', 'estandares minimos', 'phva', 'auditoria'],
+  },
+  {
+    id: 'ingeniero_ambiental',
+    aliases: ['ingeniero ambiental', 'consultor de gestion ambiental', 'gestor gestion ambiental', 'ambiental'],
+    keywords: ['ambiental', 'residuo', 'vertimiento', 'ecolog'],
+  },
+  {
+    id: 'especialista_riesgo_climatico',
+    aliases: ['especialista en riesgo climatico', 'riesgo climatico'],
+    keywords: ['climatic', 'estres termico', 'radiacion uv', 'clima extremo', 'golpe de calor'],
+  },
+  {
+    id: 'redactor_creativo',
+    aliases: ['redactor creativo', 'estratega de contenidos corporativos', 'redactor de blog', 'redactor blog'],
+    keywords: ['redactor', 'blog', 'articulo', 'publicacion', 'contenidos'],
+  },
+  {
+    id: 'simulador_accidentes',
+    aliases: ['simulador de accidentes sst', 'analista forense de accidentalidad at', 'analista forense de enfermedad laboral el', 'simulador de accidentes', 'asistente inv at', 'asistente inv el'],
+    keywords: ['simulador', 'siniestro', 'causa raiz', 'arbol de causas', 'forense'],
+  },
+  {
+    id: 'coordinador_capacitaciones',
+    aliases: ['coordinador de capacitaciones', 'gestor de formacion continua', 'asistente en capacitaciones', 'capacitaciones'],
+    keywords: ['capacitacion', 'pac', 'induccion', 'charla 5 min', 'formacion'],
+  },
+  {
+    id: 'profesional_sst',
+    aliases: ['profesional sst', 'consultor senior sg sst'],
+    keywords: ['profesional sst', 'inspeccion de campo'],
+  },
+  {
+    id: 'agente_sst',
+    aliases: ['consultor sg sst', 'agente sst', 'consultor sst', 'asesor sst'],
+    keywords: ['consultor sg sst', 'consultor sst', 'asesoria sst'],
+  },
+  {
+    id: 'coordinador_ipevar',
+    aliases: ['coordinador ipevar', 'especialista gtc 45 matriz ipevar', 'especialista gtc 45', 'especialista gtc45', 'matriz ipevar', 'ipevar', 'asistente ipevar'],
+    keywords: ['ipevar', 'gtc 45', 'gtc45', 'matriz de peligros', 'valoracion de riesgos'],
+    fallbackId: 'agente_sst',
+  },
+  {
+    id: 'asistente_ats',
+    aliases: ['asistente ats', 'gestor de analisis de trabajo seguro ats', 'gestor de analisis de trabajo seguro', 'analisis de trabajo seguro ats', 'ats'],
+    keywords: ['ats', 'analisis de trabajo seguro', 'paso a paso'],
+    fallbackId: 'coordinador_tareas_criticas',
+  },
+  {
+    id: 'asistente_permiso_tsa',
+    aliases: ['asistente permiso tsa', 'gestor de permisos de trabajo tsa', 'gestor de permisos de trabajo', 'permiso tsa', 'permiso alturas'],
+    keywords: ['permiso tsa', 'permiso alturas', 'resolucion 4272', 'trabajo en alturas'],
+    fallbackId: 'coordinador_tareas_criticas',
+  },
+  {
+    id: 'creador_formatos',
+    aliases: ['creador de formatos sst', 'creador de formatos', 'agente creador formatos sst', 'formatos sst', 'gestor de formatos'],
+    keywords: ['formatos', 'plantilla', 'creador de formatos', 'documentos sst', 'acta'],
+    fallbackId: 'agente_sst',
+  },
+  {
+    id: 'asistente_de_aci',
+    aliases: ['asistente de aci', 'analista predictivo aci', 'asistente aci', 'oraculo predictivo aci', 'aci'],
+    keywords: ['aci', 'analista aci', 'predictivo aci', 'siniestralidad predictiva'],
+    fallbackId: 'simulador_accidentes',
+  },
+  {
+    id: 'abogado_rit',
+    aliases: ['abogado rit', 'consultor juridico rit', 'reglamento interno rit', 'reglamento interno de trabajo'],
+    keywords: ['rit', 'reglamento interno'],
+    fallbackId: 'abogado_laboral',
+  },
+  {
+    id: 'abogado_procesos_disciplinarios',
+    aliases: ['abogado procesos disciplinarios', 'consultor de debido proceso y despidos', 'procesos disciplinarios', 'debido proceso'],
+    keywords: ['debido proceso', 'procesos disciplinarios', 'descargos', 'despidos'],
+    fallbackId: 'abogado_laboral',
+  },
+  {
+    id: 'abogado_acoso_sexual',
+    aliases: ['abogado acoso sexual', 'consultor de protocolo de acoso sexual', 'acoso sexual laboral', 'protocolo acoso sexual'],
+    keywords: ['acoso sexual', 'ley 2365', 'protocolo acoso sexual'],
+    fallbackId: 'abogado_laboral',
+  },
+  {
+    id: 'asistente_metodo_rosa',
+    aliases: ['asistente metodo rosa', 'analista ergonomico rosa', 'metodo rosa'],
+    keywords: ['metodo rosa', 'rosa ergonomia'],
+    fallbackId: 'fisioterapeuta_laboral',
+  },
+  {
+    id: 'analista_ipt_ergonomico',
+    aliases: ['analista ipt ergonomico', 'inspector de puesto de trabajo ipt', 'inspector de puesto de trabajo', 'inspeccion ipt'],
+    keywords: ['ipt', 'inspeccion puesto de trabajo', 'puesto ergonomico'],
+    fallbackId: 'fisioterapeuta_laboral',
+  },
+  {
+    id: 'asistente_inv_at',
+    aliases: ['asistente inv at', 'analista forense de accidentalidad at', 'investigacion accidentes at'],
+    keywords: ['accidentalidad at', 'investigacion de accidentes', 'analista at'],
+    fallbackId: 'simulador_accidentes',
+  },
+  {
+    id: 'asistente_inv_el',
+    aliases: ['asistente inv el', 'analista forense de enfermedad laboral el', 'enfermedad laboral el'],
+    keywords: ['enfermedad laboral el', 'analista el', 'origen el'],
+    fallbackId: 'simulador_accidentes',
+  },
+];
+
 const findMatchingAgent = (targetName: string, agentsList: any[]) => {
   if (!targetName || !agentsList?.length) return null;
   const target = normalizeStr(targetName);
 
-  // 1. Coincidencia exacta de nombre
-  let found = agentsList.find((a) => normalizeStr(a.name) === target);
+  // 1. Coincidencia exacta por ID o nombre
+  let found = agentsList.find((a) => a.id === targetName || normalizeStr(a.name) === target);
   if (found) return found;
 
-  // 2. Coincidencia por inclusión
+  // 2. Coincidencia a través de la taxonomía especializada de WAPPY
+  const matchedTaxon = AGENT_TAXONOMY.find((taxon) => {
+    if (taxon.id === targetName) return true;
+    if (taxon.aliases.some((alias) => target.includes(alias) || alias.includes(target))) return true;
+    if (taxon.keywords.some((kw) => target.includes(kw))) return true;
+    return false;
+  });
+
+  if (matchedTaxon) {
+    // Buscar en la lista de agentes un agente cuyo nombre o ID coincida con los alias de la taxonomía
+    found = agentsList.find((a) => {
+      if (a.id === matchedTaxon.id) return true;
+      const aNorm = normalizeStr(a.name);
+      return matchedTaxon.aliases.some((alias) => aNorm.includes(alias) || alias.includes(aNorm));
+    });
+    if (found) return found;
+
+    // Si tiene fallbackId, buscar por el agente de respaldo consolidado
+    if (matchedTaxon.fallbackId) {
+      const fallbackId = matchedTaxon.fallbackId;
+      const fallbackTaxon = AGENT_TAXONOMY.find((t) => t.id === fallbackId);
+      if (fallbackTaxon) {
+        found = agentsList.find((a) => {
+          if (a.id === fallbackTaxon.id) return true;
+          const aNorm = normalizeStr(a.name);
+          return fallbackTaxon.aliases.some((alias) => aNorm.includes(alias) || alias.includes(aNorm));
+        });
+        if (found) return found;
+      }
+    }
+  }
+
+  // 3. Coincidencia por inclusión de substring
   found = agentsList.find(
     (a) =>
       normalizeStr(a.name).includes(target) ||
       target.includes(normalizeStr(a.name))
   );
   if (found) return found;
-
-  // 3. Diccionario de palabras clave para los 22 agentes de WAPPY SST
-  const KEYWORD_MAP: { keywords: string[]; agentName: string }[] = [
-    { keywords: ['abogad', 'juridic', 'laboral', 'contrat', 'disciplinari', 'ley 1010', 'ley 2365', 'rit'], agentName: 'abogado laboral' },
-    { keywords: ['medic', 'doctor', 'salud ocupacional', 'origen', 'restriccion', 'ausentism', 'epidemiolog'], agentName: 'medico laboral' },
-    { keywords: ['fisioterap', 'ergonom', 'postur', 'musculoesquelet', 'owas', 'rosa', 'rula', 'biomecan'], agentName: 'fisioterapeuta laboral' },
-    { keywords: ['psicolog', 'psicosocial', 'estres', 'bateria', 'acoso', 'clima'], agentName: 'psicologo sst' },
-    { keywords: ['salud mental', 'terapeuta', 'burnout', 'agotamiento', 'emocional'], agentName: 'terapeuta en salud mental' },
-    { keywords: ['nutricion', 'dieta', 'aliment', 'cardiovascular'], agentName: 'nutricionista laboral' },
-    { keywords: ['primer respondiente', 'primeros auxilios', 'rcp', 'botiquin', 'hemorragia'], agentName: 'primer respondiente' },
-    { keywords: ['emergencia', 'pae', 'evacuacion', 'brigada', 'simulacro'], agentName: 'coordinador de emergencias' },
-    { keywords: ['bioseguridad', 'biologic', 'vacun', 'pgirh', 'infecc'], agentName: 'especialista en bioseguridad' },
-    { keywords: ['electric', 'retie', 'arco electrico', 'loto', 'energias peligrosas'], agentName: 'ingeniero electricista sst' },
-    { keywords: ['quimic', 'sga', 'fds', 'hds', 'derrame', 'sustancias', 'hoja de seguridad', 'rotulado'], agentName: 'ingeniero quimico sst' },
-    { keywords: ['vial', 'pesv', 'transito', 'vehicul', 'conductor', 'ansv', 'carretera'], agentName: 'coordinador de seguridad vial' },
-    { keywords: ['tareas criticas', 'alturas', 'tsa', 'confinados', 'caliente', 'excavacion', 'permiso'], agentName: 'coordinador de tareas criticas' },
-    { keywords: ['minas', 'minero', 'subterranea', 'tunel', 'explosivo'], agentName: 'ingeniero de minas sst' },
-    { keywords: ['auditor', '0312', 'estandares', 'phva', 'auditoria'], agentName: 'auditor sg-sst' },
-    { keywords: ['ambiental', 'residuo', 'vertimiento', 'ecolog'], agentName: 'ingeniero ambiental' },
-    { keywords: ['climatic', 'estres termico', 'radiacion uv', 'clima extremo'], agentName: 'especialista en riesgo climatico' },
-    { keywords: ['redactor', 'blog', 'articulo', 'publicacion'], agentName: 'redactor creativo' },
-    { keywords: ['simulador', 'siniestro', 'causa raiz', 'investigacion'], agentName: 'simulador de accidentes sst' },
-    { keywords: ['capacitacion', 'pac', 'induccion', 'charla 5 min', 'formacion'], agentName: 'coordinador de capacitaciones' },
-    { keywords: ['profesional sst', 'campo', 'inspeccion'], agentName: 'profesional sst' },
-    { keywords: ['consultor', 'general', 'sst'], agentName: 'consultor sg-sst' },
-  ];
-
-  for (const entry of KEYWORD_MAP) {
-    if (entry.keywords.some((kw) => target.includes(kw))) {
-      found = agentsList.find((a) => normalizeStr(a.name).includes(entry.agentName));
-      if (found) return found;
-    }
-  }
 
   // 4. Búsqueda por coincidencia de tokens
   const targetWords = target.split(/\s+/).filter((w) => w.length > 2);
@@ -135,6 +319,8 @@ export default function TenshiChat() {
 
   const isChatSubmitting = useRecoilValue(store.isSubmittingFamily(0));
   const latestChatMessage = useRecoilValue(store.latestMessageFamily(0));
+  const latestChatMessageRef = useRef(latestChatMessage);
+  latestChatMessageRef.current = latestChatMessage;
   const prevIsChatSubmittingRef = useRef<boolean>(false);
 
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -368,6 +554,7 @@ export default function TenshiChat() {
               acpm: { route: '/sgsst?hito=hito6&module=control_acpm', sgsstModule: 'control_acpm' },
               auditoria: { route: '/sgsst?hito=hito6&module=auditoria', sgsstModule: 'auditoria' },
               alta_direccion: { route: '/sgsst?hito=hito6&module=alta_direccion', sgsstModule: 'alta_direccion' },
+              investigacion_profunda: { route: '/sgsst?hito=hito6&module=investigacion_profunda', sgsstModule: 'investigacion_profunda' },
               hito6: { route: '/sgsst?hito=hito6', sgsstModule: 'estadisticas' },
 
               // Hito 7: Inteligencia Artificial & Oráculo Predictivo
@@ -377,27 +564,55 @@ export default function TenshiChat() {
               siniestralidad: { route: '/sgsst?hito=hito7&module=predictivo', sgsstModule: 'predictivo' },
               hito7: { route: '/sgsst?hito=hito7', sgsstModule: 'predictivo' },
 
-              // Módulos Generales de WAPPY
+              // Módulos y Aplicativos Generales de WAPPY
               planes: { route: '/planes' },
               precios: { route: '/planes' },
               tarifas: { route: '/planes' },
+              suscripciones: { route: '/planes' },
               academia: { route: '/academia?tab=cursos' },
               cursos: { route: '/academia?tab=cursos' },
               curso: { route: '/academia?tab=cursos' },
               training: { route: '/academia?tab=cursos' },
+              training_admin: { route: '/training/admin' },
+              admin_cursos: { route: '/training/admin' },
               rutas: { route: '/academia?tab=rutas' },
               ruta: { route: '/academia?tab=rutas' },
+              ruta_admin: { route: '/ruta-aprendizaje/admin' },
+              admin_rutas: { route: '/ruta-aprendizaje/admin' },
+              events: { route: '/events-meet' },
+              events_meet: { route: '/events-meet' },
+              events_meet_admin: { route: '/events-meet/admin' },
               meet: { route: '/academia?tab=meet' },
               clases: { route: '/academia?tab=meet' },
               blog: { route: '/blog' },
+              blog_admin: { route: '/blog/admin' },
+              admin_blog: { route: '/blog/admin' },
               control: { route: '/sgsst/control' },
               kanban: { route: '/sgsst/control' },
+              automatizaciones: { route: '/sgsst/control' },
               agents: { route: '/agents' },
               agentes: { route: '/agents' },
+              marketplace: { route: '/agents' },
               live: { route: '/live' },
               inspeccion: { route: '/live' },
               biomecanica: { route: '/live' },
+              videollamada: { route: '/live' },
+              camara: { route: '/live' },
               chat: { route: '/c/new' },
+              chat_sst: { route: '/chat-sst' },
+              'chat-sst': { route: '/chat-sst' },
+              animo_dashboard: { route: '/sgsst/animo' },
+              clima_dashboard: { route: '/sgsst/animo' },
+              auditoria_app: { route: '/auditoria' },
+              roadmap: { route: '/hoja-de-ruta' },
+              hoja_de_ruta: { route: '/hoja-de-ruta' },
+              contactanos: { route: '/contactanos' },
+              contacto: { route: '/contactanos' },
+              comunidad: { route: '/comunidad' },
+              matriz: { route: '/matriz' },
+              embajadores: { route: '/embajadores' },
+              tenshi_admin: { route: '/tenshi/admin' },
+              search: { route: '/search' },
             };
 
             let targetRoute = rawRuta;
@@ -452,25 +667,19 @@ export default function TenshiChat() {
             if (matchedAgent?.id) {
               params.set('agent_id', matchedAgent.id);
             }
-            if (pregunta) {
-              params.set('prompt', pregunta);
-              params.set('submit', 'true');
-            }
 
             const targetRoute = `/c/new${params.toString() ? `?${params.toString()}` : ''}`;
             navigate(targetRoute);
 
-            // Emitir evento para que ChatForm sincronice de inmediato el texto y lo envíe
-            if (pregunta) {
-              window.dispatchEvent(
-                new CustomEvent('tenshi-submit-agent-prompt', {
-                  detail: {
-                    agentId: matchedAgent?.id,
-                    prompt: pregunta,
-                  },
-                })
-              );
-            }
+            // Emitir evento para que ChatForm seleccione el agente, sincronice el texto y lo envíe
+            window.dispatchEvent(
+              new CustomEvent('tenshi-submit-agent-prompt', {
+                detail: {
+                  agentId: matchedAgent?.id,
+                  prompt: pregunta,
+                },
+              })
+            );
 
             // Ocultar drawer si estaba abierto para dar paso a la vista del chat del especialista
             setIsOpen(false);
@@ -640,7 +849,21 @@ export default function TenshiChat() {
       pendingAgentConsultationRef.current.active = false;
 
       setTimeout(() => {
-        const lastMsg = (latestChatMessage?.text || '').trim();
+        // Usar la referencia más reciente para evitar closures desactualizados
+        let lastMsg = (latestChatMessageRef.current?.text || '').trim();
+
+        // Fallback: si aún no está en Recoil, intentar extraerlo del último elemento del chat en el DOM
+        if (!lastMsg || lastMsg.length < 15) {
+          const domMessages = document.querySelectorAll('.message-content, [data-message-id]');
+          if (domMessages.length > 0) {
+            const lastDomEl = domMessages[domMessages.length - 1];
+            const domText = (lastDomEl?.textContent || '').trim();
+            if (domText.length > 15) {
+              lastMsg = domText;
+            }
+          }
+        }
+
         if (!lastMsg || lastMsg.length < 15) {
           console.warn('[Tenshi] Respuesta del agente aún no consolidada o vacía.');
           return;
@@ -663,9 +886,9 @@ export default function TenshiChat() {
             content: `💡 **Tenshi:** He revisado la respuesta que te dio **${consultation.agentName}** sobre *"${consultation.question}"*. En el chat central puedes consultar todo el sustento técnico y normativo detallado. Si deseas que articulemos esto con algún hito o matriz de WAPPY, solo indícamelo.`,
           },
         ]);
-      }, 400);
+      }, 500);
     }
-  }, [isChatSubmitting, latestChatMessage, isVoiceActive, sendTextMessage]);
+  }, [isChatSubmitting, isVoiceActive, sendTextMessage]);
 
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);

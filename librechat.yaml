@@ -546,8 +546,18 @@ memory:
 
 # Habilitar soporte de Model Context Protocol (MCP)
 mcpServers:
-  local-files:
-    type: "stdio"
-    command: "echo"
-    args: []
-    startup: false
+  notebooklm:
+    type: "streamable-http"
+    url: "http://notebooklm-mcp:9420/mcp"
+    timeout: 120000
+    serverInstructions: true
+    headers:
+      x-user-id: "{{LIBRECHAT_USER_ID}}"
+      x-user-email: "{{LIBRECHAT_USER_EMAIL}}"
+      x-notebooklm-auth: "{{USER_NOTEBOOKLM_SESSION}}"
+    customUserVars:
+      USER_NOTEBOOKLM_SESSION:
+        title: "Sesión Privada de NotebookLM (Opcional)"
+        description: "Pega tus cookies de Google si deseas usar tu cuenta privada en lugar de la compartida de WAPPY."
+        sensitive: true
+

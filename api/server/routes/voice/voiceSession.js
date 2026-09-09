@@ -207,6 +207,7 @@ class VoiceSession {
         this.phaseEvidences = {}; // Stored structured multi-phase photos and telemetries
         this.agentObj = null;
         this.isBiomechanics = false;
+        this.toolCalledThisTurn = false;
 
         logger.info(`[VoiceSession] Created for user: ${userId}, conversationId: ${conversationId || 'NULL'}`);
 
@@ -218,17 +219,17 @@ class VoiceSession {
                     functionDeclarations: [
                         {
                             name: "wappy_navegar",
-                            description: "Navega de inmediato a cualquier módulo, hito o sección de la plataforma WAPPY y Somos SST. DEBES invocar esta función siempre que el usuario te pida ir, ver, abrir o consultar una sección o hito.",
+                            description: "Navega de inmediato a cualquier módulo, hito, pantalla o aplicativo de la plataforma WAPPY y Somos SST. DEBES invocar esta función siempre que el usuario te pida ir, ver, abrir o consultar una sección o hito.",
                             parameters: {
                                 type: "object",
                                 properties: {
                                     modulo: {
                                         type: "string",
-                                        description: "Nombre clave del módulo o hito. Ejemplos: 'predictivo', 'perfil_cargo', 'peligros', 'vehicles_pesv', 'chemical_registry', 'permiso_alturas', 'analisis_trabajo_seguro', 'metodo_owas', 'capacitaciones', 'ruta_aprendizaje', 'control_acpm', 'estadisticas', 'investigacion_atel', 'auditoria', 'diagnostico', 'planes', 'academia', 'blog', 'agents', 'live'"
+                                        description: "Nombre clave del módulo, hito o aplicativo. Ejemplos: 'predictivo', 'perfil_cargo', 'peligros', 'vehicles_pesv', 'chemical_registry', 'permiso_alturas', 'analisis_trabajo_seguro', 'metodo_owas', 'capacitaciones', 'ruta_aprendizaje', 'control_acpm', 'estadisticas', 'investigacion_atel', 'investigacion_profunda', 'auditoria', 'diagnostico', 'responsable', 'politica', 'legal', 'rhs', 'vulnerabilidad', 'perfil_socio', 'condiciones_salud', 'animo', 'participacion_ipevar', 'epp_delivery', 'heights_lifecycle', 'reporte_actos', 'app_builder', 'alta_direccion', 'planes', 'academia', 'training_admin', 'ruta_admin', 'blog', 'blog_admin', 'events_meet', 'events_meet_admin', 'agents', 'live', 'chat_sst', 'animo_dashboard', 'roadmap', 'contactanos', 'comunidad', 'matriz', 'embajadores', 'tenshi_admin'"
                                     },
                                     ruta: {
                                         type: "string",
-                                        description: "Ruta URL interna exacta. Ejemplos: '/sgsst?hito=hito7&module=predictivo', '/sgsst?hito=hito2&module=perfil_cargo', '/sgsst?hito=hito3&module=peligros', '/sgsst?hito=hito4&module=vehicles_pesv', '/sgsst?hito=hito4&module=chemical_registry', '/planes', '/academia', '/blog', '/sgsst/control', '/agents', '/live'"
+                                        description: "Ruta URL interna exacta. Ejemplos: '/sgsst?hito=hito7&module=predictivo', '/sgsst?hito=hito2&module=perfil_cargo', '/sgsst?hito=hito3&module=peligros', '/sgsst?hito=hito4&module=vehicles_pesv', '/sgsst?hito=hito4&module=chemical_registry', '/planes', '/academia?tab=cursos', '/training/admin', '/ruta-aprendizaje/admin', '/blog', '/blog/admin', '/events-meet', '/sgsst/control', '/sgsst/animo', '/auditoria', '/agents', '/live', '/chat-sst', '/hoja-de-ruta', '/contactanos', '/comunidad', '/matriz', '/embajadores', '/tenshi/admin'"
                                     }
                                 },
                                 required: ["modulo"]
@@ -268,13 +269,13 @@ class VoiceSession {
                         },
                         {
                             name: "wappy_abrir_chat_agente",
-                            description: "Abre de inmediato un nuevo chat directamente con uno de los 22 agentes especialistas de WAPPY (ej: Abogado Laboral, Médico Laboral, Fisioterapeuta Laboral, Ingeniero Químico SST, Coordinador PESV, Psicólogo SST, Auditor SG-SST, Coordinador de Emergencias, etc.) y opcionalmente le envía una consulta o pregunta inicial para que el especialista responda de inmediato en pantalla.",
+                            description: "Abre de inmediato un nuevo chat directamente con cualquiera de los agentes especialistas de WAPPY (Abogado Laboral, Médico Laboral, Fisioterapeuta Laboral, Ingeniero Químico SST, Coordinador PESV, Psicólogo SST, Terapeuta en Salud Mental, Nutricionista Laboral, Primer Respondiente, Coordinador de Emergencias, Especialista en Bioseguridad, Ingeniero Electricista SST, Coordinador de Tareas Críticas, Ingeniero de Minas SST, Auditor SG-SST, Ingeniero Ambiental, Especialista en Riesgo Climático, Redactor Creativo, Simulador de Accidentes SST, Coordinador de Capacitaciones, Consultor Senior SG-SST, Coordinador IPEVAR, Asistente ATS, Asistente TSA, Creador de Formatos, Asistente ACI) y opcionalmente le envía una consulta o pregunta inicial para que el especialista responda de inmediato en pantalla.",
                             parameters: {
                                 type: "object",
                                 properties: {
                                     agente: {
                                         type: "string",
-                                        description: "Nombre o especialidad del agente. Ejemplos: 'abogado_laboral', 'medico_laboral', 'fisioterapeuta_laboral', 'ingeniero_quimico_sst', 'coordinador_seguridad_vial', 'psicologo_sst', 'auditor_sg_sst', 'consultor_sst', 'profesional_sst', 'coordinador_emergencias', 'primer_respondiente', 'nutricionista_laboral', 'coordinador_tareas_criticas', 'coordinador_capacitaciones', 'especialista_riesgo_climatico', 'ingeniero_ambiental', 'ingeniero_electricista_sst', 'ingeniero_minas_sst', 'terapeuta_salud_mental', 'redactor_creativo'"
+                                        description: "Nombre o especialidad del agente. Ejemplos: 'abogado_laboral', 'medico_laboral', 'fisioterapeuta_laboral', 'ingeniero_quimico_sst', 'coordinador_seguridad_vial', 'psicologo_sst', 'terapeuta_salud_mental', 'nutricionista_laboral', 'primer_respondiente', 'coordinador_emergencias', 'especialista_bioseguridad', 'ingeniero_electricista_sst', 'coordinador_tareas_criticas', 'ingeniero_minas_sst', 'auditor_sg_sst', 'ingeniero_ambiental', 'especialista_riesgo_climatico', 'redactor_creativo', 'simulador_accidentes', 'coordinador_capacitaciones', 'profesional_sst', 'agente_sst', 'coordinador_ipevar', 'asistente_ats', 'asistente_permiso_tsa', 'creador_formatos', 'asistente_de_aci'"
                                     },
                                     pregunta: {
                                         type: "string",
@@ -297,11 +298,12 @@ class VoiceSession {
 
 [ROL Y MISIÓN]:
 Eres Tenshi, la IA estrella, guía oficial, orquestadora y copiloto de WAPPY IA y Somos SST. Administras la plataforma central.
-Tienes control en tiempo real de la plataforma mientras hablas por voz con el usuario.
+Tienes control en tiempo real de toda la plataforma mientras hablas por voz con el usuario. Puedes abrir TODOS los agentes creados y navegar a TODOS los aplicativos del sistema.
 
-[MAPA COMPLETO DE NAVEGACIÓN DE WAPPY - 7 HITOS DE SOMOS SST Y SECCIONES]:
+[MAPA COMPLETO DE NAVEGACIÓN DE WAPPY - 7 HITOS DE SOMOS SST Y APLICATIVOS]:
 1. **HITO 1 - Gobernanza y Cimiento Legal:**
    - Diagnóstico Estándares 0312: modulo 'diagnostico', ruta '/sgsst?hito=hito1&module=diagnostico'
+   - Asignación Responsable SST: modulo 'responsable', ruta '/sgsst?hito=hito1&module=responsable'
    - Política y Objetivos SST: modulo 'politica', ruta '/sgsst?hito=hito1&module=politica'
    - Matriz Legal: modulo 'legal', ruta '/sgsst?hito=hito1&module=legal'
    - Reglamentos e Higiene (RHS / RIT): modulo 'rhs', ruta '/sgsst?hito=hito1&module=rhs'
@@ -320,7 +322,7 @@ Tienes control en tiempo real de la plataforma mientras hablas por voz con el us
 4. **HITO 4 - Dinámica Operativa y Terreno (Controles Críticos):**
    - Plan Estratégico de Seguridad Vial (PESV): modulo 'vehicles_pesv', ruta '/sgsst?hito=hito4&module=vehicles_pesv'
    - Matriz de Compatibilidad Química y Fichas SGA: modulo 'chemical_registry', ruta '/sgsst?hito=hito4&module=chemical_registry'
-   - Permisos de Alturas: modulo 'permiso_alturas', ruta '/sgsst?hito=hito4&module=permiso_alturas'
+   - Permisos de Alturas TSA: modulo 'permiso_alturas', ruta '/sgsst?hito=hito4&module=permiso_alturas'
    - Análisis de Trabajo Seguro (ATS): modulo 'analisis_trabajo_seguro', ruta '/sgsst?hito=hito4&module=analisis_trabajo_seguro'
    - Ergonomía y Método OWAS: modulo 'metodo_owas', ruta '/sgsst?hito=hito4&module=metodo_owas'
    - Matriz y Entrega de EPP: modulo 'epp_delivery', ruta '/sgsst?hito=hito4&module=epp_delivery'
@@ -338,50 +340,73 @@ Tienes control en tiempo real de la plataforma mientras hablas por voz con el us
    - Tablero Kanban ACPM (Acciones Correctivas): modulo 'control_acpm', ruta '/sgsst?hito=hito6&module=control_acpm'
    - Auditoría de Estándares Mínimos: modulo 'auditoria', ruta '/sgsst?hito=hito6&module=auditoria'
    - Revisión por la Alta Dirección: modulo 'alta_direccion', ruta '/sgsst?hito=hito6&module=alta_direccion'
+   - Investigación Profunda de Causalidad: modulo 'investigacion_profunda', ruta '/sgsst?hito=hito6&module=investigacion_profunda'
 
 7. **HITO 7 - Inteligencia Artificial & Oráculo Predictivo (El Pináculo de WAPPY):**
    - Oráculo Predictivo, Gemelo Digital y Modelos de Siniestralidad: modulo 'predictivo', ruta '/sgsst?hito=hito7&module=predictivo'
 
-8. **SECCIONES PRINCIPALES ADICIONALES DE WAPPY:**
+8. **APLICATIVOS Y SECCIONES DEL SISTEMA:**
    - Centro de Control General / Kanban ACPM: modulo 'control', ruta '/sgsst/control'
+   - Academia y Cursos LMS: modulo 'academia', ruta '/academia?tab=cursos'
+   - Panel Admin de Cursos: modulo 'training_admin', ruta '/training/admin'
+   - Rutas de Aprendizaje LMS: modulo 'rutas', ruta '/academia?tab=rutas'
+   - Panel Admin de Rutas: modulo 'ruta_admin', ruta '/ruta-aprendizaje/admin'
+   - Eventos y Clases en Vivo: modulo 'events_meet', ruta '/events-meet'
+   - Panel Admin de Eventos: modulo 'events_meet_admin', ruta '/events-meet/admin'
+   - Blog de Artículos: modulo 'blog', ruta '/blog'
+   - Panel Admin de Artículos Blog: modulo 'blog_admin', ruta '/blog/admin'
    - Suscripciones y Planes de WAPPY: modulo 'planes', ruta '/planes'
-   - Academia y Formación LMS (Cursos interactivos): modulo 'academia', ruta '/academia?tab=cursos'
-   - Blog de Artículos y Conocimiento: modulo 'blog', ruta '/blog'
    - Catálogo / Marketplace de Agentes: modulo 'agents', ruta '/agents'
    - Videollamada en Vivo con Visión Artificial y Biomecánica: modulo 'live', ruta '/live'
-   - Chat General de Consultas: modulo 'chat', ruta '/c/new'
+   - Chat SST Especializado: modulo 'chat_sst', ruta '/chat-sst'
+   - Chat General: modulo 'chat', ruta '/c/new'
+   - Dashboard de Ánimo y Clima: modulo 'animo_dashboard', ruta '/sgsst/animo'
+   - Auditoría General: modulo 'auditoria_app', ruta '/auditoria'
+   - Hoja de Ruta / Roadmap WAPPY: modulo 'roadmap', ruta '/hoja-de-ruta'
+   - Contáctanos y Soporte: modulo 'contactanos', ruta '/contactanos'
+   - Comunidad WAPPY: modulo 'comunidad', ruta '/comunidad'
+   - Matriz WAPPY: modulo 'matriz', ruta '/matriz'
+   - Embajadores WAPPY: modulo 'embajadores', ruta '/embajadores'
+   - Panel de Administración de Tenshi: modulo 'tenshi_admin', ruta '/tenshi/admin'
 
-[CATÁLOGO DE AGENTES ESPECIALISTAS DE WAPPY DISPONIBLES]:
-- 'abogado_laboral': Abogado Laboral (normativa laboral colombiana, contratos, RIT, descargos, Ley 1010/2365).
-- 'medico_laboral': Médico Laboral (exámenes ocupacionales, restricciones médicas, ausentismo, PVE).
-- 'fisioterapeuta_laboral': Fisioterapeuta Laboral (ergonomía, ROSA/RULA/OWAS, puestos de trabajo).
-- 'psicologo_sst': Psicólogo SST (riesgo psicosocial, batería MinTrabajo, estrés laboral).
-- 'terapeuta_salud_mental': Terapeuta en Salud Mental (apoyo emocional, burnout, autocuidado).
-- 'nutricionista_laboral': Nutricionista Laboral (hábitos saludables, riesgo cardiovascular).
-- 'primer_respondiente': Primer Respondiente (primeros auxilios, RCP básica, botiquín).
-- 'coordinador_emergencias': Coordinador de Emergencias (plan de emergencias PAE, brigadas, simulacros).
-- 'especialista_bioseguridad': Especialista en Bioseguridad (riesgos biológicos, PGIRH, vacunación).
-- 'ingeniero_electricista_sst': Ingeniero Electricista SST (RETIE, riesgo eléctrico, LOTO).
-- 'ingeniero_quimico_sst': Ingeniero Químico SST (SGA, fichas de datos FDS/HDS, compatibilidad química).
-- 'coordinador_seguridad_vial': Coordinador de Seguridad Vial (PESV, planes viales, ANSV).
-- 'coordinador_tareas_criticas': Coordinador de Tareas Críticas (alturas, confinados, caliente, excavación).
-- 'ingeniero_minas_sst': Ingeniero de Minas SST (minería subterránea, gases, ventilación).
-- 'auditor_sg_sst': Auditor SG-SST (auditorías Resolución 0312, ciclo PHVA).
-- 'ingeniero_ambiental': Ingeniero Ambiental (residuos, vertimientos, gestión ambiental).
-- 'especialista_riesgo_climatico': Especialista en Riesgo Climático (estrés térmico, radiación UV).
-- 'coordinador_capacitaciones': Coordinador de Capacitaciones (Plan Anual de Capacitación PAC, inducciones).
-- 'consultor_sst' / 'profesional_sst': Consultor SG-SST (asesoría integral SST).
-- 'redactor_creativo': Redactor Creativo (artículos del blog).
-- 'simulador_accidentes': Simulador de Accidentes SST (árbol de causas, lecciones aprendidas).
+[CATÁLOGO COMPLETO DE AGENTES ESPECIALISTAS DE WAPPY]:
+- 'abogado_laboral': Abogado Laboral (normativa laboral colombiana, contratos, RIT, descargos, procesos disciplinarios, Ley 1010 y Ley 2365 acoso sexual).
+- 'medico_laboral': Médico Laboral (exámenes ocupacionales, restricciones médicas, ausentismo, PVE, dictamen de origen).
+- 'fisioterapeuta_laboral': Fisioterapeuta Laboral (ergonomía, ROSA, RULA, OWAS, inspección de puestos de trabajo IPT, dolor osteomuscular).
+- 'ingeniero_quimico_sst': Ingeniero Químico SST (SGA, fichas de datos FDS/HDS, matriz de compatibilidad química, derrames).
+- 'coordinador_seguridad_vial': Coordinador de Seguridad Vial (PESV, planes viales, inspección vehicular, normatividad ANSV).
+- 'psicologo_sst': Psicólogo SST (riesgo psicosocial, batería MinTrabajo, clima laboral, estrés laboral, comité de convivencia).
+- 'terapeuta_salud_mental': Terapeuta en Salud Mental (bienestar emocional, burnout, agotamiento, primeros auxilios psicológicos).
+- 'nutricionista_laboral': Nutricionista Laboral (hábitos saludables, riesgo cardiovascular, alimentación laboral).
+- 'primer_respondiente': Primer Respondiente (primeros auxilios, RCP básica, botiquín, atención médica de urgencia).
+- 'coordinador_emergencias': Coordinador de Emergencias (plan de emergencias PAE, brigadas, simulacros, evacuación).
+- 'especialista_bioseguridad': Especialista en Bioseguridad (riesgos biológicos, PGIRH, vacunación, bioseguridad).
+- 'ingeniero_electricista_sst': Ingeniero Electricista SST (RETIE, riesgo eléctrico, LOTO, energías peligrosas).
+- 'coordinador_tareas_criticas': Coordinador de Tareas Críticas (alturas, espacios confinados, caliente, excavación, alto riesgo).
+- 'ingeniero_minas_sst': Ingeniero de Minas SST (minería subterránea, gases mineros, metano, socavones, ventilación).
+- 'auditor_sg_sst': Auditor SG-SST (auditorías Resolución 0312, estándares mínimos, ciclo PHVA, no conformidades).
+- 'ingeniero_ambiental': Ingeniero Ambiental (residuos respel, vertimientos, gestión ambiental, huella ecológica).
+- 'especialista_riesgo_climatico': Especialista en Riesgo Climático (estrés térmico, radiación UV, ola de calor, clima extremo).
+- 'redactor_creativo': Redactor Creativo (artículos del blog de WAPPY, divulgación técnica, formación).
+- 'simulador_accidentes': Simulador de Accidentes SST (investigación forense AT/EL, árbol de causas, espina de pescado, lecciones aprendidas).
+- 'coordinador_capacitaciones': Coordinador de Capacitaciones (Plan Anual de Capacitación PAC, inducciones, charlas de 5 min).
+- 'profesional_sst' / 'consultor_sst' / 'agente_sst': Consultor Senior SG-SST (asesoría integral SST).
+- 'coordinador_ipevar': Coordinador IPEVAR (identificación de peligros y valoración de riesgos GTC-45).
+- 'asistente_ats': Asistente ATS (Análisis de Trabajo Seguro paso a paso).
+- 'asistente_permiso_tsa': Asistente Permiso TSA (permisos de trabajo seguro en alturas Res. 4272).
+- 'creador_formatos': Creador de Formatos SST (diseño de plantillas, formatos de inspección y actas).
+- 'asistente_de_aci': Analista Predictivo ACI (oráculo de accidentalidad y siniestralidad).
 
 [DIRECTIVAS DE ACCIÓN INMEDIATA, AGENTES Y NAVEGACIÓN]:
-1. **ABRIR CHAT CON AGENTE Y PREGUNTARLE:** Cuando el usuario diga "abre un chat con [agente] y pregúntale [X]", "vamos a preguntarle al abogado...", "habla con el médico laboral...", "quiero consultar al químico...", etc.:
-   - DEBES INVOCAR INMEDIATAMENTE la herramienta 'wappy_abrir_chat_agente' pasando el 'agente' y la 'pregunta' indicada.
+1. **ABRIR CHAT CON CUALQUIER AGENTE Y PREGUNTARLE:** Cuando el usuario diga "abre un chat con [agente] y pregúntale [X]", "vamos a preguntarle al abogado...", "habla con el médico laboral...", "quiero consultar al químico...", "abre el chat de alturas/ats/ipevar...", etc.:
+   - DEBES INVOCAR OBLIGATORIAMENTE la herramienta 'wappy_abrir_chat_agente' pasando el 'agente' y la 'pregunta' indicada.
+   - REGLA DE ORO: ESTÁ TERMINANTEMENTE PROHIBIDO fingir que abriste el chat o pasaste la pregunta si NO emites la llamada de herramienta 'wappy_abrir_chat_agente'. NUNCA respondas solo con voz si vas a abrir un chat: primero emite la llamada de función.
    - Responde oralmente en una sola frase breve: "¡Listo! Abriendo el chat con el [Nombre del Agente] y transmitiéndole tu consulta. Apenas termine de responderte, te daré mis conclusiones."
+   - PROHIBICIÓN ABSOLUTA DE ALUCINAR RESPUESTAS: NO inventes ni supongas lo que respondió el especialista. NUNCA respondas el contenido técnico del especialista por tu cuenta. DEBES esperar a que el sistema te notifique con el mensaje [SISTEMA INTERNO WAPPY]. Si el usuario te habla mientras tanto, dile: "El especialista aún está redactando su respuesta en pantalla, dame un segundo que ya casi termina."
 2. **ACADEMIA Y CURSOS:** Cuando el usuario pida ir a la academia o ver cursos ("llévame a la academia a un curso", "muéstrame los cursos", "abre la academia"):
    - DEBES INVOCAR INMEDIATAMENTE 'wappy_navegar' con modulo: 'academia', ruta: '/academia?tab=cursos'.
    - Responde oralmente en una sola frase breve: "¡De una! Te llevo al aula de cursos de la Academia WAPPY."
-3. **NAVEGAR A CUALQUIER MÓDULO O HITO:** Si el usuario pide ir o ver cualquier hito o sección (ej: "vamos a perfiles de cargo", "ábreme la matriz pesv", "muéstrame los planes", "quiero ver el oráculo"): INVOCA INMEDIATAMENTE 'wappy_navegar'. Cero preguntas redundantes si el usuario ya mencionó el módulo.
+3. **NAVEGAR A CUALQUIER MÓDULO, HITO O APLICATIVO:** Si el usuario pide ir o ver cualquier hito, aplicativo o sección (ej: "vamos a perfiles de cargo", "ábreme la matriz pesv", "muéstrame los planes", "quiero ver el oráculo", "vamos al kanban", "llévame a eventos"): INVOCA INMEDIATAMENTE 'wappy_navegar'. Cero preguntas redundantes si el usuario ya mencionó el destino.
 4. **RESPUESTA ORAL SÚPER CONCISA:** Habla en 1 o máximo 2 frases cortas confirmando la acción. Cero monólogos largos.
 5. **SÍNTESIS DE RESPUESTAS DE AGENTES ESPECIALISTAS:** Cuando recibas un mensaje de notificación del sistema interno con la respuesta técnica que dio un agente especialista, habla de inmediato al usuario por voz: confírmale que el especialista ya respondió, dale un resumen ejecutivo en lenguaje claro y cercano (en 2 a 3 oraciones concisas), y añade tu recomendación o siguiente paso como Tenshi en la plataforma WAPPY.
 6. **INTERRUPCIÓN:** Si el usuario empieza a hablarte mientras respondes, calla de inmediato y atiende su nueva orden.`;
@@ -599,6 +624,7 @@ Tienes control en tiempo real de la plataforma mientras hablas por voz con el us
         // Listen for USER transcription (what the user says)
         this.geminiClient.on('userTranscription', (text) => {
             logger.info(`[VoiceSession] User transcription received: "${text}"`);
+            this.toolCalledThisTurn = false;
             const cleanText = sanitizeTranscription(text);
             // Accumulate user text for saving
             this.userTranscriptionText += cleanText;
@@ -674,6 +700,7 @@ Tienes control en tiempo real de la plataforma mientras hablas por voz con el us
         // Listen for Tool Calls
         this.geminiClient.on('toolCall', (toolCall) => {
             logger.info('[VoiceSession] Tool Call received:', JSON.stringify(toolCall));
+            this.toolCalledThisTurn = true;
 
             if (toolCall.functionCalls) {
                 for (const fc of toolCall.functionCalls) {
@@ -786,6 +813,7 @@ Tienes control en tiempo real de la plataforma mientras hablas por voz con el us
         // Listen for Interrupted (User Barge-In)
         this.geminiClient.on('interrupted', () => {
             logger.info('[VoiceSession] ========== USER INTERRUPTED RESPONSE ==========');
+            this.toolCalledThisTurn = false;
             this.isAiSpeaking = false;
             if (this.aiSpeakingTimeout) {
                 clearTimeout(this.aiSpeakingTimeout);
@@ -1217,8 +1245,8 @@ Tienes control en tiempo real de la plataforma mientras hablas por voz con el us
 
                 logger.debug('[VoiceSession] Transcription refined:', refinedText);
 
-                // Save message to database if conversationId is present
-                if (this.conversationId) {
+                // Save message to database if conversationId is present (and not tenshi_voice)
+                if (this.conversationId && this.config.mode !== 'tenshi_voice') {
                     try {
                         let conversationId = this.conversationId;
                         let isNewConversation = false;
@@ -1287,7 +1315,7 @@ Tienes control en tiempo real de la plataforma mientras hablas por voz con el us
      * Save User Message to database
      */
     async saveUserMessage(text) {
-        if (!text) return null;
+        if (!text || this.config.mode === 'tenshi_voice') return null;
 
         try {
             let conversationId = this.conversationId;
@@ -1354,7 +1382,7 @@ Tienes control en tiempo real de la plataforma mientras hablas por voz con el us
      * Save AI Message to database
      */
     async saveAiMessage(text) {
-        if (!this.conversationId || !text) return;
+        if (!this.conversationId || !text || this.config.mode === 'tenshi_voice') return;
 
         try {
             const messageId = uuidv4();
@@ -2203,6 +2231,280 @@ ${standardHeaderHtml}
         }
     }
 
+    /**
+     * Tenshi Voice Failsafe: Intercepta intenciones de abrir agentes o navegar
+     * en caso de que Gemini Live haya respondido por voz pero omitido el toolCall.
+     */
+    handleTenshiVoiceFailsafe(currentUserText = '', currentAiText = '') {
+        if (this.config.mode !== 'tenshi_voice') return;
+        if (this.toolCalledThisTurn) {
+            logger.debug('[VoiceSession] [Tenshi Voice Failsafe] Tool was properly called by Gemini. No failsafe needed.');
+            return;
+        }
+
+        const userText = (currentUserText || '').trim();
+        const aiText = (currentAiText || '').trim();
+        const combinedText = `${userText} ${aiText}`.toLowerCase();
+
+        // 1. Detección de intención de consultar / abrir chat con un agente especialista
+        const agentIntentRegex = /(chat|agente|especialista|preg[uú]ntale|consulta|habla con|vamos a preguntarle|p[ií]dele|dile a|abrí el chat|abriendo el chat|le pasé tu pregunta|le pas[eé]|abrir chat|nuevo chat)/i;
+        if (agentIntentRegex.test(combinedText)) {
+            let matchedAgent = null;
+
+            if (/fisioterap|biomec|ergonom|owas|rula|rosa|postur|puesto.*trabajo|dme|músculo|musculo/i.test(combinedText)) {
+                matchedAgent = 'fisioterapeuta_laboral';
+            } else if (/abogado.*rit|reglamento interno.*rit/i.test(combinedText)) {
+                matchedAgent = 'abogado_rit';
+            } else if (/debido proceso|proceso disciplinario|descargo/i.test(combinedText)) {
+                matchedAgent = 'abogado_procesos_disciplinarios';
+            } else if (/acoso sexual|ley 2365/i.test(combinedText)) {
+                matchedAgent = 'abogado_acoso_sexual';
+            } else if (/abogad|jur[ií]dic|disciplinar|ley 1010|contrato|despido|rit|legal/i.test(combinedText)) {
+                matchedAgent = 'abogado_laboral';
+            } else if (/m[eé]dic|doctor|salud ocupacional|restricci[oó]n|ausentism|epidemiol/i.test(combinedText)) {
+                matchedAgent = 'medico_laboral';
+            } else if (/qu[ií]mic|sga|fds|hds|sustancia|derrame|hoja.*seguridad/i.test(combinedText)) {
+                matchedAgent = 'ingeniero_quimico_sst';
+            } else if (/seguridad vial|vial|pesv|tr[aá]nsito|conductor|veh[ií]cul/i.test(combinedText)) {
+                matchedAgent = 'coordinador_seguridad_vial';
+            } else if (/psic[oó]log|psicosocial|bater[ií]a|acoso|clima/i.test(combinedText)) {
+                matchedAgent = 'psicologo_sst';
+            } else if (/salud mental|burnout|emocional|terapeuta/i.test(combinedText)) {
+                matchedAgent = 'terapeuta_salud_mental';
+            } else if (/nutrici[oó]n|dieta|aliment|cardiovascular/i.test(combinedText)) {
+                matchedAgent = 'nutricionista_laboral';
+            } else if (/primer respondiente|primeros auxilios|rcp|botiqu[ií]n|hemorragia/i.test(combinedText)) {
+                matchedAgent = 'primer_respondiente';
+            } else if (/emergencia|brigada|simulacro|pae|evacuaci[oó]n/i.test(combinedText)) {
+                matchedAgent = 'coordinador_emergencias';
+            } else if (/bioseguridad|biol[oó]gic|vacun|pgirh/i.test(combinedText)) {
+                matchedAgent = 'especialista_bioseguridad';
+            } else if (/el[eé]ctric|retie|loto|arco el[eé]ctrico/i.test(combinedText)) {
+                matchedAgent = 'ingeniero_electricista_sst';
+            } else if (/\bats\b|an[aá]lisis de trabajo seguro/i.test(combinedText)) {
+                matchedAgent = 'asistente_ats';
+            } else if (/permiso.*tsa|permiso.*alturas|permiso de trabajo/i.test(combinedText)) {
+                matchedAgent = 'asistente_permiso_tsa';
+            } else if (/tareas cr[ií]ticas|alturas|espacios confinados|caliente|excavaci[oó]n/i.test(combinedText)) {
+                matchedAgent = 'coordinador_tareas_criticas';
+            } else if (/minas|miner[ií]a|subterr[aá]nea|t[uú]nel/i.test(combinedText)) {
+                matchedAgent = 'ingeniero_minas_sst';
+            } else if (/ipevar|gtc.*45|matriz de peligro/i.test(combinedText)) {
+                matchedAgent = 'coordinador_ipevar';
+            } else if (/creador.*formato|formatos sst|plantilla sst/i.test(combinedText)) {
+                matchedAgent = 'creador_formatos';
+            } else if (/\baci\b|or[aá]culo.*aci|predictivo aci/i.test(combinedText)) {
+                matchedAgent = 'asistente_de_aci';
+            } else if (/auditor|0312|est[aá]ndares|phva/i.test(combinedText)) {
+                matchedAgent = 'auditor_sg_sst';
+            } else if (/ambiental|residuos|vertimiento|ecol[oó]g/i.test(combinedText)) {
+                matchedAgent = 'ingeniero_ambiental';
+            } else if (/clim[aá]tic|estr[eé]s t[eé]rmico|radiaci[oó]n|uv/i.test(combinedText)) {
+                matchedAgent = 'especialista_riesgo_climatico';
+            } else if (/redactor|blog|art[ií]culo/i.test(combinedText)) {
+                matchedAgent = 'redactor_creativo';
+            } else if (/simulador|siniestro|accidente|causa ra[ií]z/i.test(combinedText)) {
+                matchedAgent = 'simulador_accidentes';
+            } else if (/capacitaci[oó]n|pac|inducci[oó]n/i.test(combinedText)) {
+                matchedAgent = 'coordinador_capacitaciones';
+            } else if (/profesional sst/i.test(combinedText)) {
+                matchedAgent = 'profesional_sst';
+            } else if (/consultor sst|asesor sst/i.test(combinedText)) {
+                matchedAgent = 'agente_sst';
+            }
+
+            if (matchedAgent) {
+                // Extraer la pregunta o consulta formulada por el usuario
+                let pregunta = '';
+                const qMatch = userText.match(/(preg[uú]ntale\s+(que\s+)?|pregunta\s+(que\s+)?|dile\s+(que\s+)?|sobre\s+|acerca de\s+)(.+)/i);
+                if (qMatch && qMatch[4]) {
+                    pregunta = qMatch[4].trim();
+                } else if (userText.length > 8) {
+                    pregunta = userText;
+                }
+
+                logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Gemini omitted toolCall! Dispatching wappy_abrir_chat_agente: ${matchedAgent}, pregunta: "${pregunta}"`);
+                this.sendToClient({
+                    type: 'wappy_action',
+                    data: {
+                        id: `failsafe-agent-${Date.now()}`,
+                        name: 'wappy_abrir_chat_agente',
+                        args: {
+                            agente: matchedAgent,
+                            pregunta: pregunta
+                        }
+                    }
+                });
+                return;
+            }
+        }
+
+        // 2. Detección de intención de navegación
+        const navIntentRegex = /(ll[eé]vame|vamos|abre|abrir|ir a|mu[eé]strame|ver|consultar|quiero ver)/i;
+        if (navIntentRegex.test(userText) || /vamos a|te llevo a|abriendo/i.test(aiText)) {
+            let targetModulo = null;
+            let targetRuta = null;
+
+            if (/admin.*curso|gesti[oó]n.*curso|administrar curso/i.test(combinedText)) {
+                targetModulo = 'training_admin';
+                targetRuta = '/training/admin';
+            } else if (/admin.*ruta|administrar ruta/i.test(combinedText)) {
+                targetModulo = 'ruta_admin';
+                targetRuta = '/ruta-aprendizaje/admin';
+            } else if (/admin.*evento|admin.*meet/i.test(combinedText)) {
+                targetModulo = 'events_meet_admin';
+                targetRuta = '/events-meet/admin';
+            } else if (/evento|clase en vivo|meet/i.test(combinedText)) {
+                targetModulo = 'events_meet';
+                targetRuta = '/events-meet';
+            } else if (/admin.*blog|crear art[ií]culo|nuevo art[ií]culo/i.test(combinedText)) {
+                targetModulo = 'blog_admin';
+                targetRuta = '/blog/admin';
+            } else if (/admin.*tenshi|panel tenshi/i.test(combinedText)) {
+                targetModulo = 'tenshi_admin';
+                targetRuta = '/tenshi/admin';
+            } else if (/chat.*sst|chat sst/i.test(combinedText)) {
+                targetModulo = 'chat_sst';
+                targetRuta = '/chat-sst';
+            } else if (/dashboard.*[aá]nimo|anal[ií]tica.*[aá]nimo/i.test(combinedText)) {
+                targetModulo = 'animo_dashboard';
+                targetRuta = '/sgsst/animo';
+            } else if (/hoja de ruta|roadmap/i.test(combinedText)) {
+                targetModulo = 'roadmap';
+                targetRuta = '/hoja-de-ruta';
+            } else if (/cont[aá]ctanos|contacto|soporte/i.test(combinedText)) {
+                targetModulo = 'contactanos';
+                targetRuta = '/contactanos';
+            } else if (/comunidad/i.test(combinedText)) {
+                targetModulo = 'comunidad';
+                targetRuta = '/comunidad';
+            } else if (/embajador/i.test(combinedText)) {
+                targetModulo = 'embajadores';
+                targetRuta = '/embajadores';
+            } else if (/matriz\b/i.test(combinedText)) {
+                targetModulo = 'matriz';
+                targetRuta = '/matriz';
+            } else if (/academia|curso/i.test(combinedText)) {
+                targetModulo = 'academia';
+                targetRuta = '/academia?tab=cursos';
+            } else if (/blog/i.test(combinedText)) {
+                targetModulo = 'blog';
+                targetRuta = '/blog';
+            } else if (/planes|precios|suscripci[oó]n|tarifas/i.test(combinedText)) {
+                targetModulo = 'planes';
+                targetRuta = '/planes';
+            } else if (/pesv|seguridad vial|veh[ií]culos/i.test(combinedText)) {
+                targetModulo = 'vehicles_pesv';
+                targetRuta = '/sgsst?hito=hito4&module=vehicles_pesv';
+            } else if (/qu[ií]mica|sga|compatibilidad/i.test(combinedText)) {
+                targetModulo = 'chemical_registry';
+                targetRuta = '/sgsst?hito=hito4&module=chemical_registry';
+            } else if (/diagn[oó]stico|evaluaci[oó]n inicial|0312/i.test(combinedText)) {
+                targetModulo = 'diagnostico';
+                targetRuta = '/sgsst?hito=hito1&module=diagnostico';
+            } else if (/responsable sst|asignaci[oó]n responsable/i.test(combinedText)) {
+                targetModulo = 'responsable';
+                targetRuta = '/sgsst?hito=hito1&module=responsable';
+            } else if (/pol[ií]tica sst|objetivos sst/i.test(combinedText)) {
+                targetModulo = 'politica';
+                targetRuta = '/sgsst?hito=hito1&module=politica';
+            } else if (/matriz legal|requisitos legales/i.test(combinedText)) {
+                targetModulo = 'legal';
+                targetRuta = '/sgsst?hito=hito1&module=legal';
+            } else if (/reglamento|rhs|higiene/i.test(combinedText)) {
+                targetModulo = 'rhs';
+                targetRuta = '/sgsst?hito=hito1&module=rhs';
+            } else if (/vulnerabilidad|plan.*emergencia/i.test(combinedText)) {
+                targetModulo = 'vulnerabilidad';
+                targetRuta = '/sgsst?hito=hito1&module=vulnerabilidad';
+            } else if (/perfil.*cargo|profesigrama/i.test(combinedText)) {
+                targetModulo = 'perfil_cargo';
+                targetRuta = '/sgsst?hito=hito2&module=perfil_cargo';
+            } else if (/sociodemogr[aá]fico|perfil socio/i.test(combinedText)) {
+                targetModulo = 'perfil_socio';
+                targetRuta = '/sgsst?hito=hito2&module=perfil_socio';
+            } else if (/condiciones de salud|ex[aá]menes m[eé]dicos/i.test(combinedText)) {
+                targetModulo = 'condiciones_salud';
+                targetRuta = '/sgsst?hito=hito2&module=condiciones_salud';
+            } else if (/participaci[oó]n ipevar|reportar peligro/i.test(combinedText)) {
+                targetModulo = 'participacion_ipevar';
+                targetRuta = '/sgsst?hito=hito3&module=participacion_ipevar';
+            } else if (/peligro|gtc.*45|ipevar/i.test(combinedText)) {
+                targetModulo = 'peligros';
+                targetRuta = '/sgsst?hito=hito3&module=peligros';
+            } else if (/permiso.*alturas|permiso.*tsa/i.test(combinedText)) {
+                targetModulo = 'permiso_alturas';
+                targetRuta = '/sgsst?hito=hito4&module=permiso_alturas';
+            } else if (/\bats\b|an[aá]lisis de trabajo seguro/i.test(combinedText)) {
+                targetModulo = 'analisis_trabajo_seguro';
+                targetRuta = '/sgsst?hito=hito4&module=analisis_trabajo_seguro';
+            } else if (/m[eé]todo owas|owas|ergonom[ií]a laboral/i.test(combinedText)) {
+                targetModulo = 'metodo_owas';
+                targetRuta = '/sgsst?hito=hito4&module=metodo_owas';
+            } else if (/epp|entrega.*epp|dotaci[oó]n/i.test(combinedText)) {
+                targetModulo = 'epp_delivery';
+                targetRuta = '/sgsst?hito=hito4&module=epp_delivery';
+            } else if (/l[ií]nea de vida|ciclo.*altura|arn[eé]s/i.test(combinedText)) {
+                targetModulo = 'heights_lifecycle';
+                targetRuta = '/sgsst?hito=hito4&module=heights_lifecycle';
+            } else if (/capacitaci[oó]n|pac|programa capacitaci[oó]n/i.test(combinedText)) {
+                targetModulo = 'capacitaciones';
+                targetRuta = '/sgsst?hito=hito5&module=capacitaciones';
+            } else if (/ruta.*aprendizaje|lms/i.test(combinedText)) {
+                targetModulo = 'ruta_aprendizaje';
+                targetRuta = '/sgsst?hito=hito5&module=ruta_aprendizaje';
+            } else if (/reporte de actos|condiciones inseguras/i.test(combinedText)) {
+                targetModulo = 'reporte_actos';
+                targetRuta = '/sgsst?hito=hito5&module=reporte_actos';
+            } else if (/app.*builder|constructor.*app|micro.*app/i.test(combinedText)) {
+                targetModulo = 'app_builder';
+                targetRuta = '/sgsst?hito=hito5&module=app_builder';
+            } else if (/estad[ií]sticas|indicadores atel/i.test(combinedText)) {
+                targetModulo = 'estadisticas';
+                targetRuta = '/sgsst?hito=hito6&module=estadisticas';
+            } else if (/investigaci[oó]n.*accidente|[aá]rbol de causas/i.test(combinedText)) {
+                targetModulo = 'investigacion_atel';
+                targetRuta = '/sgsst?hito=hito6&module=investigacion_atel';
+            } else if (/alta direcci[oó]n|revisi[oó]n gerencial/i.test(combinedText)) {
+                targetModulo = 'alta_direccion';
+                targetRuta = '/sgsst?hito=hito6&module=alta_direccion';
+            } else if (/investigaci[oó]n profunda/i.test(combinedText)) {
+                targetModulo = 'investigacion_profunda';
+                targetRuta = '/sgsst?hito=hito6&module=investigacion_profunda';
+            } else if (/auditor[ií]a/i.test(combinedText)) {
+                targetModulo = 'auditoria';
+                targetRuta = '/auditoria';
+            } else if (/predictivo|or[aá]culo/i.test(combinedText)) {
+                targetModulo = 'predictivo';
+                targetRuta = '/sgsst?hito=hito7&module=predictivo';
+            } else if (/videollamada|c[aá]mara|en vivo/i.test(combinedText)) {
+                targetModulo = 'live';
+                targetRuta = '/live';
+            } else if (/agentes|mercado|cat[aá]logo/i.test(combinedText)) {
+                targetModulo = 'agents';
+                targetRuta = '/agents';
+            } else if (/control|kanban|acpm/i.test(combinedText)) {
+                targetModulo = 'control_acpm';
+                targetRuta = '/sgsst/control';
+            }
+
+            if (targetModulo) {
+                logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Gemini omitted nav tool call. Dispatching wappy_navegar: ${targetModulo}`);
+                this.sendToClient({
+                    type: 'wappy_action',
+                    data: {
+                        id: `failsafe-nav-${Date.now()}`,
+                        name: 'wappy_navegar',
+                        args: {
+                            modulo: targetModulo,
+                            ruta: targetRuta
+                        }
+                    }
+                });
+            }
+        }
+    }
+
     async saveCurrentTurn(source = 'Unknown') {
         const currentUserText = this.userTranscriptionText;
         const currentAiText = this.aiResponseText;
@@ -2217,6 +2519,18 @@ ${standardHeaderHtml}
             logger.info(`[VoiceSession] [${source}] Discarding unanswered user transcription fragment to prevent chat clutter: "${currentUserText}"`);
             this.userTranscriptionText = '';
             this.aiResponseText = '';
+            this.aiAudioChunkCount = 0;
+            return;
+        }
+
+        // MODO TENSHI: Copiloto oficial en ventana flotante/widget.
+        // NUNCA guardar turnos en MongoDB ni crear conversaciones en el sidebar de LibreChat.
+        if (this.config.mode === 'tenshi_voice') {
+            logger.info(`[VoiceSession] [Tenshi Voice] Turn completed (${source}). User: "${currentUserText}", AI: "${currentAiText}"`);
+            this.handleTenshiVoiceFailsafe(currentUserText, currentAiText);
+            this.userTranscriptionText = '';
+            this.aiResponseText = '';
+            this.aiTranscriptionBuffer = '';
             this.aiAudioChunkCount = 0;
             return;
         }

@@ -675,7 +675,7 @@ export default function CommercialProposalGenerator({
 
           <!-- Footer -->
           <div class="doc-footer">
-            Documento emitido formalmente por WAPPY IA (wappy.club / wappy-ia.com) • Todos los derechos reservados © ${new Date().getFullYear()}
+            Documento emitido formalmente por WAPPY IA (wappy.club) • Todos los derechos reservados © ${new Date().getFullYear()}
           </div>
         </div>
 
@@ -1510,7 +1510,7 @@ export default function CommercialProposalGenerator({
 
                     <div className="text-left sm:text-right">
                       <div className="text-[10px] font-bold text-gray-500">WAPPY IA — TECNOLOGÍA APLICADA A SST</div>
-                      <div className="text-[10px] text-teal-700 font-mono font-bold">wappy.club / wappy-ia.com</div>
+                      <div className="text-[10px] text-teal-700 font-mono font-bold">wappy.club</div>
                     </div>
                   </div>
                 </div>

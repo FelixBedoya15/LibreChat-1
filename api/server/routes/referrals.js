@@ -1557,7 +1557,7 @@ router.post('/email/send', requireJwtAuth, async (req, res) => {
         if (cleanPhone.length === 10 && cleanPhone.startsWith('3')) {
             cleanPhone = `57${cleanPhone}`;
         }
-        const refLink = req.body.referralLink || (partner ? `https://wappy-ia.com/?ref=${partner.slug}` : 'https://wappy.club');
+        const refLink = req.body.referralLink || (partner ? `https://wappy.club/?ref=${partner.slug}` : 'https://wappy.club');
 
         const themeConfig = THEMES[theme] || THEMES.slate;
         const year = new Date().getFullYear();
@@ -1764,7 +1764,7 @@ router.post('/proposal/generate', requireJwtAuth, async (req, res) => {
         const genAI = new GoogleGenerativeAI(apiKey);
         const modelInstance = genAI.getGenerativeModel({
             model: 'gemini-3.7-flash',
-            systemInstruction: `Eres el Director Comercial Senior y Consultor Líder en SST de WAPPY IA (wappy.club / wappy-ia.com), el ecosistema SaaS líder en Colombia para la automatización de la Seguridad y Salud en el Trabajo mediante Inteligencia Artificial y Agentes Autónomos.
+            systemInstruction: `Eres el Director Comercial Senior y Consultor Líder en SST de WAPPY IA (wappy.club), el ecosistema SaaS líder en Colombia para la automatización de la Seguridad y Salud en el Trabajo mediante Inteligencia Artificial y Agentes Autónomos.
 
 Tu misión es generar una PROPUESTA COMERCIAL EJECUTIVA, DE ALTO VALOR, TÉCNICAMENTE IMPECABLE, 100% PERSONALIZADA Y SIEMPRE CON EXACTAMENTE 6 MÓDULOS DE ALCANCE TECNOLÓGICO.
 
