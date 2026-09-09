@@ -219,6 +219,31 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
     setBackupBadges([]);
   }, [backupBadges, setBadges, setIsEditingBadges]);
 
+  // Listener para auto-envío de consultas delegadas por Tenshi
+  useEffect(() => {
+    const handleTenshiSubmit = (e: any) => {
+      const { prompt } = e.detail || {};
+      if (!prompt) return;
+
+      console.log('[ChatForm] tenshi-submit-agent-prompt recibido:', prompt);
+      methods.setValue('text', prompt, { shouldValidate: true });
+      if (textAreaRef.current) {
+        textAreaRef.current.value = prompt;
+        textAreaRef.current.focus();
+      }
+
+      setTimeout(() => {
+        methods.setValue('text', prompt, { shouldValidate: true });
+        submitMessage({ text: prompt });
+      }, 400);
+    };
+
+    window.addEventListener('tenshi-submit-agent-prompt', handleTenshiSubmit);
+    return () => {
+      window.removeEventListener('tenshi-submit-agent-prompt', handleTenshiSubmit);
+    };
+  }, [methods, submitMessage, textAreaRef]);
+
   const isMoreThanThreeRows = visualRowCount > 3;
 
   const baseClasses = useMemo(

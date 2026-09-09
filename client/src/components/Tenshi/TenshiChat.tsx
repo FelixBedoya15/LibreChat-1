@@ -124,6 +124,19 @@ export default function TenshiChat() {
   const inactivityIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const disconnectVoiceRef = useRef<() => void>(() => {});
 
+  // Monitoreo de chat y agentes para que Tenshi aprenda y responda al usuario
+  const pendingAgentConsultationRef = useRef<{
+    agentName: string;
+    question: string;
+    active: boolean;
+    hadStarted: boolean;
+    timestamp: number;
+  } | null>(null);
+
+  const isChatSubmitting = useRecoilValue(store.isSubmittingFamily(0));
+  const latestChatMessage = useRecoilValue(store.latestMessageFamily(0));
+  const prevIsChatSubmittingRef = useRef<boolean>(false);
+
   const audioContextRef = useRef<AudioContext | null>(null);
   const outputAnalyserRef = useRef<AnalyserNode | null>(null);
   const activeSourcesRef = useRef<AudioBufferSourceNode[]>([]);
@@ -424,6 +437,16 @@ export default function TenshiChat() {
             const rawAgente = (action.args?.agente || '').trim();
             const pregunta = (action.args?.pregunta || '').trim();
             const matchedAgent = findMatchingAgent(rawAgente, agentsRef.current);
+            const agentName = matchedAgent ? matchedAgent.name : rawAgente;
+
+            // Registrar consulta pendiente para que Tenshi escuche la respuesta del agente
+            pendingAgentConsultationRef.current = {
+              agentName,
+              question: pregunta,
+              active: true,
+              hadStarted: false,
+              timestamp: Date.now(),
+            };
 
             const params = new URLSearchParams();
             if (matchedAgent?.id) {
@@ -437,11 +460,23 @@ export default function TenshiChat() {
             const targetRoute = `/c/new${params.toString() ? `?${params.toString()}` : ''}`;
             navigate(targetRoute);
 
-            // Cerrar el drawer lateral para ver directamente el chat del agente especializado
+            // Emitir evento para que ChatForm sincronice de inmediato el texto y lo envíe
+            if (pregunta) {
+              window.dispatchEvent(
+                new CustomEvent('tenshi-submit-agent-prompt', {
+                  detail: {
+                    agentId: matchedAgent?.id,
+                    prompt: pregunta,
+                  },
+                })
+              );
+            }
+
+            // Ocultar drawer si estaba abierto para dar paso a la vista del chat del especialista
             setIsOpen(false);
 
             resultMsg = matchedAgent
-              ? `Chat abierto con ${matchedAgent.name}${pregunta ? ` y consulta enviada: "${pregunta}"` : ''}`
+              ? `Chat abierto con ${matchedAgent.name}${pregunta ? ` y consulta formulada: "${pregunta}"` : ''}`
               : `Nuevo chat abierto${pregunta ? ` con la consulta: "${pregunta}"` : ''}`;
           } else if (action.name === 'wappy_seleccionar_empresa') {
             const companyName = action.args?.nombre_o_id;
@@ -502,6 +537,7 @@ export default function TenshiChat() {
     connect: connectVoice,
     disconnect: disconnectVoice,
     getInputVolume,
+    sendTextMessage,
     sendWappyActionResult,
   } = useVoiceSession(sessionOptions);
   disconnectVoiceRef.current = disconnectVoice;
@@ -584,12 +620,52 @@ export default function TenshiChat() {
     };
   }, [isVoiceActive, stopVoiceMode]);
 
-  // Desactivar voz si el usuario cierra el widget
+  // 🧠 Escuchar y procesar la respuesta del especialista para que Tenshi aprenda y hable al usuario
   useEffect(() => {
-    if (!isOpen && isVoiceActive) {
-      stopVoiceMode();
+    const wasSubmitting = prevIsChatSubmittingRef.current;
+    prevIsChatSubmittingRef.current = isChatSubmitting;
+
+    if (!pendingAgentConsultationRef.current || !pendingAgentConsultationRef.current.active) {
+      return;
     }
-  }, [isOpen, isVoiceActive, stopVoiceMode]);
+
+    if (isChatSubmitting) {
+      pendingAgentConsultationRef.current.hadStarted = true;
+      return;
+    }
+
+    // El agente en el chat terminó de generar su respuesta (isChatSubmitting pasó de true a false)
+    if (wasSubmitting && !isChatSubmitting && pendingAgentConsultationRef.current.hadStarted) {
+      const consultation = { ...pendingAgentConsultationRef.current };
+      pendingAgentConsultationRef.current.active = false;
+
+      setTimeout(() => {
+        const lastMsg = (latestChatMessage?.text || '').trim();
+        if (!lastMsg || lastMsg.length < 15) {
+          console.warn('[Tenshi] Respuesta del agente aún no consolidada o vacía.');
+          return;
+        }
+
+        console.log(`[Tenshi] Respuesta técnica capturada de ${consultation.agentName}:`, lastMsg.substring(0, 120));
+
+        // 1. Si el Modo Voz está activo, instruir a Tenshi Live para que hable al usuario con su conocimiento
+        if (isVoiceActive) {
+          lastActivityRef.current = Date.now();
+          const promptForTenshi = `[SISTEMA INTERNO WAPPY]: El usuario te pidió consultar a ${consultation.agentName} sobre: "${consultation.question}". El ${consultation.agentName} acaba de responder lo siguiente en el chat:\n\n"""\n${lastMsg.substring(0, 1200)}\n"""\n\nINSTRUCCIÓN PARA TENSHI: En voz alta al usuario, habla con tu estilo fresco, profesional y cercano. Confírmale en 2 o 3 oraciones concisas el punto técnico principal que dictaminó el ${consultation.agentName}, y añade tu recomendación como Tenshi para avanzar en la plataforma o en el SG-SST.`;
+          sendTextMessage(promptForTenshi);
+        }
+
+        // 2. Registrar en la conversación interna de Tenshi
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: `💡 **Tenshi:** He revisado la respuesta que te dio **${consultation.agentName}** sobre *"${consultation.question}"*. En el chat central puedes consultar todo el sustento técnico y normativo detallado. Si deseas que articulemos esto con algún hito o matriz de WAPPY, solo indícamelo.`,
+          },
+        ]);
+      }, 400);
+    }
+  }, [isChatSubmitting, latestChatMessage, isVoiceActive, sendTextMessage]);
 
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);

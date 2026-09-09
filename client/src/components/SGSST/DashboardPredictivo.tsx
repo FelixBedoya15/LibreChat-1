@@ -28,6 +28,16 @@ import {
     Clock,
     Building2,
     Layers,
+    Scale,
+    Heart,
+    Stethoscope,
+    BadgeCheck,
+    MapPin,
+    Cigarette,
+    AlertCircle,
+    Fingerprint,
+    FileText,
+    ClipboardList,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
@@ -305,6 +315,99 @@ const SEV_STYLES: Record<string, { icon: React.ReactNode; border: string; pts: s
     critical: { icon: <ShieldAlert className="w-4 h-4 text-red-500" />, border: 'border-red-200 dark:border-red-800', pts: 'text-red-600 dark:text-red-400' },
     warning:  { icon: <AlertTriangle className="w-4 h-4 text-amber-500" />, border: 'border-amber-200 dark:border-amber-800', pts: 'text-amber-600 dark:text-amber-400' },
     info:     { icon: <HeartPulse className="w-4 h-4 text-blue-400" />, border: 'border-blue-100 dark:border-blue-800', pts: 'text-blue-500 dark:text-blue-400' },
+};
+
+const GET_WORKER_FIT_DETAILS = (score: number) => {
+    if (score >= 90) {
+        return {
+            label: 'Aptitud Óptima',
+            sublabel: 'Sin restricciones clínicas',
+            ring: 'border-emerald-500/40 dark:border-emerald-400/40',
+            glow: 'shadow-[0_0_20px_rgba(16,185,129,0.2)]',
+            bg: 'bg-emerald-50 dark:bg-emerald-950/30',
+            text: 'text-emerald-600 dark:text-emerald-400',
+            badge: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25',
+            barColor: '#10b981',
+            dot: 'bg-emerald-500',
+        };
+    }
+    if (score >= 75) {
+        return {
+            label: 'Aptitud Controlada',
+            sublabel: 'Recomendaciones preventivas',
+            ring: 'border-teal-500/40 dark:border-teal-400/40',
+            glow: 'shadow-[0_0_20px_rgba(20,184,166,0.2)]',
+            bg: 'bg-teal-50 dark:bg-teal-950/30',
+            text: 'text-teal-600 dark:text-teal-400',
+            badge: 'bg-teal-500/10 text-teal-700 dark:text-teal-300 border-teal-500/25',
+            barColor: '#14b8a6',
+            dot: 'bg-teal-500',
+        };
+    }
+    if (score >= 60) {
+        return {
+            label: 'Observación Activa',
+            sublabel: 'Seguimiento médico periódico',
+            ring: 'border-amber-500/40 dark:border-amber-400/40',
+            glow: 'shadow-[0_0_20px_rgba(245,158,11,0.2)]',
+            bg: 'bg-amber-50 dark:bg-amber-950/30',
+            text: 'text-amber-600 dark:text-amber-400',
+            badge: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/25',
+            barColor: '#f59e0b',
+            dot: 'bg-amber-500',
+        };
+    }
+    return {
+        label: 'Vulnerabilidad Alta',
+        sublabel: 'Restricción laboral vigente',
+        ring: 'border-rose-500/40 dark:border-rose-400/40',
+        glow: 'shadow-[0_0_20px_rgba(244,63,94,0.2)]',
+        bg: 'bg-rose-50 dark:bg-rose-950/30',
+        text: 'text-rose-600 dark:text-rose-400',
+        badge: 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/25',
+        barColor: '#f43f5e',
+        dot: 'bg-rose-500',
+    };
+};
+
+const getPresionStatus = (pa?: string) => {
+    if (!pa || pa === 'No registrada' || pa === 'Sin registro') return { label: 'Sin registro clínico', color: 'text-slate-500 bg-slate-100 dark:bg-slate-800 border-border-light' };
+    const match = String(pa).match(/(\d+)\s*\/\s*(\d+)/);
+    if (match) {
+        const sys = parseInt(match[1], 10);
+        const dia = parseInt(match[2], 10);
+        if (sys < 120 && dia < 80) return { label: 'Óptima (< 120/80)', color: 'text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/20' };
+        if (sys <= 129 && dia < 80) return { label: 'Normal (120-129)', color: 'text-teal-700 dark:text-teal-300 bg-teal-500/10 border-teal-500/20' };
+        if (sys <= 139 || dia <= 89) return { label: 'Prehipertensión (130-139)', color: 'text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/20' };
+        return { label: 'Hipertensión (≥ 140/90)', color: 'text-rose-700 dark:text-rose-300 bg-rose-500/10 border-rose-500/20' };
+    }
+    return { label: 'Parámetro Registrado', color: 'text-teal-700 dark:text-teal-300 bg-teal-500/10 border-teal-500/20' };
+};
+
+const getFrecuenciaStatus = (fc?: any) => {
+    const val = parseInt(String(fc || ''), 10);
+    if (!val || isNaN(val)) return { label: 'Sin registro clínico', color: 'text-slate-500 bg-slate-100 dark:bg-slate-800 border-border-light' };
+    if (val >= 60 && val <= 100) return { label: 'Eucardia Normal (60-100 lpm)', color: 'text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/20' };
+    if (val < 60) return { label: 'Bradicardia (< 60 lpm)', color: 'text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/20' };
+    return { label: 'Taquicardia (> 100 lpm)', color: 'text-rose-700 dark:text-rose-300 bg-rose-500/10 border-rose-500/20' };
+};
+
+const getImcStatus = (imcStr?: any) => {
+    const val = parseFloat(String(imcStr || '').replace(',', '.'));
+    if (!val || isNaN(val)) return { label: 'Sin registro de peso', color: 'text-slate-500 bg-slate-100 dark:bg-slate-800 border-border-light' };
+    if (val < 18.5) return { label: 'Bajo Peso (< 18.5)', color: 'text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/20' };
+    if (val <= 24.9) return { label: 'Peso Saludable (18.5 - 24.9)', color: 'text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/20' };
+    if (val <= 29.9) return { label: 'Sobrepeso Leve (25.0 - 29.9)', color: 'text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/20' };
+    if (val <= 34.9) return { label: 'Obesidad Grado I (30.0 - 34.9)', color: 'text-rose-700 dark:text-rose-300 bg-rose-500/10 border-rose-500/20' };
+    return { label: 'Obesidad Severa (≥ 35)', color: 'text-rose-700 dark:text-rose-300 bg-rose-500/10 border-rose-500/20' };
+};
+
+const getFumaStatus = (fuma?: string) => {
+    const str = String(fuma || '').toLowerCase().trim();
+    if (!str || str === 'no' || str === 'no registrado' || str === 'falso' || str === 'false') {
+        return { label: 'No Fumador · Salud Pulmonar', isRisk: false, color: 'text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/20' };
+    }
+    return { label: 'Fumador Activo · Factor de Riesgo', isRisk: true, color: 'text-rose-700 dark:text-rose-300 bg-rose-500/10 border-rose-500/20' };
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1573,124 +1676,396 @@ const DashboardPredictivo = () => {
             )}
 
             {/* ═══ Ultra-Premium Bioseguridad 360° Worker Modal (Portal to body) ═══ */}
-            {selectedWorker && typeof document !== 'undefined' && createPortal(
-                <div 
-                    className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/75 backdrop-blur-md p-4 sm:p-6 overflow-y-auto"
-                    onClick={(e) => {
-                        if (e.target === e.currentTarget) setSelectedWorker(null);
-                    }}
-                >
-                    <div className="bg-surface-primary dark:bg-slate-900 border border-border-medium/60 rounded-3xl p-6 max-w-xl w-full mx-auto shadow-2xl relative animate-in zoom-in-95 duration-300 my-auto max-h-[90vh] overflow-y-auto">
-                        <button 
-                            onClick={() => setSelectedWorker(null)} 
-                            className="absolute top-4 right-4 p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-xl transition-colors text-text-secondary outline-none"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
-                        
-                        <div className="flex items-center gap-4.5 mb-6 border-b border-border-light pb-5">
-                            <div className={cn("w-14 h-14 rounded-2xl border-2 flex items-center justify-center text-xl font-black shrink-0", SCORE_COLOR(selectedWorker.calculatedScore).ring, SCORE_COLOR(selectedWorker.calculatedScore).bg, SCORE_COLOR(selectedWorker.calculatedScore).text)}>
-                                {(selectedWorker.nombre || 'U')[0].toUpperCase()}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <h3 className="font-black text-lg text-text-primary truncate">{selectedWorker.nombre}</h3>
-                                <p className="text-xs text-text-secondary font-bold flex items-center gap-1.5 mt-0.5">
-                                    <Briefcase className="w-3.5 h-3.5 text-teal-500" />
-                                    {selectedWorker.cargo || 'Sin cargo'} · {selectedWorker.edad || '?'} años
-                                </p>
-                            </div>
-                            <div className={cn("px-3.5 py-2 rounded-2xl text-xs font-black uppercase tracking-wider text-center shrink-0 border", SCORE_COLOR(selectedWorker.calculatedScore).badge)}>
-                                {selectedWorker.calculatedScore}% FIT
-                            </div>
-                        </div>
+            {selectedWorker && typeof document !== 'undefined' && (() => {
+                const fitDetails = GET_WORKER_FIT_DETAILS(selectedWorker.calculatedScore);
+                const presionStatus = getPresionStatus(selectedWorker.presionArterial);
+                const frecuenciaStatus = getFrecuenciaStatus(selectedWorker.frecuenciaCardiaca);
+                const imcStatus = getImcStatus(selectedWorker.imc);
+                const fumaStatus = getFumaStatus(selectedWorker.fuma);
 
-                        <div className="space-y-5">
-                            {/* IA Tags Area */}
-                            <div>
-                                <h4 className="text-[10px] font-black text-text-secondary uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                                    <Sparkles className="w-3.5 h-3.5 text-teal-500" /> Hallazgos Semánticos IA
-                                </h4>
-                                <div className="flex flex-wrap gap-2">
-                                    {selectedWorker.bioTagsIA && selectedWorker.bioTagsIA.length > 0 && !selectedWorker.bioTagsIA.includes('Sin_Hallazgos') ? (
-                                        selectedWorker.bioTagsIA.map((tag: string) => {
-                                            const r = TAG_RULES[tag];
-                                            const pts = r?.pts || 5;
-                                            return (
-                                                <span key={tag} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-border-medium/60 shadow-sm">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                                                    {r?.label || tag} (-{pts} pts)
+                return createPortal(
+                    <div 
+                        className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/75 backdrop-blur-md p-3 sm:p-6 overflow-y-auto"
+                        onClick={(e) => {
+                            if (e.target === e.currentTarget) setSelectedWorker(null);
+                        }}
+                    >
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl max-w-2xl w-full mx-auto shadow-2xl relative animate-in zoom-in-95 duration-200 my-auto max-h-[92vh] flex flex-col overflow-hidden">
+                            
+                            {/* Top decorative gradient bar */}
+                            <div className="h-1.5 w-full bg-gradient-to-r from-teal-500 via-emerald-400 to-indigo-500 shrink-0" />
+                            
+                            {/* Ambient subtle decorative glows */}
+                            <div className="absolute -top-20 -right-20 w-48 h-48 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
+                            <div className="absolute top-48 -left-20 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                            {/* Modal Header */}
+                            <div className="p-5 sm:p-6 pb-4 sm:pb-5 border-b border-border-light relative z-10 flex items-start justify-between gap-4">
+                                <div className="flex items-start sm:items-center gap-3.5 sm:gap-4.5 min-w-0 flex-1">
+                                    {/* Squircle Avatar with glowing border */}
+                                    <div className="relative shrink-0">
+                                        <div className={cn(
+                                            "w-14 h-14 sm:w-16 sm:h-16 rounded-2xl border-2 flex items-center justify-center text-xl sm:text-2xl font-black transition-all",
+                                            fitDetails.ring, fitDetails.bg, fitDetails.text, fitDetails.glow
+                                        )}>
+                                            {(selectedWorker.nombre || 'U')[0].toUpperCase()}
+                                        </div>
+                                        <span 
+                                            className={cn(
+                                                "absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center",
+                                                fitDetails.dot
+                                            )}
+                                            title={fitDetails.label}
+                                        >
+                                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                                        </span>
+                                    </div>
+
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-teal-600 dark:text-teal-400 bg-teal-500/10 dark:bg-teal-500/20 px-2 py-0.5 rounded-md border border-teal-500/20 flex items-center gap-1">
+                                                <Fingerprint className="w-3 h-3" /> Ficha Biocéntrica H1
+                                            </span>
+                                            {selectedWorker.identificacion && (
+                                                <span className="text-[9px] font-bold text-text-tertiary bg-surface-secondary/70 px-2 py-0.5 rounded-md border border-border-light">
+                                                    CC: {selectedWorker.identificacion}
                                                 </span>
-                                            );
-                                        })
-                                    ) : (
-                                        <div className="flex items-center gap-2 text-green-600 text-xs font-bold py-1">
-                                            <CheckCircle className="w-4 h-4" /> Apto · Sin susceptibilidades de salud críticas
+                                            )}
+                                            {selectedWorker.sede && (
+                                                <span className="text-[9px] font-bold text-text-tertiary bg-surface-secondary/70 px-2 py-0.5 rounded-md border border-border-light flex items-center gap-1">
+                                                    <Building2 className="w-2.5 h-2.5" /> {selectedWorker.sede}
+                                                </span>
+                                            )}
                                         </div>
-                                    )}
+                                        <h3 className="font-black text-lg sm:text-xl text-text-primary tracking-tight truncate">
+                                            {selectedWorker.nombre}
+                                        </h3>
+                                        <p className="text-xs text-text-secondary font-bold flex items-center gap-1.5 mt-0.5 truncate">
+                                            <Briefcase className="w-3.5 h-3.5 text-teal-500 shrink-0" />
+                                            <span>{selectedWorker.cargo || 'Sin cargo'}</span>
+                                            {selectedWorker.edad && (
+                                                <>
+                                                    <span className="text-text-tertiary">·</span>
+                                                    <span>{selectedWorker.edad} años</span>
+                                                </>
+                                            )}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Right Top Area: FIT Score Card & Close button */}
+                                <div className="flex items-start gap-2 shrink-0">
+                                    <div className="hidden sm:flex flex-col items-end p-2.5 px-3 rounded-2xl bg-surface-secondary/60 border border-border-light text-right">
+                                        <span className="text-[9px] font-mono font-black uppercase tracking-wider text-text-tertiary">
+                                            ÍNDICE FIT 360°
+                                        </span>
+                                        <div className="flex items-baseline gap-1 my-0.5">
+                                            <span className={cn("text-2xl font-black font-mono tracking-tight", fitDetails.text)}>
+                                                {selectedWorker.calculatedScore}%
+                                            </span>
+                                        </div>
+                                        <span className={cn("px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide border flex items-center gap-1", fitDetails.badge)}>
+                                            <span className={cn("w-1.5 h-1.5 rounded-full", fitDetails.dot)} />
+                                            {fitDetails.label}
+                                        </span>
+                                    </div>
+
+                                    <button 
+                                        onClick={() => setSelectedWorker(null)} 
+                                        className="p-2 rounded-xl text-text-secondary hover:text-text-primary hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors outline-none"
+                                        title="Cerrar ficha"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
                                 </div>
                             </div>
 
-                            {/* Details Grid */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-surface-secondary/50 rounded-2xl p-4 border border-border-light">
-                                    <p className="text-[9px] text-text-secondary font-black uppercase tracking-wider mb-1">Presión Arterial</p>
-                                    <p className="text-sm font-black text-text-primary">{selectedWorker.presionArterial || 'No registrada'}</p>
-                                </div>
-                                <div className="bg-surface-secondary/50 rounded-2xl p-4 border border-border-light">
-                                    <p className="text-[9px] text-text-secondary font-black uppercase tracking-wider mb-1">Frecuencia Cardíaca</p>
-                                    <p className="text-sm font-black text-text-primary">{selectedWorker.frecuenciaCardiaca ? `${selectedWorker.frecuenciaCardiaca} lpm` : 'No registrada'}</p>
-                                </div>
-                                <div className="bg-surface-secondary/50 rounded-2xl p-4 border border-border-light">
-                                    <p className="text-[9px] text-text-secondary font-black uppercase tracking-wider mb-1">Índice de Masa Corporal (IMC)</p>
-                                    <p className="text-sm font-black text-text-primary">{selectedWorker.imc || 'No registrado'}</p>
-                                </div>
-                                <div className="bg-surface-secondary/50 rounded-2xl p-4 border border-border-light">
-                                    <p className="text-[9px] text-text-secondary font-black uppercase tracking-wider mb-1">Hábitos de Fumar</p>
-                                    <p className="text-sm font-black text-text-primary">{selectedWorker.fuma || 'No registrado'}</p>
-                                </div>
+                            {/* Mobile-only FIT Score Bar */}
+                            <div className="sm:hidden px-5 py-2.5 bg-surface-secondary/40 border-b border-border-light flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
+                                    <HeartPulse className="w-3.5 h-3.5 text-teal-500" />
+                                    Índice FIT Biocéntrico:
+                                </span>
+                                <span className={cn("px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wide border flex items-center gap-1.5", fitDetails.badge)}>
+                                    <span className={cn("w-1.5 h-1.5 rounded-full", fitDetails.dot)} />
+                                    {selectedWorker.calculatedScore}% · {fitDetails.label}
+                                </span>
                             </div>
 
-                            {/* Biocentric Audit Alerts */}
-                            <div>
-                                <h4 className="text-[10px] font-black text-text-secondary uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                                    <HeartPulse className="w-3.5 h-3.5 text-teal-500" /> Auditoría de Aptitud Biocéntrica 360°
-                                </h4>
-                                <div className="space-y-2">
-                                    {selectedWorker.auditItems && selectedWorker.auditItems.length > 0 ? (
-                                        selectedWorker.auditItems.map((item: any, i: number) => {
-                                            const s = SEV_STYLES[item.severity] || SEV_STYLES.info;
-                                            return (
-                                                <div key={i} className={cn("flex items-start gap-3 p-3 rounded-2xl border bg-surface-secondary/30", s.border)}>
-                                                    <div className={cn("text-xs font-black w-8 shrink-0 text-right mt-0.5", s.pts)}>-{Math.abs(item.pts)}</div>
-                                                    <div className="shrink-0 mt-0.5">{s.icon}</div>
-                                                    <div className="min-w-0 flex-1">
-                                                        <p className="text-xs font-bold text-text-primary">{item.title}</p>
-                                                        <p className="text-[10px] text-text-secondary leading-tight mt-0.5 font-semibold">{item.description}</p>
+                            {/* Scrollable Content Body */}
+                            <div className="p-5 sm:p-6 space-y-5 overflow-y-auto custom-scrollbar flex-1">
+                                
+                                {/* 1. Hallazgos Semánticos IA */}
+                                <div>
+                                    <div className="flex items-center justify-between mb-2.5">
+                                        <h4 className="text-[10px] font-black text-text-secondary uppercase tracking-widest flex items-center gap-1.5">
+                                            <Sparkles className="w-3.5 h-3.5 text-teal-500" /> 
+                                            Diagnóstico Semántico & Hallazgos IA
+                                        </h4>
+                                        <span className="text-[9px] font-bold text-teal-600 dark:text-teal-400 bg-teal-500/10 px-2 py-0.5 rounded-md">
+                                            Análisis NLP
+                                        </span>
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-2">
+                                        {selectedWorker.bioTagsIA && selectedWorker.bioTagsIA.length > 0 && !selectedWorker.bioTagsIA.includes('Sin_Hallazgos') ? (
+                                            selectedWorker.bioTagsIA.map((tag: string) => {
+                                                const r = TAG_RULES[tag];
+                                                const pts = r?.pts || 5;
+                                                return (
+                                                    <div 
+                                                        key={tag} 
+                                                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold bg-surface-secondary/70 text-text-primary border border-border-medium shadow-sm hover:border-teal-500/40 transition-colors"
+                                                    >
+                                                        <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0 shadow-[0_0_6px_#f43f5e]" />
+                                                        <span>{r?.label || tag}</span>
+                                                        <span className="px-1.5 py-0.5 rounded-md text-[9px] font-mono font-black bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                                                            -{pts} pts
+                                                        </span>
                                                     </div>
+                                                );
+                                            })
+                                        ) : (
+                                            <div className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-emerald-500/5 dark:bg-emerald-950/20 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400">
+                                                <ShieldCheck className="w-5 h-5 text-emerald-500 shrink-0" />
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="text-xs font-bold">Aptitud Plena · Sin Hallazgos Clínicos Adversos</p>
+                                                    <p className="text-[10px] text-emerald-600/80 dark:text-emerald-500/80 leading-tight">
+                                                        El colaborador no registra diagnósticos osteomusculares, patologías restrictivas ni limitaciones físicas en su ficha.
+                                                    </p>
                                                 </div>
-                                            );
-                                        })
-                                    ) : (
-                                        <div className="p-3 bg-green-500/5 border border-green-500/20 text-green-600 text-xs font-bold rounded-2xl flex items-center gap-2">
-                                            <CheckCircle className="w-4 h-4" /> 100% de Aptitud Biocéntrica. Óptimas condiciones clínicas y operacionales.
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Medical Recommendation Callout if present */}
+                                    {selectedWorker.condicionesSalud && selectedWorker.condicionesSalud !== 'Ninguna' && selectedWorker.condicionesSalud !== 'Apto' && (
+                                        <div className="mt-3 p-3.5 rounded-2xl bg-amber-500/5 border border-amber-500/20 flex items-start gap-3">
+                                            <Stethoscope className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                                            <div className="min-w-0 flex-1 text-xs">
+                                                <p className="font-bold text-amber-800 dark:text-amber-300">Nota Médica Registrada en Examen:</p>
+                                                <p className="text-[11px] text-text-secondary mt-0.5 leading-relaxed">{selectedWorker.condicionesSalud}</p>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
+
+                                {/* 2. Biometría & Signos Vitales (The 4 Redesigned Cards) */}
+                                <div>
+                                    <div className="flex items-center justify-between mb-2.5">
+                                        <h4 className="text-[10px] font-black text-text-secondary uppercase tracking-widest flex items-center gap-1.5">
+                                            <Activity className="w-3.5 h-3.5 text-teal-500" />
+                                            Signos Vitales & Biometría Ocupacional
+                                        </h4>
+                                        <span className="text-[9px] font-bold text-text-tertiary">
+                                            Estándar OIT / GTC-45
+                                        </span>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        {/* Card 1: Presión Arterial */}
+                                        <div className="p-4 rounded-2xl bg-surface-secondary/40 dark:bg-slate-800/40 border border-border-light hover:border-teal-500/30 transition-all group">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className="text-[10px] font-black text-text-secondary uppercase tracking-wider">
+                                                    Presión Arterial
+                                                </span>
+                                                <div className="w-7 h-7 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-600 dark:text-teal-400 group-hover:scale-110 transition-transform">
+                                                    <Activity className="w-3.5 h-3.5" />
+                                                </div>
+                                            </div>
+                                            <div className="flex items-baseline gap-1.5">
+                                                <span className="text-lg font-black text-text-primary tracking-tight">
+                                                    {selectedWorker.presionArterial || 'No registrada'}
+                                                </span>
+                                                {selectedWorker.presionArterial && selectedWorker.presionArterial !== 'No registrada' && (
+                                                    <span className="text-[10px] font-bold text-text-tertiary">mmHg</span>
+                                                )}
+                                            </div>
+                                            <div className="mt-2.5">
+                                                <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold border", presionStatus.color)}>
+                                                    <span className="w-1 h-1 rounded-full bg-current" />
+                                                    {presionStatus.label}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Card 2: Frecuencia Cardíaca */}
+                                        <div className="p-4 rounded-2xl bg-surface-secondary/40 dark:bg-slate-800/40 border border-border-light hover:border-rose-500/30 transition-all group">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className="text-[10px] font-black text-text-secondary uppercase tracking-wider">
+                                                    Frecuencia Cardíaca
+                                                </span>
+                                                <div className="w-7 h-7 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-600 dark:text-rose-400 group-hover:scale-110 transition-transform">
+                                                    <Heart className="w-3.5 h-3.5" />
+                                                </div>
+                                            </div>
+                                            <div className="flex items-baseline gap-1.5">
+                                                <span className="text-lg font-black text-text-primary tracking-tight">
+                                                    {selectedWorker.frecuenciaCardiaca ? `${selectedWorker.frecuenciaCardiaca}` : 'No registrada'}
+                                                </span>
+                                                {selectedWorker.frecuenciaCardiaca && (
+                                                    <span className="text-[10px] font-bold text-text-tertiary">lpm</span>
+                                                )}
+                                            </div>
+                                            <div className="mt-2.5">
+                                                <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold border", frecuenciaStatus.color)}>
+                                                    <span className="w-1 h-1 rounded-full bg-current" />
+                                                    {frecuenciaStatus.label}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Card 3: Índice de Masa Corporal */}
+                                        <div className="p-4 rounded-2xl bg-surface-secondary/40 dark:bg-slate-800/40 border border-border-light hover:border-indigo-500/30 transition-all group">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className="text-[10px] font-black text-text-secondary uppercase tracking-wider">
+                                                    Índice Masa Corporal
+                                                </span>
+                                                <div className="w-7 h-7 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform">
+                                                    <Scale className="w-3.5 h-3.5" />
+                                                </div>
+                                            </div>
+                                            <div className="flex items-baseline gap-1.5">
+                                                <span className="text-lg font-black text-text-primary tracking-tight">
+                                                    {selectedWorker.imc || 'No registrado'}
+                                                </span>
+                                                {selectedWorker.imc && selectedWorker.imc !== 'No registrado' && (
+                                                    <span className="text-[10px] font-bold text-text-tertiary">kg/m²</span>
+                                                )}
+                                            </div>
+                                            <div className="mt-2.5 flex items-center justify-between gap-1 flex-wrap">
+                                                <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold border", imcStatus.color)}>
+                                                    <span className="w-1 h-1 rounded-full bg-current" />
+                                                    {imcStatus.label}
+                                                </span>
+                                                {selectedWorker.peso && selectedWorker.talla && (
+                                                    <span className="text-[9px] font-semibold text-text-tertiary">
+                                                        {selectedWorker.peso}kg · {selectedWorker.talla}m
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Card 4: Hábitos de Fumar */}
+                                        <div className="p-4 rounded-2xl bg-surface-secondary/40 dark:bg-slate-800/40 border border-border-light hover:border-emerald-500/30 transition-all group">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className="text-[10px] font-black text-text-secondary uppercase tracking-wider">
+                                                    Hábito Tabáquico
+                                                </span>
+                                                <div className="w-7 h-7 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform">
+                                                    <Cigarette className="w-3.5 h-3.5" />
+                                                </div>
+                                            </div>
+                                            <div className="flex items-baseline gap-1.5">
+                                                <span className="text-lg font-black text-text-primary tracking-tight">
+                                                    {selectedWorker.fuma || 'No'}
+                                                </span>
+                                            </div>
+                                            <div className="mt-2.5">
+                                                <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold border", fumaStatus.color)}>
+                                                    <span className="w-1 h-1 rounded-full bg-current" />
+                                                    {fumaStatus.label}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* 3. Auditoría de Aptitud Biocéntrica 360° */}
+                                <div>
+                                    <div className="flex items-center justify-between mb-2.5">
+                                        <h4 className="text-[10px] font-black text-text-secondary uppercase tracking-widest flex items-center gap-1.5">
+                                            <ClipboardList className="w-3.5 h-3.5 text-teal-500" />
+                                            Auditoría de Aptitud Biocéntrica 360°
+                                        </h4>
+                                        <span className="text-[9px] font-bold text-text-tertiary">
+                                            Desglose de Factores
+                                        </span>
+                                    </div>
+
+                                    <div className="space-y-2.5">
+                                        {selectedWorker.auditItems && selectedWorker.auditItems.length > 0 ? (
+                                            selectedWorker.auditItems.map((item: any, i: number) => {
+                                                const s = SEV_STYLES[item.severity] || SEV_STYLES.info;
+                                                return (
+                                                    <div 
+                                                        key={i} 
+                                                        className={cn(
+                                                            "flex items-start gap-3.5 p-3.5 rounded-2xl border bg-surface-secondary/30 transition-all hover:bg-surface-secondary/50",
+                                                            s.border
+                                                        )}
+                                                    >
+                                                        <div className={cn("text-xs font-black font-mono px-2 py-1 rounded-lg bg-surface-primary border shadow-sm shrink-0 text-center", s.pts)}>
+                                                            -{Math.abs(item.pts)}
+                                                        </div>
+                                                        <div className="shrink-0 mt-0.5">{s.icon}</div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-xs font-bold text-text-primary">{item.title}</p>
+                                                            <p className="text-[10px] text-text-secondary leading-relaxed mt-0.5 font-medium">{item.description}</p>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        ) : (
+                                            <div className="p-4 bg-emerald-500/5 dark:bg-emerald-950/20 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded-2xl flex items-center gap-3">
+                                                <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
+                                                <div className="min-w-0 flex-1">
+                                                    <p>100% de Aptitud Biocéntrica</p>
+                                                    <p className="text-[10px] text-emerald-600/80 dark:text-emerald-500/80 font-normal mt-0.5">
+                                                        Todos los índices de salud, biometría y compatibilidad postural se encuentran en estado óptimo.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* 4. Badges Adicionales (Comités / Alergias / Biomecánica) */}
+                                {(selectedWorker.esCopasst === 'Sí' || selectedWorker.esBrigadista === 'Sí' || (selectedWorker.alergiasQuimicas && selectedWorker.alergiasQuimicas !== 'Ninguna') || (selectedWorker.limitacionesBiomecanicas && selectedWorker.limitacionesBiomecanicas !== 'Ninguna')) && (
+                                    <div className="pt-3 border-t border-border-light flex flex-wrap gap-2 items-center">
+                                        <span className="text-[9px] font-black uppercase tracking-wider text-text-tertiary mr-1">Condiciones Especiales:</span>
+                                        {selectedWorker.esCopasst === 'Sí' && (
+                                            <span className="px-2 py-0.5 rounded-md text-[9px] font-bold bg-blue-500/10 text-blue-600 border border-blue-500/20">
+                                                Miembro COPASST
+                                            </span>
+                                        )}
+                                        {selectedWorker.esBrigadista === 'Sí' && (
+                                            <span className="px-2 py-0.5 rounded-md text-[9px] font-bold bg-rose-500/10 text-rose-600 border border-rose-500/20">
+                                                Brigadista de Emergencias
+                                            </span>
+                                        )}
+                                        {selectedWorker.alergiasQuimicas && selectedWorker.alergiasQuimicas !== 'Ninguna' && (
+                                            <span className="px-2 py-0.5 rounded-md text-[9px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                                                Alergias: {selectedWorker.alergiasQuimicas}
+                                            </span>
+                                        )}
+                                        {selectedWorker.limitacionesBiomecanicas && selectedWorker.limitacionesBiomecanicas !== 'Ninguna' && (
+                                            <span className="px-2 py-0.5 rounded-md text-[9px] font-bold bg-purple-500/10 text-purple-600 border border-purple-500/20">
+                                                Limitación: {selectedWorker.limitacionesBiomecanicas}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="p-4 sm:p-5 border-t border-border-light flex flex-col sm:flex-row items-center justify-between gap-3 bg-surface-primary/60 dark:bg-slate-900/60 shrink-0">
+                                <div className="flex items-center gap-2 text-[10px] font-semibold text-text-tertiary">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_6px_#10b981]" />
+                                    <span>Telemetría Biocéntrica Hito 01 · Sincronizada en BD</span>
+                                </div>
+                                <button 
+                                    onClick={() => setSelectedWorker(null)}
+                                    className="w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-teal-600/20 border border-teal-400/20 active:scale-95 transition-all"
+                                >
+                                    Entendido · Cerrar Ficha
+                                </button>
                             </div>
                         </div>
-
-                        <div className="mt-6 pt-5 border-t border-border-light flex justify-end">
-                            <button 
-                                onClick={() => setSelectedWorker(null)}
-                                className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-teal-600/10 border border-teal-500/20 transition-all duration-300"
-                            >
-                                Entendido · Cerrar
-                            </button>
-                        </div>
-                    </div>
-                </div>,
-                document.body
-            )}
+                    </div>,
+                    document.body
+                );
+            })()}
         </div>
     );
 };

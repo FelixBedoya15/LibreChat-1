@@ -377,13 +377,14 @@ Tienes control en tiempo real de la plataforma mientras hablas por voz con el us
 [DIRECTIVAS DE ACCIÓN INMEDIATA, AGENTES Y NAVEGACIÓN]:
 1. **ABRIR CHAT CON AGENTE Y PREGUNTARLE:** Cuando el usuario diga "abre un chat con [agente] y pregúntale [X]", "vamos a preguntarle al abogado...", "habla con el médico laboral...", "quiero consultar al químico...", etc.:
    - DEBES INVOCAR INMEDIATAMENTE la herramienta 'wappy_abrir_chat_agente' pasando el 'agente' y la 'pregunta' indicada.
-   - Responde oralmente en una sola frase breve: "¡Listo! Abriendo el chat con el [Nombre del Agente] y transmitiéndole tu consulta."
+   - Responde oralmente en una sola frase breve: "¡Listo! Abriendo el chat con el [Nombre del Agente] y transmitiéndole tu consulta. Apenas termine de responderte, te daré mis conclusiones."
 2. **ACADEMIA Y CURSOS:** Cuando el usuario pida ir a la academia o ver cursos ("llévame a la academia a un curso", "muéstrame los cursos", "abre la academia"):
    - DEBES INVOCAR INMEDIATAMENTE 'wappy_navegar' con modulo: 'academia', ruta: '/academia?tab=cursos'.
    - Responde oralmente en una sola frase breve: "¡De una! Te llevo al aula de cursos de la Academia WAPPY."
 3. **NAVEGAR A CUALQUIER MÓDULO O HITO:** Si el usuario pide ir o ver cualquier hito o sección (ej: "vamos a perfiles de cargo", "ábreme la matriz pesv", "muéstrame los planes", "quiero ver el oráculo"): INVOCA INMEDIATAMENTE 'wappy_navegar'. Cero preguntas redundantes si el usuario ya mencionó el módulo.
 4. **RESPUESTA ORAL SÚPER CONCISA:** Habla en 1 o máximo 2 frases cortas confirmando la acción. Cero monólogos largos.
-5. **INTERRUPCIÓN:** Si el usuario empieza a hablarte mientras respondes, calla de inmediato y atiende su nueva orden.`;
+5. **SÍNTESIS DE RESPUESTAS DE AGENTES ESPECIALISTAS:** Cuando recibas un mensaje de notificación del sistema interno con la respuesta técnica que dio un agente especialista, habla de inmediato al usuario por voz: confírmale que el especialista ya respondió, dale un resumen ejecutivo en lenguaje claro y cercano (en 2 a 3 oraciones concisas), y añade tu recomendación o siguiente paso como Tenshi en la plataforma WAPPY.
+6. **INTERRUPCIÓN:** Si el usuario empieza a hablarte mientras respondes, calla de inmediato y atiende su nueva orden.`;
         } else {
             // Herramientas nativas para agentes SST y Fisioterapeuta Laboral
             const reportTool = {
@@ -1096,8 +1097,10 @@ Tienes control en tiempo real de la plataforma mientras hablas por voz con el us
             case 'message':
                 if (data && data.text) {
                     logger.info(`[VoiceSession] Received text message from client: "${data.text.substring(0, 100)}..."`);
-                    // Append user text for database saving
-                    this.userTranscriptionText += (this.userTranscriptionText ? '\n' : '') + data.text;
+                    // Solo registrar como transcripción del usuario si no es un prompt interno del sistema
+                    if (!data.text.startsWith('[SISTEMA INTERNO WAPPY]')) {
+                        this.userTranscriptionText += (this.userTranscriptionText ? '\n' : '') + data.text;
+                    }
                     
                     if (this.geminiClient) {
                         this.geminiClient.sendText(data.text);

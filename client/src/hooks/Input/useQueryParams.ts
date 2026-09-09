@@ -261,29 +261,30 @@ export default function useQueryParams({
    * Has internal guards to ensure it only executes once regardless of how many times it's called.
    */
   const processSubmission = useCallback(() => {
-    if (submissionHandledRef.current || !pendingSubmitRef.current || !promptTextRef.current) {
+    if (submissionHandledRef.current || !promptTextRef.current) {
       return;
     }
 
     submissionHandledRef.current = true;
     pendingSubmitRef.current = false;
 
-    methods.setValue('text', promptTextRef.current, { shouldValidate: true });
+    const textToSend = promptTextRef.current;
+    methods.setValue('text', textToSend, { shouldValidate: true });
+    if (textAreaRef.current) {
+      textAreaRef.current.value = textToSend;
+    }
 
-    methods.handleSubmit((data) => {
-      if (data.text?.trim()) {
-        submitMessage(data);
+    submitMessage({ text: textToSend });
 
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, '', newUrl);
+    const newUrl = window.location.pathname;
+    window.history.replaceState({}, '', newUrl);
 
-        console.log('Message submitted with conversation state:', conversation);
-      }
-    })();
-  }, [methods, submitMessage, conversation]);
+    console.log('Message submitted with conversation state:', conversation);
+  }, [methods, submitMessage, conversation, textAreaRef]);
 
   useEffect(() => {
-    if (searchParams.has('agent_id') || searchParams.has('prompt') || searchParams.has('q')) {
+    const hasIncomingQuery = searchParams.has('prompt') || searchParams.has('q') || searchParams.has('submit') || (searchParams.has('agent_id') && !processedRef.current);
+    if (hasIncomingQuery) {
       processedRef.current = false;
       attemptsRef.current = 0;
       submissionHandledRef.current = false;
@@ -329,10 +330,6 @@ export default function useQueryParams({
 
       const { decodedPrompt, validSettings, shouldAutoSubmit } = processQueryParams();
 
-      if (!shouldAutoSubmit) {
-        submissionHandledRef.current = true;
-      }
-
       /** Mark processing as complete and clean up as needed */
       const success = () => {
         const paramString = searchParams.toString();
@@ -358,18 +355,22 @@ export default function useQueryParams({
         validSettingsRef.current = validSettings;
       }
 
-      // Save the prompt text for later use if needed
+      // Escribir INMEDIATAMENTE el texto en el formulario y en el textarea para que sea visible
       if (decodedPrompt) {
         promptTextRef.current = decodedPrompt;
+        methods.setValue('text', decodedPrompt, { shouldValidate: true });
+        if (textAreaRef.current) {
+          textAreaRef.current.value = decodedPrompt;
+          textAreaRef.current.focus();
+          textAreaRef.current.setSelectionRange(decodedPrompt.length, decodedPrompt.length);
+        }
       }
 
       // Handle auto-submission
       if (shouldAutoSubmit && decodedPrompt) {
+        pendingSubmitRef.current = true;
         if (Object.keys(validSettings).length > 0) {
-          // Settings are changing, defer submission
-          pendingSubmitRef.current = true;
-
-          // Set a timeout to handle the case where settings might never fully apply
+          // Timeout de respaldo en caso de que la aplicación del preset demore
           settingsTimeoutRef.current = setTimeout(() => {
             if (!submissionHandledRef.current && pendingSubmitRef.current) {
               console.warn(
@@ -377,23 +378,11 @@ export default function useQueryParams({
               );
               processSubmission();
             }
-          }, MAX_SETTINGS_WAIT_MS);
+          }, 1200);
         } else {
-          methods.setValue('text', decodedPrompt, { shouldValidate: true });
-          textAreaRef.current.focus();
-          textAreaRef.current.setSelectionRange(decodedPrompt.length, decodedPrompt.length);
-
-          methods.handleSubmit((data) => {
-            if (data.text?.trim()) {
-              submitMessage(data);
-            }
-          })();
+          processSubmission();
         }
-      } else if (decodedPrompt) {
-        methods.setValue('text', decodedPrompt, { shouldValidate: true });
-        textAreaRef.current.focus();
-        textAreaRef.current.setSelectionRange(decodedPrompt.length, decodedPrompt.length);
-      } else {
+      } else if (!decodedPrompt) {
         submissionHandledRef.current = true;
       }
 
