@@ -405,6 +405,21 @@ const deleteUserController = async (req, res) => {
     }
     await deleteUserPluginAuth(user.id, null, true); // delete user plugin auth
     await deleteUserById(user.id); // delete user
+    // If parent user has sub-users, cascade-delete all of them
+    if (User) {
+      try {
+        const subUsers = await User.find({ parentUser: user.id, isSubUser: true }).select('_id email').lean();
+        if (subUsers && subUsers.length > 0) {
+          const subUserIds = subUsers.map((su) => su._id);
+          await Promise.allSettled(subUserIds.map((sId) => deleteAllUserSessions({ userId: sId.toString() })));
+          await Promise.allSettled(subUserIds.map((sId) => deleteUserKey({ userId: sId.toString(), all: true })));
+          await User.deleteMany({ _id: { $in: subUserIds } });
+          logger.info(`[deleteUserController] Cascaded deletion of ${subUsers.length} sub-user(s) for parent ${user.id}`);
+        }
+      } catch (subErr) {
+        logger.error('[deleteUserController] Error cascading sub-user deletion:', subErr);
+      }
+    }
     await deleteAllSharedLinks(user.id); // delete user shared links
     await deleteUserFiles(req); // delete user files
     await deleteFiles(null, user.id); // delete database files in case of orphaned files from previous steps

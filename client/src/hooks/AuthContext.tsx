@@ -63,6 +63,19 @@ const AuthContextProvider = ({
 
   const navigate = useNavigate();
 
+  const getLoginRedirectUrl = useCallback((baseUrl: string = '/login') => {
+    let search = typeof window !== 'undefined' ? window.location.search : '';
+    if (!search) {
+      try {
+        const savedRef = localStorage.getItem('wappy_ref');
+        if (savedRef) {
+          search = `?ref=${encodeURIComponent(savedRef)}`;
+        }
+      } catch (e) {}
+    }
+    return `${baseUrl}${search}`;
+  }, []);
+
   const setUserContext = useMemo(
     () =>
       debounce((userContext: TUserContext) => {
@@ -107,7 +120,7 @@ const AuthContextProvider = ({
       const resError = error as TResError;
       const message = resError.response?.data?.message || resError.message;
       doSetError(message);
-      navigate('/login', { replace: true });
+      navigate(getLoginRedirectUrl('/login'), { replace: true });
     },
   });
   const logoutUser = useLogoutUserMutation({
@@ -186,7 +199,7 @@ const AuthContextProvider = ({
             return;
           }
           if (!isPublicRoute(window.location.pathname)) {
-            navigate('/login');
+            navigate(getLoginRedirectUrl('/login'));
           }
         }
       },
@@ -196,19 +209,19 @@ const AuthContextProvider = ({
           return;
         }
         if (!isPublicRoute(window.location.pathname)) {
-          navigate('/login');
+          navigate(getLoginRedirectUrl('/login'));
         }
       },
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [getLoginRedirectUrl, isPublicRoute]);
 
   useEffect(() => {
     if (userQuery.data) {
       setUser(userQuery.data);
     } else if (userQuery.isError) {
       doSetError((userQuery.error as Error).message);
-      navigate('/login', { replace: true });
+      navigate(getLoginRedirectUrl('/login'), { replace: true });
     }
     if (error != null && error && isAuthenticated) {
       doSetError(undefined);

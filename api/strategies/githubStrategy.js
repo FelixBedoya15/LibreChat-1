@@ -12,12 +12,14 @@ const getProfileDetails = ({ profile }) => ({
 
 const githubLogin = socialLogin('github', getProfileDetails);
 
-module.exports = () =>
-  new GitHubStrategy(
+module.exports = () => {
+  const rawServer = process.env.DOMAIN_SERVER || 'https://wappy.club';
+  const domainServer = rawServer.replace(/https?:\/\/wappy-ia\.com/g, 'https://wappy.club').replace(/\/+$/, '');
+  return new GitHubStrategy(
     {
       clientID: process.env.GITHUB_CLIENT_ID,
       clientSecret: process.env.GITHUB_CLIENT_SECRET,
-      callbackURL: `${process.env.DOMAIN_SERVER}${process.env.GITHUB_CALLBACK_URL}`,
+      callbackURL: `${domainServer}${process.env.GITHUB_CALLBACK_URL}`,
       proxy: false,
       scope: ['user:email'],
       ...(process.env.GITHUB_ENTERPRISE_BASE_URL && {
@@ -32,3 +34,4 @@ module.exports = () =>
     },
     githubLogin,
   );
+};

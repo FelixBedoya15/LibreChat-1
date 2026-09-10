@@ -7,8 +7,8 @@ router.put('/', requireJwtAuth, async (req, res) => {
   const { name, value } = req.body;
   const role = req.user.role;
 
-  // RBAC: Block non-google keys for Free (USER) plan
-  if (role === 'USER' && name !== 'google') {
+  // RBAC: Block non-google keys for Free (USER) plan, EXCEPT sub-users who can configure their own keys
+  if (role === 'USER' && name !== 'google' && !req.user.isSubUser) {
     return res.status(403).json({ error: 'Tu plan (Gratis) solo permite configurar claves API de Google/Gemini. Adquiere un plan superior para configurar otros proveedores.' });
   }
 
@@ -25,7 +25,8 @@ router.put('/', requireJwtAuth, async (req, res) => {
     }
     let maxKeys = 1;
 
-    if (role === 'USER_GO') maxKeys = 4;
+    if (req.user.isSubUser) maxKeys = 5;
+    else if (role === 'USER_GO') maxKeys = 4;
     else if (role === 'USER_PLUS' || role === 'USER_PRO' || role === 'ADMIN') maxKeys = 10;
 
     if (keysCount > maxKeys) {

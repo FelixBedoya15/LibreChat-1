@@ -35,15 +35,18 @@ const getProfileDetails = ({ idToken, profile }) => {
 // Initialize the social login handler for Apple
 const appleLogin = socialLogin('apple', getProfileDetails);
 
-module.exports = () =>
-  new AppleStrategy(
+module.exports = () => {
+  const rawServer = process.env.DOMAIN_SERVER || 'https://wappy.club';
+  const domainServer = rawServer.replace(/https?:\/\/wappy-ia\.com/g, 'https://wappy.club').replace(/\/+$/, '');
+  return new AppleStrategy(
     {
       clientID: process.env.APPLE_CLIENT_ID,
       teamID: process.env.APPLE_TEAM_ID,
-      callbackURL: `${process.env.DOMAIN_SERVER}${process.env.APPLE_CALLBACK_URL}`,
+      callbackURL: `${domainServer}${process.env.APPLE_CALLBACK_URL}`,
       keyID: process.env.APPLE_KEY_ID,
       privateKeyLocation: process.env.APPLE_PRIVATE_KEY_PATH,
       passReqToCallback: false, // Set to true if you need to access the request in the callback
     },
     appleLogin,
   );
+};

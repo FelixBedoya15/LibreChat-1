@@ -82,17 +82,31 @@ const Nav = memo(
 
     const { hasPermission } = useRolePermissions();
 
+    const isSubUser = !!user?.isSubUser;
+    const subPerms: string[] = user?.subUserPermissions || [];
+
     const hasAccessToBookmarks = useHasAccess({
       permissionType: PermissionTypes.BOOKMARKS,
       permission: Permissions.USE,
     }) && hasPermission(PermissionTypes.BOOKMARKS);
 
     const hasAccessToAgents = hasPermission(PermissionTypes.AGENTS);
-    const hasAccessToLiveAnalysis = hasPermission(PermissionTypes.LIVE_ANALYSIS);
+    const hasAccessToLiveAnalysis = isSubUser
+      ? subPerms.includes('ai:live_analysis')
+      : hasPermission(PermissionTypes.LIVE_ANALYSIS);
     const { hasAmbassadorAccess } = useAmbassadorAccess();
-    // SG-SST button is always visible for all users so they can input company config.
-    // Upgrade limits are handled inside the SGSST module itself.
-    const hasAccessToSGSST = true;
+    
+    // SG-SST button: visible for regular users or subusers with sgsst/audit/events permissions
+    const hasAccessToSGSST = !isSubUser || subPerms.some(p => p.startsWith('sgsst:') || p.startsWith('audit:') || p.startsWith('events:'));
+
+    // Centro de Control / Kanban
+    const hasAccessToKanban = !isSubUser || subPerms.includes('kanban:acpm') || subPerms.includes('audit:checklist') || subPerms.includes('events:calendar');
+
+    // LMS / Academia WAPPY
+    const hasAccessToLMS = !isSubUser || subPerms.includes('lms:aula_estudio') || subPerms.includes('lms:ruta_aprendizaje') || subPerms.includes('community:blog');
+
+    // Subscription Plans: only for regular account owners
+    const hasAccessToPlans = !isSubUser;
 
     const search = useRecoilValue(store.search);
 
@@ -183,9 +197,11 @@ const Nav = memo(
     const headerButtons = useMemo(
       () => (
         <>
-          <Suspense fallback={null}>
-            <PlansButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={isCollapsedState} />
-          </Suspense>
+          {hasAccessToPlans && (
+            <Suspense fallback={null}>
+              <PlansButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={isCollapsedState} />
+            </Suspense>
+          )}
 
           {hasAccessToLiveAnalysis && (
             <Suspense fallback={null}>
@@ -199,7 +215,7 @@ const Nav = memo(
           )}
         </>
       ),
-      [hasAccessToBookmarks, tags, isSmallScreen, toggleNavVisible, hasAccessToSGSST, hasAccessToLiveAnalysis, hasAccessToAgents, isCollapsedState],
+      [hasAccessToBookmarks, tags, isSmallScreen, toggleNavVisible, hasAccessToSGSST, hasAccessToLiveAnalysis, hasAccessToAgents, isCollapsedState, hasAccessToPlans],
     );
 
     const [isSearchLoading, setIsSearchLoading] = useState(
@@ -282,9 +298,11 @@ const Nav = memo(
                           </Suspense>
                         )}
                         {/* Centro de Control SST */}
-                        <Suspense fallback={null}>
-                          <KanbanButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
-                        </Suspense>
+                        {hasAccessToKanban && (
+                          <Suspense fallback={null}>
+                            <KanbanButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                          </Suspense>
+                        )}
                         {/* Camera icon (Analisis en Vivo) */}
                         {hasAccessToLiveAnalysis && (
                           <Suspense fallback={null}>
@@ -292,9 +310,11 @@ const Nav = memo(
                           </Suspense>
                         )}
                         {/* Aula Estudio / Academia WAPPY */}
-                        <Suspense fallback={null}>
-                          <AulaEstudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
-                        </Suspense>
+                        {hasAccessToLMS && (
+                          <Suspense fallback={null}>
+                            <AulaEstudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                          </Suspense>
+                        )}
                         {/* Bookmarks icon */}
                         {hasAccessToBookmarks && (
                           <Suspense fallback={null}>
@@ -349,9 +369,11 @@ const Nav = memo(
                                 )}
                                 
                                 {/* 2. Centro de Control SST */}
-                                <Suspense fallback={null}>
-                                  <KanbanButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                </Suspense>
+                                {hasAccessToKanban && (
+                                  <Suspense fallback={null}>
+                                    <KanbanButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                  </Suspense>
+                                )}
 
                                 {/* 3. Análisis en Vivo */}
                                 {hasAccessToLiveAnalysis && (
@@ -361,9 +383,11 @@ const Nav = memo(
                                 )}
 
                                 {/* 4. Academia WAPPY (Cursos, Rutas, Clases Meet y Blog) */}
-                                <Suspense fallback={null}>
-                                  <AulaEstudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                </Suspense>
+                                {hasAccessToLMS && (
+                                  <Suspense fallback={null}>
+                                    <AulaEstudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                  </Suspense>
+                                )}
 
                                 {/* 5. Marcadores */}
                                 {hasAccessToBookmarks && (

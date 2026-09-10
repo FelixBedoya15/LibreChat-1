@@ -22,6 +22,20 @@ router.post('/ai-edit-text', requireJwtAuth, async (req, res) => {
     return res.status(400).json({ error: 'selectedText e instruction son requeridos.' });
   }
 
+  // Sub-user access check for Live Analysis
+  if (req.user?.isSubUser) {
+    const perms = req.user.subUserPermissions || [];
+    const hasLivePerm = perms.includes('ai:live_analysis');
+    const { Key } = require('~/db/models');
+    const hasOwnKey = await Key.exists({ userId: req.user.id });
+
+    if (!hasLivePerm && !hasOwnKey) {
+      return res.status(403).json({
+        error: 'Tu perfil de sub-usuario no tiene permisos de Live Analysis IA de la empresa. Puedes configurar tus propias claves API en Configuración para habilitarlo de manera autónoma.'
+      });
+    }
+  }
+
   // Build the source data context block if provided
   let sourceDataBlock = '';
   if (reportSourceData) {

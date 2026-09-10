@@ -23,14 +23,17 @@ const getProfileDetails = ({ profile }) => {
 
 const discordLogin = socialLogin('discord', getProfileDetails);
 
-module.exports = () =>
-  new DiscordStrategy(
+module.exports = () => {
+  const rawServer = process.env.DOMAIN_SERVER || 'https://wappy.club';
+  const domainServer = rawServer.replace(/https?:\/\/wappy-ia\.com/g, 'https://wappy.club').replace(/\/+$/, '');
+  return new DiscordStrategy(
     {
       clientID: process.env.DISCORD_CLIENT_ID,
       clientSecret: process.env.DISCORD_CLIENT_SECRET,
-      callbackURL: `${process.env.DOMAIN_SERVER}${process.env.DISCORD_CALLBACK_URL}`,
+      callbackURL: `${domainServer}${process.env.DISCORD_CALLBACK_URL}`,
       scope: ['identify', 'email'],
       authorizationURL: 'https://discord.com/api/oauth2/authorize?prompt=none',
     },
     discordLogin,
   );
+};

@@ -104,7 +104,8 @@ let openidConfig = null;
 
 class CustomOpenIDStrategy extends OpenIDStrategy {
   currentUrl(req) {
-    const hostAndProtocol = process.env.DOMAIN_SERVER;
+    const rawServer = process.env.DOMAIN_SERVER || 'https://wappy.club';
+    const hostAndProtocol = rawServer.replace(/https?:\/\/wappy-ia\.com/g, 'https://wappy.club').replace(/\/+$/, '');
     return new URL(`${hostAndProtocol}${req.originalUrl ?? req.url}`);
   }
 
@@ -336,11 +337,13 @@ async function setupOpenId() {
     const adminRoleParameterPath = process.env.OPENID_ADMIN_ROLE_PARAMETER_PATH;
     const adminRoleTokenKind = process.env.OPENID_ADMIN_ROLE_TOKEN_KIND;
 
+    const rawServerDomain = process.env.DOMAIN_SERVER || 'https://wappy.club';
+    const serverDomain = rawServerDomain.replace(/https?:\/\/wappy-ia\.com/g, 'https://wappy.club').replace(/\/+$/, '');
     const openidLogin = new CustomOpenIDStrategy(
       {
         config: openidConfig,
         scope: process.env.OPENID_SCOPE,
-        callbackURL: process.env.DOMAIN_SERVER + process.env.OPENID_CALLBACK_URL,
+        callbackURL: serverDomain + process.env.OPENID_CALLBACK_URL,
         clockTolerance: process.env.OPENID_CLOCK_TOLERANCE || 300,
         usePKCE,
       },

@@ -15,6 +15,10 @@ const jwtLogin = () =>
         const user = await getUserById(payload?.id, '-password -__v -totpSecret -backupCodes');
         if (user) {
           user.id = user._id.toString();
+          if (user.isSubUser && user.subUserStatus === 'suspended') {
+            logger.warn(`[jwtLogin] JwtStrategy => access denied to suspended sub-user: ${user.id} (${user.email})`);
+            return done(null, false, { message: 'Tu cuenta de sub-usuario está suspendida.' });
+          }
           if (!user.role) {
             user.role = SystemRoles.USER;
             await updateUser(user.id, { role: user.role });

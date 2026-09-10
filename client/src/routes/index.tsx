@@ -12,7 +12,7 @@ import TermsOfServicePage from '~/components/Auth/TermsOfServicePage';
 import WappyAboutPage from '~/components/Auth/WappyAboutPage';
 import ComunidadPage from '~/components/Marketing/ComunidadPage';
 import MatrizPage from '~/components/Marketing/MatrizPage';
-import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
+import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router-dom';
 import {
   Login,
   VerifyEmail,
@@ -78,6 +78,20 @@ const PortafolioRedirect = () => {
 const MauricioPosadaRedirect = () => {
   window.location.replace('/mauricioposada.html');
   return null;
+};
+
+const RootIndexRedirect = () => {
+  const location = useLocation();
+  let search = location.search;
+  if (!search) {
+    try {
+      const savedRef = localStorage.getItem('wappy_ref');
+      if (savedRef) {
+        search = `?ref=${encodeURIComponent(savedRef)}`;
+      }
+    } catch (e) {}
+  }
+  return <Navigate to={{ pathname: '/c/new', search }} replace={true} />;
 };
 
 const AuthLayout = () => (
@@ -324,7 +338,7 @@ export const router = createBrowserRouter(
           children: [
             {
               index: true,
-              element: <Navigate to="/c/new" replace={true} />,
+              element: <RootIndexRedirect />,
             },
             {
               path: 'c/:conversationId?',

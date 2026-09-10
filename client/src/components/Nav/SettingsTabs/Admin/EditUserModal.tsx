@@ -31,10 +31,12 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
         ciudad: '',
         companyLimit: '' as any,
         automationLimit: '' as any,
+        subUserLimit: '' as any,
     });
 
     const [createdCompaniesCount, setCreatedCompaniesCount] = useState<number>(0);
     const [createdAutomationsCount, setCreatedAutomationsCount] = useState<number>(0);
+    const [createdSubUsersCount, setCreatedSubUsersCount] = useState<number>(0);
 
     // Referral details from backend
     const [loadingReferrals, setLoadingReferrals] = useState(false);
@@ -72,8 +74,12 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                 departamento: user.departamento || user.department || '',
                 ciudad: user.ciudad || user.city || '',
                 companyLimit: '',
+                automationLimit: '',
+                subUserLimit: '',
             });
             setCreatedCompaniesCount(0);
+            setCreatedAutomationsCount(0);
+            setCreatedSubUsersCount(0);
 
             // Reset tab and adjustments
             setActiveTab('account');
@@ -94,9 +100,13 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                         automationLimit: response.data.automationLimit !== null && response.data.automationLimit !== undefined 
                             ? response.data.automationLimit 
                             : '',
+                        subUserLimit: response.data.subUserLimit !== null && response.data.subUserLimit !== undefined 
+                            ? response.data.subUserLimit 
+                            : '',
                     }));
                     setCreatedCompaniesCount(response.data.createdCompaniesCount || 0);
                     setCreatedAutomationsCount(response.data.createdAutomationsCount || 0);
+                    setCreatedSubUsersCount(response.data.createdSubUsersCount || 0);
                     setSelectedAmbassadorId(response.data.referredByPartner || '');
 
                     if (response.data.partner) {
@@ -166,6 +176,8 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                 partnerSupportContact: commercialTier === 'embajador' ? partnerSupportContact : '',
                 pointsAdjustment: pointsAdjustment,
                 companyLimit: formData.companyLimit === '' ? null : formData.companyLimit,
+                automationLimit: formData.automationLimit === '' ? null : formData.automationLimit,
+                subUserLimit: formData.subUserLimit === '' ? null : formData.subUserLimit,
                 referredByPartner: selectedAmbassadorId
             };
             if (!payload.password) delete payload.password; // TypeScript safe with typing as 'any'
@@ -462,6 +474,34 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                                     type="number"
                                                     name="automationLimit"
                                                     value={formData.automationLimit}
+                                                    onChange={handleChange}
+                                                    placeholder="Por defecto del plan (Pro: 1)"
+                                                    min={0}
+                                                    className="block w-full rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-2.5 text-xs text-text-primary focus:border-blue-500 outline-none"
+                                                />
+                                            </div>
+
+                                            <div className="flex flex-col gap-1.5">
+                                                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                                                    <Users className="w-3.5 h-3.5" /> Sub-Usuarios Creados
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={createdSubUsersCount}
+                                                    disabled={true}
+                                                    readOnly={true}
+                                                    className="block w-full rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800/80 px-4 py-2.5 text-xs text-text-primary outline-none opacity-80 cursor-not-allowed"
+                                                />
+                                            </div>
+
+                                            <div className="flex flex-col gap-1.5">
+                                                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                                                    <Users className="w-3.5 h-3.5" /> Límite de Sub-Usuarios
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    name="subUserLimit"
+                                                    value={formData.subUserLimit}
                                                     onChange={handleChange}
                                                     placeholder="Por defecto del plan (Pro: 1)"
                                                     min={0}

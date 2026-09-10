@@ -11,6 +11,7 @@ export default function GoogleAIConnect() {
   const [keyDialogOpen, setKeyDialogOpen] = useState(false);
   const { data: endpointsConfig } = useGetEndpointsQuery();
   const { getExpiry } = useUserKey(EModelEndpoint.google);
+  const { user } = useAuthContext();
 
   const expiryTime = getExpiry();
   const hasKey = !!expiryTime;
@@ -30,6 +31,12 @@ export default function GoogleAIConnect() {
               <p className="text-xs text-text-secondary mt-1 max-w-[400px]">
                 Configura tus claves API o cuenta de servicio de Google Gemini para activar los modelos de Inteligencia Artificial de Google en tu cuenta.
               </p>
+              {user?.isSubUser && (
+                <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 text-xs font-medium">
+                  <Sparkles className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                  <span>Sub-usuario: Vincula tu clave personal de Google Gemini para chatear con IA sin costo para la empresa.</span>
+                </div>
+              )}
             </div>
           </div>
           

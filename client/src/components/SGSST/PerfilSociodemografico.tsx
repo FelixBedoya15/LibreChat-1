@@ -925,15 +925,17 @@ const PerfilSociodemografico = () => {
                             label="Portal Público"
                             icon="qrcode"
                         />
-                        <ToolbarButton
-                            id="manage-subusers"
-                            onClick={() => {
-                                setSelectedWorkerDocForSubUser('');
-                                setShowSubUserManager(true);
-                            }}
-                            label="Sub-Usuarios / Accesos"
-                            icon="users"
-                        />
+                        {!user?.isSubUser && (
+                            <ToolbarButton
+                                id="manage-subusers"
+                                onClick={() => {
+                                    setSelectedWorkerDocForSubUser('');
+                                    setShowSubUserManager(true);
+                                }}
+                                label="Sub-Usuarios / Accesos"
+                                icon="users"
+                            />
+                        )}
                     </div>
                 ]}
             />
@@ -1083,16 +1085,18 @@ const PerfilSociodemografico = () => {
                                             </span>
                                             <span className="text-[9px] text-text-secondary font-bold uppercase tracking-tighter">Score Biocéntrico</span>
                                         </div>
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedWorkerDocForSubUser(w.identificacion);
-                                                setShowSubUserManager(true);
-                                            }}
-                                            title="Crear o gestionar acceso de sub-usuario para este trabajador"
-                                            className="p-2 bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 rounded-xl hover:bg-teal-100 transition-colors shadow-sm">
-                                            <UserCheck className="w-[18px] h-[18px]" />
-                                        </button>
+                                        {!user?.isSubUser && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelectedWorkerDocForSubUser(w.identificacion);
+                                                    setShowSubUserManager(true);
+                                                }}
+                                                title="Crear o gestionar acceso de sub-usuario para este trabajador"
+                                                className="p-2 bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 rounded-xl hover:bg-teal-100 transition-colors shadow-sm">
+                                                <UserCheck className="w-[18px] h-[18px]" />
+                                            </button>
+                                        )}
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setSelectedQrWorker(w); }}
                                             className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-100 transition-colors shadow-sm">

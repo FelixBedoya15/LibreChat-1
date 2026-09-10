@@ -10,6 +10,14 @@ const UserPlan = require('~/db/models/UserPlan');
 
 router.use(requireJwtAuth);
 
+// Bloquear acceso a sub-usuarios: las automatizaciones son exclusivas de la cuenta principal de la empresa
+router.use((req, res, next) => {
+  if (req.user?.isSubUser) {
+    return res.status(403).json({ error: 'Los sub-usuarios no tienen permisos para gestionar o ejecutar automatizaciones.' });
+  }
+  next();
+});
+
 // Auxiliar para obtener el ID de la empresa activa del usuario
 async function getActiveCompanyId(userId) {
   let active = await CompanyInfo.findOne({ user: userId, isActive: true });

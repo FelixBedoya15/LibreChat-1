@@ -68,6 +68,15 @@
       `;
     document.head.appendChild(loadingContainerStyle);
   </script>
+  <script>
+    try {
+      var searchParams = new URLSearchParams(window.location.search);
+      var ref = searchParams.get('ref') || searchParams.get('referral');
+      if (ref && ref.trim()) {
+        localStorage.setItem('wappy_ref', ref.trim());
+      }
+    } catch (e) {}
+  </script>
   <script defer type="module" src="/src/main.jsx"></script>
 </head>
 

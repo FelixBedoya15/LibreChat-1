@@ -201,6 +201,24 @@ function Account() {
 
   return (
     <div className="flex flex-col gap-6 p-2 text-sm text-text-primary">
+      {/* Sub-user Informative Banner */}
+      {user?.isSubUser && (
+        <div className="flex items-start gap-3.5 p-4 rounded-2xl bg-teal-50/70 dark:bg-teal-950/40 border border-teal-500/30 text-teal-900 dark:text-teal-200">
+          <UserCheck className="w-5 h-5 text-teal-600 dark:text-teal-400 mt-0.5 flex-shrink-0" />
+          <div className="space-y-1">
+            <h4 className="text-sm font-bold flex items-center gap-2">
+              <span>Cuenta de Sub-Usuario Vinculada</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-700 dark:text-teal-300 font-semibold">
+                Activa
+              </span>
+            </h4>
+            <p className="text-xs text-teal-800/80 dark:text-teal-300/80 leading-relaxed">
+              Esta cuenta pertenece a una empresa colaboradora y está autorizada para registrar evidencias operativas en Somos SST. Si tu rol es exclusivamente de carga de datos y deseas interactuar con los agentes de IA de forma autónoma, puedes ingresar tu propia <strong>clave API personal</strong> en la sección <em>Conexiones e Integraciones</em> abajo.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* TOP: Opciones de Cuenta (full width) */}
       <div className="flex flex-col gap-1 p-5 rounded-2xl border border-border-light bg-surface-primary shadow-sm">
         <h3 className="text-base font-bold text-text-primary mb-1 pb-3 border-b border-border-light">Opciones de Cuenta</h3>

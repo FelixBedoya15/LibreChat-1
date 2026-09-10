@@ -25,6 +25,64 @@ const getUserModel = () => {
 };
 
 /**
+ * Resolves the effective sub-user limit for a given user.
+ * Pro users have 1 by default, Admin/Custom 999, others 0.
+ * If userPlan.subUserLimit is explicitly configured by an Admin, that takes precedence.
+ */
+async function getEffectiveSubUserLimit(userId, userRole) {
+    const UserPlan = mongoose.models.UserPlan || require('~/db/models/UserPlan');
+    const userPlanDoc = await UserPlan.findOne({ userId }).lean();
+    let plan = userPlanDoc?.plan;
+    if (!plan || plan === 'free') {
+        if (userRole === 'ADMIN') plan = 'admin';
+        else if (userRole === 'USER_PRO') plan = 'pro';
+        else if (userRole === 'USER_PLUS') plan = 'plus';
+        else if (userRole === 'USER_GO') plan = 'go';
+        else if (userRole === 'USER_CUSTOM') plan = 'custom';
+        else if (userRole === 'USER_IPEVAR') plan = 'ipevar';
+        else plan = 'free';
+    }
+
+    if (userPlanDoc?.subUserLimit !== undefined && userPlanDoc?.subUserLimit !== null) {
+        return { limit: userPlanDoc.subUserLimit, plan };
+    }
+
+    if (['admin', 'custom'].includes(plan)) {
+        return { limit: 999, plan };
+    }
+    if (plan === 'pro') {
+        return { limit: 1, plan };
+    }
+    return { limit: 0, plan };
+}
+
+/**
+ * GET /api/sgsst/subusers/limits
+ * Returns current subuser limits and usage for the authenticated parent user.
+ */
+router.get('/limits', requireJwtAuth, async (req, res) => {
+    try {
+        if (req.user.isSubUser) {
+            return res.status(403).json({ error: 'Acceso no permitido para sub-usuarios' });
+        }
+
+        const User = getUserModel();
+        const { limit, plan } = await getEffectiveSubUserLimit(req.user.id, req.user.role);
+        const count = await User.countDocuments({ parentUser: req.user.id, isSubUser: true });
+
+        res.json({
+            limit,
+            count,
+            canCreate: count < limit,
+            plan
+        });
+    } catch (error) {
+        logger.error('[SGSST SubUsers] GET /limits error:', error);
+        res.status(500).json({ error: 'Error al consultar límites de sub-usuarios' });
+    }
+});
+
+/**
  * GET /api/sgsst/subusers/me-permissions
  * Returns current authenticated user sub-user metadata and permissions
  */
@@ -214,6 +272,21 @@ router.post('/', requireJwtAuth, async (req, res) => {
 
         if (req.user.isSubUser) {
             return res.status(403).json({ error: 'No tienes permisos para crear sub-usuarios' });
+        }
+
+        // Limit & Plan verification
+        const { limit: effectiveLimit, plan: userPlanName } = await getEffectiveSubUserLimit(parentUserId, req.user.role);
+        if (effectiveLimit <= 0) {
+            return res.status(403).json({
+                error: 'La creación de sub-usuarios es una función exclusiva del Plan Wappy Pro. Actualiza tu suscripción a Wappy Pro o solicita cupos al administrador.'
+            });
+        }
+
+        const currentSubUsersCount = await User.countDocuments({ parentUser: parentUserId, isSubUser: true });
+        if (currentSubUsersCount >= effectiveLimit) {
+            return res.status(400).json({
+                error: `Has alcanzado el límite de ${effectiveLimit} sub-usuario(s) permitido(s) para tu cuenta. Contacta al administrador si requieres cupos adicionales.`
+            });
         }
 
         const {
@@ -410,9 +483,20 @@ router.delete('/:id', requireJwtAuth, async (req, res) => {
             return res.status(403).json({ error: 'No tienes permisos para eliminar sub-usuarios' });
         }
 
+        const { deleteAllUserSessions } = require('~/models');
+        const { deleteUserKey } = require('~/server/services/UserService');
+
         const result = await User.deleteOne({ _id: subUserId, parentUser: parentUserId, isSubUser: true });
         if (result.deletedCount === 0) {
             return res.status(404).json({ error: 'Sub-usuario no encontrado o ya fue eliminado' });
+        }
+
+        // Clean up subuser sessions and API keys immediately
+        try {
+            await deleteAllUserSessions({ userId: subUserId });
+            await deleteUserKey({ userId: subUserId, all: true });
+        } catch (cleanupErr) {
+            logger.error(`[SGSST SubUsers] Error cleaning up sessions/keys for deleted subuser ${subUserId}:`, cleanupErr);
         }
 
         logger.info(`[SGSST SubUsers] Subuser deleted with ID: ${subUserId} by parent: ${parentUserId}`);

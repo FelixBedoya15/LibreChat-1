@@ -22,6 +22,7 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { AuthKeys, EModelEndpoint } = require('librechat-data-provider');
 const { getUserKey } = require('~/server/services/UserService');
+const { User } = require('~/db/models');
 const { logger } = require('~/config');
 
 // Non-live Gemini models for 503 fallback rotation (matching .env GOOGLE_MODELS minus live ones)
@@ -56,7 +57,36 @@ async function resolveApiKeys(userId) {
     : (typeof userId === 'string' ? userId.trim() : null);
 
   // 1. Consultar siempre la clave guardada por el usuario en la base de datos
+  let isSubUser = false;
+  let hasAiPermission = true;
+  let subUserSuspended = false;
+
   if (cleanUserId && cleanUserId !== '[object Object]') {
+    try {
+      if (User) {
+        const userDoc = await User.findById(cleanUserId).select('isSubUser subUserStatus subUserPermissions permissions').lean();
+        if (userDoc && userDoc.isSubUser) {
+          isSubUser = true;
+          if (userDoc.subUserStatus === 'suspended') {
+            subUserSuspended = true;
+          }
+          const userPerms = [
+            ...(Array.isArray(userDoc.subUserPermissions) ? userDoc.subUserPermissions : []),
+            ...(Array.isArray(userDoc.permissions) ? userDoc.permissions : [])
+          ];
+          hasAiPermission = userPerms.some((p) =>
+            ['chat:sst_specialist', 'chat:wappy_general', 'ai:live_analysis'].includes(p)
+          );
+        }
+      }
+    } catch (dbErr) {
+      logger.debug(`[SGSST Gemini] Error fetching user doc for ${cleanUserId}: ${dbErr.message}`);
+    }
+
+    if (subUserSuspended) {
+      throw new Error('Tu cuenta de sub-usuario se encuentra suspendida por el administrador principal.');
+    }
+
     try {
       const stored = await getUserKey({ userId: cleanUserId, name: EModelEndpoint?.google || 'google' });
       if (stored) {
@@ -85,6 +115,19 @@ async function resolveApiKeys(userId) {
     .split(',')
     .map(k => k.trim())
     .filter(k => k.length > 0 && k !== 'user_provided');
+
+  // Si es un sub-usuario sin permisos de IA de la empresa:
+  if (isSubUser && !hasAiPermission) {
+    if (userKeys.length === 0) {
+      throw new Error(
+        'Tu rol de sub-usuario no tiene permisos para utilizar Inteligencia Artificial. ' +
+        'Puedes registrar tu propia clave API de Google en el panel de claves o solicitar habilitación a tu administrador.'
+      );
+    }
+    // Sub-usuario con clave personal registrada: usa EXCLUSIVAMENTE su clave, NUNCA cae en claves corporativas
+    logger.debug(`[SGSST Gemini] Sub-usuario ${cleanUserId} utilizando sus propias claves API personales (${userKeys.length}).`);
+    return userKeys;
+  }
 
   // 3. Combinar con variables de entorno (GOOGLE_KEY, GEMINI_API_KEY) como respaldo
   // para permitir rotación fluida si la cuota diaria de una clave se agota (ej. limit: 20 peticiones)

@@ -233,17 +233,66 @@ export const AVAILABLE_PERMISSIONS: PermissionOption[] = [
     }
 ];
 
-const PRESET_ROLES = [
+export interface PresetRole {
+    id: string;
+    name: string;
+    description: string;
+    hasAi: boolean;
+    badgeLabel: string;
+    permissions: string[];
+}
+
+const PRESET_ROLES: PresetRole[] = [
+    {
+        id: 'data_entry_field',
+        name: 'Operativo SST / Carga de Datos',
+        description: 'Carga de evidencias en campo: Alturas, ATS, EPP, Vehículos, Reporte de Actos, IPEVAR, Capacitaciones y Sociodemográfico.',
+        hasAi: false,
+        badgeLabel: 'Sin IA (Solo Datos)',
+        permissions: [
+            'sgsst:perfil_sociodemografico_self',
+            'sgsst:perfil_sociodemografico_all',
+            'sgsst:reporte_actos',
+            'sgsst:permiso_alturas',
+            'sgsst:analisis_trabajo_seguro',
+            'sgsst:participacion_ipevar',
+            'sgsst:epp',
+            'sgsst:vehiculos',
+            'sgsst:programa_capacitaciones'
+        ]
+    },
+    {
+        id: 'matrices_audit_no_ai',
+        name: 'Gestor de Matrices & Auditoría',
+        description: 'Mantenimiento de Matriz de Peligros GTC-45, Legal, PESV, SGA, Investigación ATEL, Kanban ACPM y Auditoría 0312.',
+        hasAi: false,
+        badgeLabel: 'Sin IA (Solo Datos)',
+        permissions: [
+            'sgsst:matriz_peligros',
+            'sgsst:matriz_legal',
+            'sgsst:matriz_pesv',
+            'sgsst:matriz_compatibilidad',
+            'sgsst:investigacion_atel',
+            'kanban:acpm',
+            'audit:checklist',
+            'events:calendar',
+            'community:blog'
+        ]
+    },
     {
         id: 'self_only',
         name: 'Auto-reporte & Cursos LMS',
-        description: 'Llenar su propia ficha de salud, firmar consentimientos y realizar cursos en el Aula de Estudio.',
+        description: 'Ficha médica sociodemográfica propia, firma digital y cursos interactivos del Aula de Estudio LMS.',
+        hasAi: false,
+        badgeLabel: 'Sin IA (Solo Datos)',
         permissions: ['sgsst:perfil_sociodemografico_self', 'lms:aula_estudio', 'community:blog']
     },
     {
         id: 'field_inspector',
-        name: 'Inspector SST / Campo',
-        description: 'Diligenciar actos/condiciones, permisos de alturas, ATS, inspección de vehículos, EPPs y Chat SST.',
+        name: 'Inspector SST de Campo (Con IA)',
+        description: 'Operativo de campo completo más asistencia del Chat Consultor SST Especializado.',
+        hasAi: true,
+        badgeLabel: 'Con IA Consultora',
         permissions: [
             'sgsst:perfil_sociodemografico_self',
             'sgsst:reporte_actos',
@@ -256,21 +305,11 @@ const PRESET_ROLES = [
         ]
     },
     {
-        id: 'student_lms',
-        name: 'Estudiante / Plan de Formación',
-        description: 'Acceso a todas las aulas virtuales, rutas de aprendizaje, capacitaciones y Chat WAPPY.',
-        permissions: [
-            'lms:aula_estudio',
-            'lms:ruta_aprendizaje',
-            'sgsst:programa_capacitaciones',
-            'community:blog',
-            'chat:wappy_general'
-        ]
-    },
-    {
         id: 'sst_coordinator',
-        name: 'Coordinador SST & Operaciones',
-        description: 'Acceso a todos los módulos operativos, matrices técnicas, Kanban ACPM y auditorías.',
+        name: 'Coordinador SST Integral (Con IA)',
+        description: 'Control operativo total, matrices técnicas, Kanban ACPM, auditorías y Chat SST Especializado.',
+        hasAi: true,
+        badgeLabel: 'Con IA Consultora',
         permissions: [
             'sgsst:perfil_sociodemografico_self',
             'sgsst:perfil_sociodemografico_all',
@@ -288,19 +327,39 @@ const PRESET_ROLES = [
             'sgsst:programa_capacitaciones',
             'kanban:acpm',
             'audit:checklist',
+            'events:calendar',
+            'community:blog',
             'chat:sst_specialist'
         ]
     },
     {
+        id: 'student_lms',
+        name: 'Estudiante LMS (Con IA)',
+        description: 'Aula de Estudio, rutas de aprendizaje guiadas, capacitaciones y Chat WAPPY General.',
+        hasAi: true,
+        badgeLabel: 'Con IA General',
+        permissions: [
+            'lms:aula_estudio',
+            'lms:ruta_aprendizaje',
+            'sgsst:programa_capacitaciones',
+            'community:blog',
+            'chat:wappy_general'
+        ]
+    },
+    {
         id: 'full_platform',
-        name: 'Acceso Total WAPPY',
-        description: 'Acceso ilimitado a todos los aplicativos, herramientas de IA, matrices, LMS y módulos.',
+        name: 'Acceso Total WAPPY (Con IA)',
+        description: 'Acceso ilimitado a todos los aplicativos, herramientas de IA (General, Consultor y Live), matrices y LMS.',
+        hasAi: true,
+        badgeLabel: 'Con IA Total',
         permissions: AVAILABLE_PERMISSIONS.map(p => p.id)
     },
     {
         id: 'custom',
         name: 'Personalizado',
         description: 'Configuración a medida con selección manual de cada aplicativo y módulo.',
+        hasAi: false,
+        badgeLabel: 'A medida',
         permissions: []
     }
 ];
@@ -330,21 +389,36 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
     const [formName, setFormName] = useState('');
     const [formEmail, setFormEmail] = useState('');
     const [formPassword, setFormPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
-    const [selectedPresetRole, setSelectedPresetRole] = useState<string>('self_only');
-    const [selectedPermissions, setSelectedPermissions] = useState<string[]>(['sgsst:perfil_sociodemografico_self', 'lms:aula_estudio', 'community:blog']);
+    const [selectedPresetRole, setSelectedPresetRole] = useState<string>('data_entry_field');
+    const [selectedPermissions, setSelectedPermissions] = useState<string[]>([
+        'sgsst:perfil_sociodemografico_self',
+        'sgsst:perfil_sociodemografico_all',
+        'sgsst:reporte_actos',
+        'sgsst:permiso_alturas',
+        'sgsst:analisis_trabajo_seguro',
+        'sgsst:participacion_ipevar',
+        'sgsst:epp',
+        'sgsst:vehiculos',
+        'sgsst:programa_capacitaciones'
+    ]);
     const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('Todas');
     const [formStatus, setFormStatus] = useState<'active' | 'suspended'>('active');
+
+    // Limits and Plan state
+    const [subUserLimit, setSubUserLimit] = useState<number | null>(null);
+    const [userPlanName, setUserPlanName] = useState<string>('free');
+    const [canCreateSubUser, setCanCreateSubUser] = useState<boolean>(true);
 
     // Load initial data
     const loadData = useCallback(async () => {
         if (!token) return;
         setIsLoading(true);
         try {
-            const [subRes, workersRes, compRes] = await Promise.all([
+            const [subRes, workersRes, compRes, limitsRes] = await Promise.all([
                 fetch('/api/sgsst/subusers', { headers: { Authorization: `Bearer ${token}` } }),
                 fetch('/api/sgsst/subusers/available-workers', { headers: { Authorization: `Bearer ${token}` } }),
-                fetch('/api/sgsst/company-info/all', { headers: { Authorization: `Bearer ${token}` } })
+                fetch('/api/sgsst/company-info/all', { headers: { Authorization: `Bearer ${token}` } }),
+                fetch('/api/sgsst/subusers/limits', { headers: { Authorization: `Bearer ${token}` } })
             ]);
 
             if (subRes.ok) {
@@ -362,6 +436,12 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                     const activeComp = compData.find((c: CompanyItem) => c.isActive) || compData[0];
                     setSelectedCompanyId(activeComp._id);
                 }
+            }
+            if (limitsRes.ok) {
+                const limitsData = await limitsRes.json();
+                setSubUserLimit(typeof limitsData.limit === 'number' ? limitsData.limit : null);
+                setUserPlanName(limitsData.plan || 'free');
+                setCanCreateSubUser(!!limitsData.canCreate);
             }
         } catch (error) {
             console.error('[SubUserManagerModal] Error loading data:', error);
@@ -381,7 +461,33 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
         }
     }, [isOpen, initialWorkerDoc]);
 
+    const effectiveLimit = useMemo(() => {
+        if (['admin', 'custom'].includes(userPlanName)) return 999;
+        if (subUserLimit !== null && subUserLimit !== undefined) return subUserLimit;
+        if (userPlanName === 'pro') return 1;
+        return 0;
+    }, [userPlanName, subUserLimit]);
+
+    const isLimitReached = useMemo(() => {
+        if (['admin', 'custom'].includes(userPlanName)) return false;
+        return subUsers.length >= effectiveLimit;
+    }, [userPlanName, subUsers.length, effectiveLimit]);
+
+    const isNonPro = useMemo(() => {
+        if (['admin', 'custom'].includes(userPlanName)) return false;
+        if (subUserLimit !== null && subUserLimit !== undefined && subUserLimit > 0) return false;
+        return effectiveLimit <= 0;
+    }, [userPlanName, subUserLimit, effectiveLimit]);
+
     const handleStartCreateForWorker = (doc: string) => {
+        if (isNonPro) {
+            showToast({ message: 'La creación de sub-usuarios es una función exclusiva del Plan Wappy Pro.', type: 'warning' });
+            return;
+        }
+        if (isLimitReached) {
+            showToast({ message: `Has alcanzado el límite de ${effectiveLimit} sub-usuario(s) para tu cuenta. Solicita una ampliación al administrador.`, type: 'warning' });
+            return;
+        }
         const worker = availableWorkers.find(w => w.identificacion === doc);
         setSelectedWorkerDoc(doc);
         if (worker) {
@@ -390,20 +496,30 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
             setSelectedCompanyId(worker.companyId || (companies[0]?._id || ''));
         }
         setFormPassword(doc); // Default password as document number
-        setSelectedPresetRole('self_only');
-        setSelectedPermissions(['sgsst:perfil_sociodemografico_self']);
+        const defaultRole = PRESET_ROLES.find(r => r.id === 'data_entry_field');
+        setSelectedPresetRole('data_entry_field');
+        setSelectedPermissions(defaultRole ? [...defaultRole.permissions] : ['sgsst:perfil_sociodemografico_self']);
         setEditingSubUser(null);
         setActiveTab('create');
     };
 
     const handleStartCreateNew = () => {
+        if (isNonPro) {
+            showToast({ message: 'La creación de sub-usuarios es una función exclusiva del Plan Wappy Pro.', type: 'warning' });
+            return;
+        }
+        if (isLimitReached) {
+            showToast({ message: `Has alcanzado el límite de ${effectiveLimit} sub-usuario(s) para tu cuenta. Solicita una ampliación al administrador.`, type: 'warning' });
+            return;
+        }
         setEditingSubUser(null);
         setSelectedWorkerDoc('');
         setFormName('');
         setFormEmail('');
         setFormPassword('');
-        setSelectedPresetRole('self_only');
-        setSelectedPermissions(['sgsst:perfil_sociodemografico_self']);
+        const defaultRole = PRESET_ROLES.find(r => r.id === 'data_entry_field');
+        setSelectedPresetRole('data_entry_field');
+        setSelectedPermissions(defaultRole ? [...defaultRole.permissions] : ['sgsst:perfil_sociodemografico_self']);
         setFormStatus('active');
         setActiveTab('create');
     };
@@ -478,6 +594,17 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
     const handleSaveSubUser = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!token) return;
+
+        if (activeTab === 'create') {
+            if (isNonPro) {
+                showToast({ message: 'La creación de sub-usuarios es una función exclusiva del Plan Wappy Pro.', type: 'error' });
+                return;
+            }
+            if (isLimitReached) {
+                showToast({ message: `Has alcanzado el límite de ${effectiveLimit} sub-usuario(s) permitido(s) para tu cuenta.`, type: 'error' });
+                return;
+            }
+        }
 
         if (!formEmail || !formEmail.includes('@')) {
             showToast({ message: 'Ingrese un correo electrónico válido', type: 'warning' });
@@ -671,7 +798,7 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                             }`}
                         >
                             <Users className="w-4 h-4" />
-                            Sub-usuarios Activos ({subUsers.length})
+                            Sub-usuarios Activos ({subUsers.length} / {effectiveLimit >= 999 ? '∞' : effectiveLimit})
                         </button>
 
                         <button
@@ -679,8 +806,17 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                             className={`flex items-center gap-2 px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-xl transition-all cursor-pointer ${
                                 activeTab === 'create'
                                     ? 'bg-teal-600 text-white shadow-sm'
-                                    : 'text-text-secondary hover:bg-surface-hover'
+                                    : (isNonPro || isLimitReached)
+                                        ? 'text-text-secondary/70 hover:bg-surface-hover'
+                                        : 'text-text-secondary hover:bg-surface-hover'
                             }`}
+                            title={
+                                isNonPro
+                                    ? 'Función exclusiva de Wappy Pro'
+                                    : isLimitReached
+                                        ? `Límite de ${effectiveLimit} sub-usuario(s) alcanzado`
+                                        : 'Crear nuevo sub-usuario'
+                            }
                         >
                             <UserPlus className="w-4 h-4" />
                             Crear Nuevo Acceso
@@ -720,6 +856,32 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                     ) : activeTab === 'list' ? (
                         /* List Tab */
                         <div>
+                            {isNonPro && (
+                                <div className="mb-4 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3 text-amber-900 dark:text-amber-200">
+                                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                                    <div className="text-xs">
+                                        <p className="font-bold text-sm">Función exclusiva Wappy Pro</p>
+                                        <p className="mt-0.5 text-text-secondary leading-relaxed">
+                                            La creación de sub-usuarios y delegación de accesos es una herramienta exclusiva para cuentas <strong>Wappy Pro</strong> (incluye 1 sub-usuario por defecto). Actualiza tu plan a Wappy Pro para habilitar accesos a tus trabajadores o solicita una asignación de cupos al administrador.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {!isNonPro && isLimitReached && (
+                                <div className="mb-4 p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-start justify-between gap-3 text-blue-900 dark:text-blue-200">
+                                    <div className="flex items-start gap-3">
+                                        <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-blue-600 dark:text-blue-400" />
+                                        <div className="text-xs">
+                                            <p className="font-bold">Límite de sub-usuarios alcanzado ({subUsers.length} de {effectiveLimit})</p>
+                                            <p className="mt-0.5 text-text-secondary leading-relaxed">
+                                                Has utilizado el cupo de sub-usuarios disponible para tu cuenta ({userPlanName === 'pro' ? 'Wappy Pro: 1 sub-usuario' : `Límite asignado: ${effectiveLimit}`}). Si requieres habilitar más colaboradores con acceso independiente, solicita una ampliación de cupos al administrador.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {filteredSubUsers.length === 0 ? (
                                 <div className="text-center py-14 border border-dashed border-border-medium rounded-2xl bg-surface-primary/40 p-6">
                                     <Shield className="w-12 h-12 text-teal-500 mx-auto mb-3 opacity-60" />
@@ -802,9 +964,27 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
 
                                                     {/* Badges of Permissions */}
                                                     <div className="mb-3">
-                                                        <p className="text-[11px] font-medium text-text-secondary mb-1.5">
-                                                            Módulos Autorizados ({su.subUserPermissions?.length || 0}):
-                                                        </p>
+                                                        {(() => {
+                                                            const hasSubUserAi = (su.subUserPermissions || []).some(p => 
+                                                                p === 'chat:wappy_general' || p === 'chat:sst_specialist' || p === 'ai:live_analysis'
+                                                            );
+                                                            return (
+                                                                <div className="flex items-center justify-between gap-2 mb-1.5">
+                                                                    <p className="text-[11px] font-medium text-text-secondary">
+                                                                        Módulos Autorizados ({su.subUserPermissions?.length || 0}):
+                                                                    </p>
+                                                                    {hasSubUserAi ? (
+                                                                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 flex items-center gap-1">
+                                                                            <Sparkles className="w-2.5 h-2.5 text-indigo-500" /> Con IA
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                                                            🌿 Sin IA (Solo Datos)
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })()}
                                                         <div className="flex flex-wrap gap-1">
                                                             {(su.subUserPermissions || []).slice(0, 4).map((p) => {
                                                                 const permInfo = AVAILABLE_PERMISSIONS.find(ap => ap.id === p);
@@ -865,6 +1045,29 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                     ) : (
                         /* Create / Edit Form */
                         <form onSubmit={handleSaveSubUser} className="space-y-6 max-w-3xl mx-auto">
+                            {activeTab === 'create' && isNonPro && (
+                                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3 text-amber-900 dark:text-amber-200">
+                                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                                    <div className="text-xs">
+                                        <p className="font-bold text-sm">Función exclusiva Wappy Pro</p>
+                                        <p className="mt-0.5 text-text-secondary leading-relaxed">
+                                            Tu cuenta actual no dispone de cupo para crear sub-usuarios. Actualiza tu suscripción al plan <strong>Wappy Pro</strong> para disponer de 1 sub-usuario incluido, o contacta a soporte/administrador para solicitar cupos adicionales.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === 'create' && !isNonPro && isLimitReached && (
+                                <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-start gap-3 text-blue-900 dark:text-blue-200">
+                                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-blue-600 dark:text-blue-400" />
+                                    <div className="text-xs">
+                                        <p className="font-bold text-sm">Límite de sub-usuarios alcanzado ({subUsers.length} de {effectiveLimit})</p>
+                                        <p className="mt-0.5 text-text-secondary leading-relaxed">
+                                            Has alcanzado el límite máximo de sub-usuarios permitido para tu cuenta ({userPlanName === 'pro' ? 'Plan Wappy Pro: 1 sub-usuario' : `Límite: ${effectiveLimit}`}). Para dar de alta a otro colaborador, solicita una ampliación al administrador o elimina/suspende un acceso previo.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
                             
                             {/* Step 1: Worker & Company Selection */}
                             <div className="bg-surface-primary p-4 sm:p-5 rounded-2xl border border-border-medium space-y-4">
@@ -1037,6 +1240,21 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                                     </div>
                                 </div>
 
+                                {/* Info Banner for AI Separation and Own Keys */}
+                                <div className="p-3.5 rounded-2xl bg-gradient-to-r from-teal-500/10 via-emerald-500/10 to-indigo-500/5 border border-teal-500/20 text-xs text-text-secondary flex items-start gap-3">
+                                    <div className="p-1.5 rounded-lg bg-teal-500/20 text-teal-600 dark:text-teal-400 mt-0.5 flex-shrink-0">
+                                        <Sparkles className="w-4 h-4" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="font-semibold text-text-primary text-xs">
+                                            Separación Operativa & Claves API Propias
+                                        </p>
+                                        <p className="text-[11px] leading-relaxed">
+                                            Los roles marcados como <strong className="text-emerald-600 dark:text-emerald-400">"Sin IA"</strong> están diseñados para carga masiva de evidencias operativas y matrices sin consumir tokens de la empresa. Además, <strong>los sub-usuarios pueden configurar sus propias claves API</strong> (Google Gemini, OpenAI, etc.) en Configuración para chatear con IA de manera autónoma.
+                                        </p>
+                                    </div>
+                                </div>
+
                                 {/* Presets Selector */}
                                 <div>
                                     <label className="block text-xs font-semibold text-text-secondary mb-2">
@@ -1050,19 +1268,30 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                                                     key={role.id}
                                                     type="button"
                                                     onClick={() => handlePresetRoleChange(role.id)}
-                                                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                                                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                                                         isSelected
                                                             ? 'border-teal-500 bg-teal-50/50 dark:bg-teal-950/40 text-text-primary shadow-sm ring-1 ring-teal-500'
                                                             : 'border-border-medium bg-surface-secondary hover:bg-surface-hover text-text-secondary'
                                                     }`}
                                                 >
-                                                    <div className="flex items-center justify-between mb-1">
-                                                        <span className="font-bold text-xs text-text-primary">{role.name}</span>
-                                                        {isSelected && <Check className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />}
+                                                    <div>
+                                                        <div className="flex items-start justify-between mb-1 gap-1">
+                                                            <span className="font-bold text-xs text-text-primary leading-tight">{role.name}</span>
+                                                            {isSelected && <Check className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 flex-shrink-0 mt-0.5" />}
+                                                        </div>
+                                                        <p className="text-[10px] text-text-secondary line-clamp-2 leading-tight mb-2.5">
+                                                            {role.description}
+                                                        </p>
                                                     </div>
-                                                    <p className="text-[10px] text-text-secondary line-clamp-2 leading-tight">
-                                                        {role.description}
-                                                    </p>
+                                                    <div>
+                                                        <span className={`inline-block text-[9px] font-bold px-2 py-0.5 rounded-md border ${
+                                                            role.hasAi
+                                                                ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
+                                                                : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                                        }`}>
+                                                            {role.badgeLabel}
+                                                        </span>
+                                                    </div>
                                                 </button>
                                             );
                                         })}
@@ -1153,8 +1382,8 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                                 </button>
                                 <button
                                     type="submit"
-                                    disabled={isSaving}
-                                    className="flex items-center gap-2 px-5 py-2 text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-xl shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+                                    disabled={isSaving || (activeTab === 'create' && (isNonPro || isLimitReached))}
+                                    className="flex items-center gap-2 px-5 py-2 text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-xl shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                 >
                                     {isSaving ? (
                                         <>

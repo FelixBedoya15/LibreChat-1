@@ -49,6 +49,10 @@ const UserPlanSchema = new mongoose.Schema(
             type: Number,
             default: null, // null hereda el comportamiento por defecto de su plan (pro: 1, admin/custom: 999, otros: 0)
         },
+        subUserLimit: {
+            type: Number,
+            default: null, // null hereda el comportamiento por defecto de su plan (pro: 1, admin/custom: 999, otros: 0)
+        },
         storageLimit: {
             type: Number,
             default: null, // null hereda el almacenamiento por defecto de su plan (en Bytes)

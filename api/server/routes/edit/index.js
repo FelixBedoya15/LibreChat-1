@@ -8,6 +8,7 @@ const {
   requireJwtAuth,
   checkBan,
   uaParser,
+  checkMessageLimits,
 } = require('~/server/middleware');
 const anthropic = require('./anthropic');
 const express = require('express');
@@ -36,6 +37,7 @@ if (isEnabled(LIMIT_MESSAGE_USER)) {
 }
 
 router.use(validateConvoAccess);
+router.use(checkMessageLimits);
 
 router.use([`/${EModelEndpoint.azureOpenAI}`, `/${EModelEndpoint.openAI}`], openAI);
 router.use(`/${EModelEndpoint.anthropic}`, anthropic);

@@ -252,9 +252,25 @@ const getUserPlan = async (req, res) => {
             }
         }
 
-        // Count user automations
+        // Determine subUserLimit (Pro: 1 by default, admin/custom: 999, free/ipevar/plus/go: 0)
+        let subUserLimit = userPlan?.subUserLimit;
+        if (subUserLimit === undefined || subUserLimit === null) {
+            if (['admin', 'custom'].includes(plan)) {
+                subUserLimit = 999;
+            } else if (plan === 'pro') {
+                subUserLimit = 1;
+            } else {
+                subUserLimit = 0;
+            }
+        }
+
+        // Count user automations & subusers
         const AutomationModel = mongoose.models.Automation || mongoose.model('Automation');
-        const automationsCount = await AutomationModel.countDocuments({ user: userId });
+        const UserModel = mongoose.models.User || mongoose.model('User');
+        const [automationsCount, subUsersCount] = await Promise.all([
+            AutomationModel.countDocuments({ user: userId }),
+            UserModel.countDocuments({ parentUser: userId, isSubUser: true })
+        ]);
 
         return res.json({
             plan: plan,
@@ -265,6 +281,8 @@ const getUserPlan = async (req, res) => {
             companyLimit,
             automationLimit,
             automationsCount,
+            subUserLimit,
+            subUsersCount,
             storageLimit,
             storageUsed: totalUsedBytes,
         });

@@ -210,6 +210,9 @@ router.get('/all', requireJwtAuth, async (req, res) => {
  */
 router.post('/', requireJwtAuth, async (req, res) => {
     try {
+        if (req.user.isSubUser) {
+            return res.status(403).json({ error: 'Los sub-usuarios no tienen permisos para crear empresas' });
+        }
         const userId = req.user.id;
         
         // Obtener la fecha de creación del usuario de manera segura
@@ -274,6 +277,9 @@ router.post('/', requireJwtAuth, async (req, res) => {
  */
 router.put('/:id', requireJwtAuth, async (req, res) => {
     try {
+        if (req.user.isSubUser) {
+            return res.status(403).json({ error: 'Los sub-usuarios no tienen permisos para modificar la configuración de empresas' });
+        }
         // Enforce single active company on update
         if (req.body.isActive === true) {
             await CompanyInfo.updateMany(
@@ -308,6 +314,9 @@ router.put('/:id', requireJwtAuth, async (req, res) => {
  */
 router.put('/', requireJwtAuth, async (req, res) => {
     try {
+        if (req.user.isSubUser) {
+            return res.status(403).json({ error: 'Los sub-usuarios no tienen permisos para modificar la configuración de empresas' });
+        }
         let active = await CompanyInfo.findOne({ user: req.user.id, isActive: true });
         if (!active) active = await CompanyInfo.findOne({ user: req.user.id });
 
@@ -344,6 +353,9 @@ router.put('/', requireJwtAuth, async (req, res) => {
  */
 router.put('/:id/activate', requireJwtAuth, async (req, res) => {
     try {
+        if (req.user.isSubUser) {
+            return res.status(403).json({ error: 'Los sub-usuarios no pueden cambiar la empresa activa global' });
+        }
         const target = await CompanyInfo.findOne({ _id: req.params.id, user: req.user.id });
         if (!target) return res.status(404).json({ error: 'Company not found' });
 

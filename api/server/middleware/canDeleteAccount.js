@@ -16,6 +16,11 @@ const { SystemRoles } = require('librechat-data-provider');
 
 const canDeleteAccount = async (req, res, next = () => {}) => {
   const { user } = req;
+  if (user?.isSubUser) {
+    logger.warn(`[User] [Delete Account] Sub-user tried to self-delete account: ${user?.id} (${user?.email})`);
+    return res.status(403).send({ message: 'Las cuentas de sub-usuario solo pueden ser administradas o eliminadas por la cuenta principal de la empresa.' });
+  }
+
   const { ALLOW_ACCOUNT_DELETION = true } = process.env;
   if (user?.role === SystemRoles.ADMIN || isEnabled(ALLOW_ACCOUNT_DELETION)) {
     return next();

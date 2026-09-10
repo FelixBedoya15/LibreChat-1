@@ -78,11 +78,11 @@ const updateUser = async (req, res) => {
             userId, role, accountStatus, name, username, password, inactiveAt, activeAt, phoneNumber,
             departamento, ciudad, department, city,
             commercialTier, partnerSlug, partnerPaymentDetails, partnerSupportContact, pointsAdjustment,
-            companyLimit, automationLimit, referredByPartner
+            companyLimit, automationLimit, subUserLimit, referredByPartner
         } = req.body;
         
         logger.info(`[AdminController] Updating user ${userId}:`, { 
-            role, accountStatus, inactiveAt, activeAt, commercialTier, partnerSlug, pointsAdjustment, companyLimit, automationLimit, referredByPartner
+            role, accountStatus, inactiveAt, activeAt, commercialTier, partnerSlug, pointsAdjustment, companyLimit, automationLimit, subUserLimit, referredByPartner
         });
 
         const updateData = {};
@@ -190,6 +190,9 @@ const updateUser = async (req, res) => {
         }
         if (automationLimit !== undefined) {
             planUpdates.automationLimit = automationLimit === '' || automationLimit === null ? null : parseInt(automationLimit, 10);
+        }
+        if (subUserLimit !== undefined) {
+            planUpdates.subUserLimit = subUserLimit === '' || subUserLimit === null ? null : parseInt(subUserLimit, 10);
         }
         if (inactiveAt !== undefined) {
             planUpdates.planExpiresAt = inactiveAt ? new Date(inactiveAt) : null;
@@ -450,10 +453,12 @@ const getUserReferralDetails = async (req, res) => {
         const userPlanDoc = await UserPlan.findOne({ userId }).lean();
         const companyLimit = userPlanDoc ? userPlanDoc.companyLimit : null;
         const automationLimit = userPlanDoc ? userPlanDoc.automationLimit : null;
+        const subUserLimit = userPlanDoc ? userPlanDoc.subUserLimit : null;
 
-        const [createdCompaniesCount, createdAutomationsCount] = await Promise.all([
+        const [createdCompaniesCount, createdAutomationsCount, createdSubUsersCount] = await Promise.all([
             CompanyInfo.countDocuments({ user: userId }),
-            Automation.countDocuments({ user: userId })
+            Automation.countDocuments({ user: userId }),
+            User.countDocuments({ parentUser: userId, isSubUser: true })
         ]);
 
         const referralRecord = await ReferralRecord.findOne({ referredUserId: userId }).lean();
@@ -466,8 +471,10 @@ const getUserReferralDetails = async (req, res) => {
             payoutRequests,
             companyLimit,
             automationLimit,
+            subUserLimit,
             createdCompaniesCount,
             createdAutomationsCount,
+            createdSubUsersCount,
             referredByPartner
         });
     } catch (err) {

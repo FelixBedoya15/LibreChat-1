@@ -2,7 +2,7 @@ const { logger } = require('@librechat/data-schemas');
 const { errorsToString } = require('librechat-data-provider');
 const { isEnabled, checkEmailConfig } = require('@librechat/api');
 const { Strategy: PassportLocalStrategy } = require('passport-local');
-const { findUser, comparePassword, updateUser } = require('~/models');
+const { findUser, comparePassword, updateUser, getUserById } = require('~/models');
 const { loginSchema } = require('./validators');
 
 // Unix timestamp for 2024-06-07 15:20:18 Eastern Time
@@ -61,6 +61,19 @@ async function passportLogin(req, email, password, done) {
       logError('Passport Local Strategy - Password does not match', { isMatch });
       logger.error(`[Login] [Login failed] [Username: ${identifier}] [Request-IP: ${req.ip}]`);
       return done(null, false, { message: 'Incorrect password.' });
+    }
+
+    if (user.isSubUser && user.subUserStatus === 'suspended') {
+      logger.warn(`[Login] [Login denied] Sub-user ${identifier} is suspended.`);
+      return done(null, false, { message: 'Tu cuenta de sub-usuario se encuentra suspendida por el administrador principal.' });
+    }
+
+    if (user.isSubUser && user.parentUser) {
+      const parent = await getUserById(user.parentUser, 'accountStatus inactiveAt role');
+      if (parent && parent.accountStatus === 'suspended') {
+        logger.warn(`[Login] [Login denied] Sub-user ${identifier} parent account is suspended.`);
+        return done(null, false, { message: 'La cuenta de la organización principal se encuentra suspendida.' });
+      }
     }
 
     const { ADMIN_EMAILS } = require('../server/middleware/roles/admin');
