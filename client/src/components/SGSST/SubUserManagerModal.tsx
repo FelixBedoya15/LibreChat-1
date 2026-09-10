@@ -615,8 +615,8 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
             return;
         }
 
-        if (activeTab === 'create' && (!formPassword || formPassword.length < 6)) {
-            showToast({ message: 'La contraseña debe tener al menos 6 caracteres', type: 'warning' });
+        if (activeTab === 'create' && (!formPassword || formPassword.length < 8)) {
+            showToast({ message: 'La contraseña debe tener al menos 8 caracteres para cumplir las políticas del sistema', type: 'warning' });
             return;
         }
 
@@ -662,7 +662,11 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                     subUserPermissions: selectedPermissions,
                     subUserStatus: formStatus
                 };
-                if (formPassword && formPassword.trim().length >= 6) {
+                if (formPassword && formPassword.trim().length > 0) {
+                    if (formPassword.trim().length < 8) {
+                        showToast({ message: 'La nueva contraseña debe tener al menos 8 caracteres para cumplir las políticas del sistema', type: 'warning' });
+                        return;
+                    }
                     payload.password = formPassword.trim();
                 }
 
@@ -1197,7 +1201,7 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                                                 value={formPassword}
                                                 onChange={(e) => setFormPassword(e.target.value)}
                                                 className="w-full pl-3 pr-10 py-2 text-xs bg-surface-secondary border border-border-medium rounded-xl text-text-primary focus:ring-1 focus:ring-teal-500 focus:outline-none"
-                                                placeholder={activeTab === 'create' ? 'Mínimo 6 caracteres' : '•••••••• (conservar actual)'}
+                                                placeholder={activeTab === 'create' ? 'Mínimo 8 caracteres' : '•••••••• (conservar actual)'}
                                                 required={activeTab === 'create'}
                                             />
                                             <button

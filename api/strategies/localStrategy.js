@@ -30,6 +30,7 @@ async function passportLogin(req, email, password, done) {
         { email: cleanIdentifier },
         { username: lowerIdentifier },
         { username: cleanIdentifier },
+        { workerDocument: cleanIdentifier },
       ],
     }, '+password');
 
@@ -39,6 +40,7 @@ async function passportLogin(req, email, password, done) {
         $or: [
           { email: { $regex: new RegExp(`^${escaped}$`, 'i') } },
           { username: { $regex: new RegExp(`^${escaped}$`, 'i') } },
+          { workerDocument: cleanIdentifier },
         ],
       }, '+password');
     }

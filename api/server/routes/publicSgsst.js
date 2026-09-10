@@ -984,24 +984,41 @@ router.post('/mood/chat/:companyId', async (req, res) => {
       Agent = mongoose.models.AgentPublicLookup || mongoose.model('AgentPublicLookup', AgentSchema);
     }
 
-    // 1. Buscar prioritariamente por nombres oficiales de salud mental y bienestar
-    let agent = await Agent.findOne({
-      $or: [
-        { name: /Terapeuta en Salud Mental/i },
-        { name: /Terapeuta/i },
-        { name: /Salud Mental/i },
-        { name: /Psic[oó]logo SST/i },
-        { name: /Psic[oó]logo/i },
-        { name: /Psicosocial/i },
-      ],
-    }).lean();
+    // 1. Prioridad absoluta: Buscar exactamente 'Terapeuta en Salud Mental'
+    let agent = await Agent.findOne({ name: 'Terapeuta en Salud Mental' }).lean();
 
-    // 2. Fallback por categoría si no coincide por nombre
+    // 2. Si no coincide exacto, buscar por nombres clave de Salud Mental o Psicología ocupacional
     if (!agent) {
-      agent = await Agent.findOne({ category: 'ergonomia_salud_bienestar' }).lean();
+      agent = await Agent.findOne({
+        $or: [
+          { name: /Terapeuta.*Salud.*Mental/i },
+          { name: /Salud Mental/i },
+          { name: /Psic[oó]logo SST/i },
+          { name: /Psic[oó]logo/i },
+          { name: /Psicosocial/i },
+        ],
+      }).lean();
     }
 
-    // 3. Fallback a agentes generales de SST
+    // 3. Fallback: Buscar "Terapeuta" pero EXCLUYENDO explícitamente "Fisioterapeuta"
+    if (!agent) {
+      agent = await Agent.findOne({
+        $and: [
+          { name: /terapeuta/i },
+          { name: { $not: /fisioterapeuta/i } },
+        ],
+      }).lean();
+    }
+
+    // 4. Fallback por categoría 'ergonomia_salud_bienestar', EXCLUYENDO también "Fisioterapeuta"
+    if (!agent) {
+      agent = await Agent.findOne({
+        category: 'ergonomia_salud_bienestar',
+        name: { $not: /fisioterapeuta/i },
+      }).lean();
+    }
+
+    // 5. Fallback a agentes generales de SST (si no hay ninguno de salud mental disponible)
     if (!agent) {
       agent = await Agent.findOne({
         $or: [
@@ -1012,7 +1029,7 @@ router.post('/mood/chat/:companyId', async (req, res) => {
       }).lean();
     }
 
-    // 4. Fallback a cualquier agente registrado en el sistema
+    // 6. Fallback a cualquier agente registrado en el sistema
     if (!agent) {
       agent = await Agent.findOne({}).lean();
     }

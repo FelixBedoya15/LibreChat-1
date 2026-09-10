@@ -303,8 +303,8 @@ router.post('/', requireJwtAuth, async (req, res) => {
             return res.status(400).json({ error: 'El correo electrónico es obligatorio' });
         }
 
-        if (!password || password.length < 6) {
-            return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+        if (!password || password.length < 8) {
+            return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres para cumplir las políticas de seguridad del sistema' });
         }
 
         if (!workerDocument || !String(workerDocument).trim()) {
@@ -438,8 +438,8 @@ router.put('/:id', requireJwtAuth, async (req, res) => {
         }
 
         if (password && password.trim()) {
-            if (password.length < 6) {
-                return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 6 caracteres' });
+            if (password.length < 8) {
+                return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 8 caracteres para cumplir las políticas de seguridad del sistema' });
             }
             const salt = bcrypt.genSaltSync(10);
             subUser.password = bcrypt.hashSync(password, salt);
