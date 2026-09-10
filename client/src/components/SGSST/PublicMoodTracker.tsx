@@ -57,11 +57,15 @@ export default function PublicMoodTracker() {
   // Chat State
   const [chatToken, setChatToken] = useState<string | null>(null);
   const [agentId, setAgentId] = useState<string | null>(null);
+  const [agentName, setAgentName] = useState<string>('Terapeuta en Salud Mental');
+  const [agentModel, setAgentModel] = useState<string | undefined>(undefined);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [parentMessageId, setParentMessageId] = useState<string>('00000000-0000-0000-0000-000000000000');
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [startingChat, setStartingChat] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -159,7 +163,8 @@ export default function PublicMoodTracker() {
 
   const handleStartChat = async () => {
     if (!companyId || !telemetryId) return;
-    setIsTyping(true);
+    setStartingChat(true);
+    setChatError(null);
 
     try {
       const targetCompanyId = company?._id || companyId;
@@ -167,6 +172,8 @@ export default function PublicMoodTracker() {
       if (res.data.success) {
         setChatToken(res.data.token);
         setAgentId(res.data.agentId);
+        if (res.data.agentName) setAgentName(res.data.agentName);
+        if (res.data.agentModel) setAgentModel(res.data.agentModel);
         setConversationId(res.data.conversationId);
 
         // Prepopulate first message from Specialist Agent
@@ -180,9 +187,12 @@ export default function PublicMoodTracker() {
       }
     } catch (error: any) {
       console.error('Error initializing chat:', error);
-      alert(error.response?.data?.error || 'No se pudo iniciar el chat con el especialista.');
+      const errMsg =
+        error.response?.data?.error ||
+        'No se pudo conectar con el Terapeuta. Por favor, intenta de nuevo o comunícate con el área de SST.';
+      setChatError(errMsg);
     } finally {
-      setIsTyping(false);
+      setStartingChat(false);
     }
   };
 
@@ -215,14 +225,19 @@ export default function PublicMoodTracker() {
           endpointOption: {
             endpoint: 'agents',
             agent: agentId,
-            model: 'gemini-3.7-flash',
+            model: agentModel || 'gemini-3.7-flash',
           },
           isPublicChat: true,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        let errMessage = 'Error al comunicarse con el Terapeuta';
+        try {
+          const errData = await response.json();
+          errMessage = errData.error || errData.message || errMessage;
+        } catch (e) {}
+        throw new Error(errMessage);
       }
 
       const reader = response.body?.getReader();
@@ -584,19 +599,40 @@ export default function PublicMoodTracker() {
                     </div>
                   </div>
 
+                  {chatError && (
+                    <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-2.5 text-xs text-rose-800 animate-fadeIn shadow-xs">
+                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="font-semibold">{chatError}</p>
+                        <p className="text-[11px] text-rose-600 mt-0.5">Puedes intentar conectarte de nuevo o continuar solo enviando tu reporte.</p>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex gap-2 pt-1">
                     <button
                       onClick={handleSkipChat}
-                      className="flex-1 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold py-2.5 px-4 rounded-xl text-xs shadow-xs transition-all"
+                      disabled={startingChat}
+                      className="flex-1 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold py-2.5 px-4 rounded-xl text-xs shadow-xs transition-all disabled:opacity-60"
                     >
                       Solo enviar reporte
                     </button>
                     <button
                       onClick={handleStartChat}
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-1.5"
+                      disabled={startingChat}
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-500 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-1.5"
                     >
-                      Hablar con un Terapeuta
-                      <ChevronRight className="w-4 h-4" />
+                      {startingChat ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Conectando...
+                        </>
+                      ) : (
+                        <>
+                          Hablar con un Terapeuta
+                          <ChevronRight className="w-4 h-4" />
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -613,7 +649,7 @@ export default function PublicMoodTracker() {
                       🧠
                     </div>
                     <div>
-                      <h3 className="text-xs font-bold text-white leading-tight">Terapeuta Psicosocial</h3>
+                      <h3 className="text-xs font-bold text-white leading-tight">{agentName}</h3>
                       <p className="text-[10px] text-emerald-100 font-medium">Canal Confidencial y 100% Anónimo</p>
                     </div>
                   </div>

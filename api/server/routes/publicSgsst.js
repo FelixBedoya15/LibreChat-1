@@ -947,7 +947,7 @@ router.post('/mood/update/:telemetryId', async (req, res) => {
 });
 
 // POST /api/public-sgsst/mood/chat/:companyId
-// Genera un token JWT temporal y anónimo para hablar con el Agente Psicólogo
+// Genera un token JWT temporal y anónimo para hablar con el Terapeuta / Psicólogo
 router.post('/mood/chat/:companyId', async (req, res) => {
   try {
     const { companyId } = req.params;
@@ -956,18 +956,102 @@ router.post('/mood/chat/:companyId', async (req, res) => {
       return res.status(404).json({ error: 'Empresa no encontrada.' });
     }
 
-    const Agent = mongoose.models.Agent || mongoose.connection.collection('agents');
-    // Buscar al especialista en riesgo psicosocial
-    const agent = await Agent.findOne({ name: /Psicosocial/i });
+    let Agent = mongoose.models.Agent;
+    if (!Agent) {
+      try {
+        Agent = require('~/db/models').Agent;
+      } catch (e) {}
+    }
+    if (!Agent) {
+      const AgentSchema = new mongoose.Schema(
+        {
+          id: String,
+          name: String,
+          category: String,
+          model: String,
+        },
+        { strict: false, collection: 'agents' },
+      );
+      Agent = mongoose.models.AgentPublicLookup || mongoose.model('AgentPublicLookup', AgentSchema);
+    }
+
+    // 1. Buscar prioritariamente por nombres oficiales de salud mental y bienestar
+    let agent = await Agent.findOne({
+      $or: [
+        { name: /Terapeuta en Salud Mental/i },
+        { name: /Terapeuta/i },
+        { name: /Salud Mental/i },
+        { name: /Psic[oó]logo SST/i },
+        { name: /Psic[oó]logo/i },
+        { name: /Psicosocial/i },
+      ],
+    }).lean();
+
+    // 2. Fallback por categoría si no coincide por nombre
+    if (!agent) {
+      agent = await Agent.findOne({ category: 'ergonomia_salud_bienestar' }).lean();
+    }
+
+    // 3. Fallback a agentes generales de SST
+    if (!agent) {
+      agent = await Agent.findOne({
+        $or: [
+          { name: /Profesional SST/i },
+          { name: /Consultor SG-SST/i },
+          { name: /SST/i },
+        ],
+      }).lean();
+    }
+
+    // 4. Fallback a cualquier agente registrado en el sistema
+    if (!agent) {
+      agent = await Agent.findOne({}).lean();
+    }
+
     if (!agent) {
       return res
         .status(404)
-        .json({ error: 'El Agente "Especialista en Riesgo Psicosocial" no está configurado.' });
+        .json({ error: 'No se encontró ningún agente disponible para la sesión de orientación.' });
     }
 
-    // Firmar un token temporal con los privilegios del administrador de la empresa (pero restringido a 1 hora)
+    // Resolver ID de agente compatible con LibreChat
+    let resolvedAgentId = agent.id;
+    if (!resolvedAgentId && agent._id) {
+      resolvedAgentId = agent._id.toString();
+      try {
+        await Agent.updateOne({ _id: agent._id }, { $set: { id: resolvedAgentId } });
+      } catch (e) {}
+    }
+
+    // Resolver usuario válido para firmar JWT
+    let userId = company.user ? company.user.toString() : null;
+    let User = mongoose.models.User;
+    if (!User) {
+      try {
+        User = require('~/db/models').User;
+      } catch (e) {}
+    }
+    if (User) {
+      let validUser = null;
+      if (userId && mongoose.Types.ObjectId.isValid(userId)) {
+        validUser = await User.findById(userId).lean();
+      }
+      if (!validUser) {
+        validUser =
+          (await User.findOne({ role: 'ADMIN' }).lean()) ||
+          (await User.findOne({}).lean());
+        if (validUser) {
+          userId = validUser._id.toString();
+        }
+      }
+    }
+    if (!userId) {
+      userId = company._id.toString();
+    }
+
+    // Firmar un token temporal con los privilegios del administrador de la empresa (restringido a 1 hora)
     const jwt = require('jsonwebtoken');
-    const token = jwt.sign({ id: company.user.toString() }, process.env.JWT_SECRET, {
+    const token = jwt.sign({ id: userId }, process.env.JWT_SECRET, {
       expiresIn: '1h',
     });
 
@@ -977,12 +1061,14 @@ router.post('/mood/chat/:companyId', async (req, res) => {
     return res.json({
       success: true,
       token,
-      agentId: agent.id || agent._id.toString(),
+      agentId: resolvedAgentId,
+      agentName: agent.name || 'Terapeuta en Salud Mental',
+      agentModel: agent.model || undefined,
       conversationId,
     });
   } catch (error) {
     logger.error('[Public SGSST] Mood chat generation error:', error);
-    res.status(500).json({ error: 'Error al generar sesión de chat.' });
+    res.status(500).json({ error: 'Error al generar sesión de chat con el terapeuta.' });
   }
 });
 
