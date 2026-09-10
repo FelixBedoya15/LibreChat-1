@@ -342,10 +342,10 @@ ${companyContext}
    ¿Qué puede decidir el cargo? ¿En qué momentos tiene autoridad para detener un trabajo por riesgo inminente?
 
 **DISEÑO HTML PREMIUM:**
-- Usa tablas elegantes, sombreados sutiles en las cabeceras (`#0f766e`), y tipografía legible.
-- Toda tabla debe ir OBLIGATORIAMENTE dentro de: `<div class="table-responsive" style="overflow-x: auto; width: 100%; margin: 16px 0;"><table style="width: 100%; border-collapse: collapse;">...</table></div>`.
+- Usa tablas elegantes, sombreados sutiles en las cabeceras (\`#0f766e\`), y tipografía legible.
+- Toda tabla debe ir OBLIGATORIAMENTE dentro de: \`<div class="table-responsive" style="overflow-x: auto; width: 100%; margin: 16px 0;"><table style="width: 100%; border-collapse: collapse;">...</table></div>\`.
 - Distribuye el ancho de las columnas de forma proporcional y equilibrada (evita que una sola columna ocupe el 100% de la tabla; por ejemplo en Matriz de Funciones usa: Función Detallada 45%, Periodicidad 20%, Responsabilidad SST 35%).
-- **NO** incluyas bloques de código ```html. Responde directamente con el código.
+- **NO** incluyas bloques de código \`\`\`html. Responde directamente con el código.
 - **NO** incluyas firmas.
 `;
 
