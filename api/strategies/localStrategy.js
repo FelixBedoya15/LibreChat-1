@@ -78,6 +78,16 @@ async function passportLogin(req, email, password, done) {
       }
     }
 
+    if (user.isSubUser && user.subUserStatus === 'active' && (user.accountStatus !== 'active' || !user.isApproved)) {
+      user.accountStatus = 'active';
+      user.isApproved = true;
+      try {
+        await updateUser(user._id, { accountStatus: 'active', isApproved: true });
+      } catch (e) {
+        logger.error('[Passport Local Strategy] Error auto-activating sub-user:', e);
+      }
+    }
+
     const { ADMIN_EMAILS } = require('../server/middleware/roles/admin');
     const userEmailLower = user.email?.toLowerCase();
     if (userEmailLower && ADMIN_EMAILS.includes(userEmailLower)) {

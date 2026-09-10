@@ -132,6 +132,15 @@ router.get('/', requireJwtAuth, async (req, res) => {
         if (req.user.isSubUser) {
             return res.status(403).json({ error: 'No tienes permisos para administrar sub-usuarios' });
         }
+        // Auto-fix any existing sub-users whose accountStatus is pending or isApproved is false
+        try {
+            await User.updateMany(
+                { parentUser: req.user.id, isSubUser: true, $or: [{ accountStatus: { $ne: 'active' } }, { isApproved: { $ne: true } }] },
+                { $set: { accountStatus: 'active', isApproved: true } }
+            );
+        } catch (e) {
+            // Ignore if already updated
+        }
 
         const subusers = await User.find({ parentUser: req.user.id, isSubUser: true })
             .select('name email workerDocument workerId assignedCompany subUserPermissions subUserStatus createdAt updatedAt')
@@ -354,6 +363,11 @@ router.post('/', requireJwtAuth, async (req, res) => {
             email: cleanEmail,
             password: hashedPassword,
             emailVerified: true,
+            accountStatus: 'active',
+            isApproved: true,
+            phoneNumber: '3000000000',
+            departamento: 'Antioquia',
+            ciudad: 'Medellín',
             provider: 'local',
             role: 'USER',
             isSubUser: true,
@@ -435,6 +449,11 @@ router.put('/:id', requireJwtAuth, async (req, res) => {
 
         if (subUserStatus && ['active', 'suspended'].includes(subUserStatus)) {
             subUser.subUserStatus = subUserStatus;
+            subUser.accountStatus = subUserStatus === 'suspended' ? 'inactive' : 'active';
+            subUser.isApproved = subUserStatus !== 'suspended';
+        } else if (subUser.accountStatus !== 'active' || !subUser.isApproved) {
+            subUser.accountStatus = 'active';
+            subUser.isApproved = true;
         }
 
         if (password && password.trim()) {

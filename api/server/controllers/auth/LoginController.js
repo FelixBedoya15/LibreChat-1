@@ -1,11 +1,23 @@
 const { logger } = require('@librechat/data-schemas');
 const { generate2FATempToken } = require('~/server/services/twoFactorService');
 const { setAuthTokens } = require('~/server/services/AuthService');
+const { updateUser } = require('~/models');
 
 const loginController = async (req, res) => {
   try {
     if (!req.user) {
       return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    // Auto-approve and activate sub-users if active
+    if (req.user.isSubUser && req.user.subUserStatus === 'active') {
+      req.user.accountStatus = 'active';
+      req.user.isApproved = true;
+      try {
+        await updateUser(req.user._id, { accountStatus: 'active', isApproved: true });
+      } catch (e) {
+        logger.error('[loginController] Error updating subuser accountStatus:', e);
+      }
     }
 
     if (req.user.accountStatus === 'pending') {
