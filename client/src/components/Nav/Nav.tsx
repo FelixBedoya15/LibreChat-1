@@ -85,7 +85,11 @@ const Nav = memo(
     const isSubUser = !!user?.isSubUser;
     const subPerms: string[] = user?.subUserPermissions || [];
 
-    const hasAccessToBookmarks = useHasAccess({
+    // Chat access: subusers require explicit chat permission
+    const hasAccessToChat = !isSubUser || subPerms.includes('chat:wappy_general') || subPerms.includes('chat:sst_specialist');
+
+    // Marcadores: solo para cuentas regulares con acceso a chat (oculto para sub-usuarios operativos)
+    const hasAccessToBookmarks = (!isSubUser && hasAccessToChat) && useHasAccess({
       permissionType: PermissionTypes.BOOKMARKS,
       permission: Permissions.USE,
     }) && hasPermission(PermissionTypes.BOOKMARKS);
@@ -102,14 +106,11 @@ const Nav = memo(
     // Centro de Control / Kanban
     const hasAccessToKanban = !isSubUser || subPerms.includes('kanban:acpm') || subPerms.includes('audit:checklist') || subPerms.includes('events:calendar');
 
-    // LMS / Academia WAPPY
-    const hasAccessToLMS = !isSubUser || subPerms.includes('lms:aula_estudio') || subPerms.includes('lms:ruta_aprendizaje') || subPerms.includes('community:blog');
+    // LMS / Academia WAPPY (disponible para usuarios regulares y subusuarios operativos con LMS o SST)
+    const hasAccessToLMS = !isSubUser || subPerms.includes('lms:aula_estudio') || subPerms.includes('lms:ruta_aprendizaje') || subPerms.includes('community:blog') || subPerms.some(p => p.startsWith('sgsst:'));
 
     // Subscription Plans: only for regular account owners
     const hasAccessToPlans = !isSubUser;
-
-    // Chat access: subusers require explicit chat permission
-    const hasAccessToChat = !isSubUser || subPerms.includes('chat:wappy_general') || subPerms.includes('chat:sst_specialist');
 
     const search = useRecoilValue(store.search);
 
@@ -120,7 +121,7 @@ const Nav = memo(
           search: search.debouncedQuery || undefined,
         },
         {
-          enabled: isAuthenticated,
+          enabled: isAuthenticated && hasAccessToChat,
           staleTime: 30000,
           cacheTime: 300000,
         },

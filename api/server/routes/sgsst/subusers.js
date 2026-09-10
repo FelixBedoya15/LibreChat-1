@@ -39,6 +39,8 @@ const ALL_SGSST_OPERATIONAL_PERMS = [
     'sgsst:matriz_pesv',
     'sgsst:matriz_compatibilidad',
     'sgsst:programa_capacitaciones',
+    'lms:aula_estudio',
+    'lms:ruta_aprendizaje',
     'kanban:acpm',
     'audit:checklist',
     'events:calendar',

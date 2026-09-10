@@ -246,9 +246,9 @@ const PRESET_ROLES: PresetRole[] = [
     {
         id: 'data_entry_field',
         name: 'Operativo SST / Carga de Datos',
-        description: 'Acceso total a todos los aplicativos y matrices de Somos SST para carga y gestión de datos. Sin IA corporativa.',
+        description: 'Acceso total a todos los aplicativos y matrices de Somos SST, Academia WAPPY y cursos LMS. Sin IA corporativa.',
         hasAi: false,
-        badgeLabel: 'Sin IA (Suite Somos SST Completa)',
+        badgeLabel: 'Sin IA (Somos SST & Academia)',
         permissions: [
             'sgsst:perfil_sociodemografico_self',
             'sgsst:perfil_sociodemografico_all',
@@ -264,6 +264,8 @@ const PRESET_ROLES: PresetRole[] = [
             'sgsst:matriz_pesv',
             'sgsst:matriz_compatibilidad',
             'sgsst:programa_capacitaciones',
+            'lms:aula_estudio',
+            'lms:ruta_aprendizaje',
             'kanban:acpm',
             'audit:checklist',
             'events:calendar',
@@ -402,17 +404,10 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
     const [formPassword, setFormPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [selectedPresetRole, setSelectedPresetRole] = useState<string>('data_entry_field');
-    const [selectedPermissions, setSelectedPermissions] = useState<string[]>([
-        'sgsst:perfil_sociodemografico_self',
-        'sgsst:perfil_sociodemografico_all',
-        'sgsst:reporte_actos',
-        'sgsst:permiso_alturas',
-        'sgsst:analisis_trabajo_seguro',
-        'sgsst:participacion_ipevar',
-        'sgsst:epp',
-        'sgsst:vehiculos',
-        'sgsst:programa_capacitaciones'
-    ]);
+    const [selectedPermissions, setSelectedPermissions] = useState<string[]>(() => {
+        const defaultRole = PRESET_ROLES.find(r => r.id === 'data_entry_field');
+        return defaultRole ? [...defaultRole.permissions] : [];
+    });
     const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('Todas');
     const [formStatus, setFormStatus] = useState<'active' | 'suspended'>('active');
 
