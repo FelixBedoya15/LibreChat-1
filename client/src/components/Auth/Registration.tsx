@@ -341,7 +341,7 @@ const Registration: React.FC = () => {
             aria-label="Registration form"
             method="POST"
             onSubmit={handleSubmit((data: TRegisterUser) => {
-              const referral = localStorage.getItem('wappy_ref') || undefined;
+              const referral = queryParams.get('ref') || queryParams.get('referral') || localStorage.getItem('wappy_ref') || undefined;
               registerUser.mutate({
                 ...data,
                 token: token ?? undefined,
@@ -461,10 +461,7 @@ const Registration: React.FC = () => {
             {localize('com_auth_already_have_account')}{' '}
             <a
               href={(() => {
-                const activeRef =
-                  queryParams.get('ref') ||
-                  queryParams.get('referral') ||
-                  (typeof window !== 'undefined' ? localStorage.getItem('wappy_ref') : null);
+                const activeRef = queryParams.get('ref') || queryParams.get('referral');
                 return activeRef ? `/login?ref=${encodeURIComponent(activeRef.trim())}` : '/login';
               })()}
               aria-label="Login"

@@ -82,16 +82,7 @@ const MauricioPosadaRedirect = () => {
 
 const RootIndexRedirect = () => {
   const location = useLocation();
-  let search = location.search;
-  if (!search) {
-    try {
-      const savedRef = localStorage.getItem('wappy_ref');
-      if (savedRef) {
-        search = `?ref=${encodeURIComponent(savedRef)}`;
-      }
-    } catch (e) {}
-  }
-  return <Navigate to={{ pathname: '/c/new', search }} replace={true} />;
+  return <Navigate to={{ pathname: '/c/new', search: location.search }} replace={true} />;
 };
 
 const AuthLayout = () => (

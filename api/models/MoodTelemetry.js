@@ -32,6 +32,11 @@ const moodTelemetrySchema = new mongoose.Schema(
       default: '',
       index: true,
     }, // Identificador anónimo del dispositivo / equipo
+    isDemo: {
+      type: Boolean,
+      default: false,
+      index: true,
+    }, // Identificador si el reporte fue generado en modo demostración / admin
   },
   {
     timestamps: true, // Esto nos provee automáticamente createdAt y updatedAt

@@ -153,10 +153,7 @@ function Login() {
           {localize('com_auth_no_account')}{' '}
           <a
             href={(() => {
-              const activeRef =
-                searchParams.get('ref') ||
-                searchParams.get('referral') ||
-                (typeof window !== 'undefined' ? localStorage.getItem('wappy_ref') : null);
+              const activeRef = searchParams.get('ref') || searchParams.get('referral');
               return activeRef ? `/register?ref=${encodeURIComponent(activeRef.trim())}` : '/register';
             })()}
             className="inline-flex p-1 text-sm font-medium text-green-600 transition-colors hover:text-green-700 dark:text-green-400 dark:hover:text-green-300"

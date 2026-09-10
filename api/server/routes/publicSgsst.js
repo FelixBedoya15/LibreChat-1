@@ -872,7 +872,7 @@ router.post('/perfil-update/:companyId/:workerId?', async (req, res) => {
 router.post('/mood/:companyId', async (req, res) => {
   try {
     const { companyId } = req.params;
-    const { mood, department, deviceId } = req.body;
+    const { mood, department, deviceId, isDemo, isAdmin } = req.body;
 
     if (!mood || !['happy', 'neutral', 'sad'].includes(mood)) {
       return res.status(400).json({ error: 'Estado de ánimo inválido o ausente.' });
@@ -885,8 +885,16 @@ router.post('/mood/:companyId', async (req, res) => {
 
     const MoodTelemetry = require('~/models/MoodTelemetry');
 
-    // Validación de 1 reporte por día por dispositivo / equipo
-    if (deviceId && typeof deviceId === 'string' && deviceId.trim()) {
+    // Validación de 1 reporte por día por dispositivo / equipo (excepto modo demostración o administradores)
+    const isBypassAllowed = Boolean(
+      isDemo ||
+      isAdmin ||
+      req.query.demo === '1' ||
+      req.query.admin === '1' ||
+      req.query.demo === 'true'
+    );
+
+    if (!isBypassAllowed && deviceId && typeof deviceId === 'string' && deviceId.trim()) {
       const cleanDeviceId = deviceId.trim();
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
@@ -913,10 +921,11 @@ router.post('/mood/:companyId', async (req, res) => {
       mood,
       department: department || '',
       deviceId: deviceId ? String(deviceId).trim() : '',
+      isDemo: isBypassAllowed,
     });
 
     await telemetry.save();
-    return res.json({ success: true, telemetryId: telemetry._id });
+    return res.json({ success: true, telemetryId: telemetry._id, isDemo: isBypassAllowed });
   } catch (error) {
     logger.error('[Public SGSST] Mood telemetry error:', error);
     res.status(500).json({ error: 'Error al registrar estado de ánimo.' });

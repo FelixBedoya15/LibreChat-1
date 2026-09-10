@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
-import { Shield, Smile, Meh, Frown, Send, CheckCircle, MessageSquare, Loader2, Building2, ChevronRight, AlertCircle, Heart } from 'lucide-react';
+import { useParams, useLocation } from 'react-router-dom';
+import { 
+  Shield, Smile, Meh, Frown, Send, CheckCircle, 
+  MessageSquare, Loader2, Building2, ChevronRight, 
+  AlertCircle, Heart, Sparkles, RotateCcw 
+} from 'lucide-react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 
@@ -32,10 +36,19 @@ const getTodayDateStr = (): string => {
 
 export default function PublicMoodTracker() {
   const { companyId } = useParams<{ companyId: string }>();
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const isDemoUrl =
+    queryParams.get('demo') === '1' ||
+    queryParams.get('admin') === '1' ||
+    queryParams.get('demo') === 'true';
+
   const [company, setCompany] = useState<any>(null);
   const [loadingCompany, setLoadingCompany] = useState(true);
   const [step, setStep] = useState<number>(1); // 1: Welcome/Mood, 2: Stressors/Option, 3: Chat, 4: Success
   const [alreadyReportedToday, setAlreadyReportedToday] = useState(false);
+  const [isAdminUser, setIsAdminUser] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(isDemoUrl);
 
   // Form State
   const [department, setDepartment] = useState('');
@@ -68,17 +81,45 @@ export default function PublicMoodTracker() {
   const [chatError, setChatError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Verificación de sesión de administrador autenticado en el navegador
+  useEffect(() => {
+    const checkAdminSession = async () => {
+      try {
+        const userRes = await axios.get('/api/user');
+        if (userRes.data) {
+          const u = userRes.data;
+          const ownerId = company?.user ? String(company.user) : '';
+          const currentId = String(u._id || u.id || '');
+          if (
+            u.role === 'ADMIN' ||
+            u.role === 'USER_ADMIN' ||
+            (ownerId && currentId === ownerId)
+          ) {
+            setIsAdminUser(true);
+            setIsDemoMode(true);
+            setAlreadyReportedToday(false);
+          }
+        }
+      } catch (e) {
+        // Visitante anónimo no autenticado
+      }
+    };
+    checkAdminSession();
+  }, [company]);
+
   useEffect(() => {
     const fetchCompany = async () => {
       try {
         const res = await axios.get(`/api/public-sgsst/company/${companyId}`);
         setCompany(res.data);
 
-        // Verificar si ya se reportó hoy desde este dispositivo
-        const targetId = res.data?._id || companyId;
-        const lastReportDate = localStorage.getItem(`wappy_mood_last_date_${targetId}`);
-        if (lastReportDate === getTodayDateStr()) {
-          setAlreadyReportedToday(true);
+        // Verificar si ya se reportó hoy desde este dispositivo (omitir si es modo demo o URL admin)
+        if (!isDemoUrl && !isDemoMode && !isAdminUser) {
+          const targetId = res.data?._id || companyId;
+          const lastReportDate = localStorage.getItem(`wappy_mood_last_date_${targetId}`);
+          if (lastReportDate === getTodayDateStr()) {
+            setAlreadyReportedToday(true);
+          }
         }
       } catch (error) {
         console.error('Error fetching company info:', error);
@@ -89,15 +130,44 @@ export default function PublicMoodTracker() {
     if (companyId) {
       fetchCompany();
     }
-  }, [companyId]);
+  }, [companyId, isDemoUrl, isDemoMode, isAdminUser]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
+  const handleUnlockDemo = () => {
+    const targetId = company?._id || companyId;
+    try {
+      localStorage.removeItem(`wappy_mood_last_date_${targetId}`);
+    } catch (e) {}
+    setIsDemoMode(true);
+    setAlreadyReportedToday(false);
+    setStep(1);
+  };
+
+  const handleResetForNewDemo = () => {
+    setSelectedMood(null);
+    setSelectedStressors([]);
+    setDepartment('');
+    setTelemetryId(null);
+    setMessages([]);
+    setInputText('');
+    setParentMessageId('00000000-0000-0000-0000-000000000000');
+    setChatError(null);
+    const targetId = company?._id || companyId;
+    try {
+      localStorage.removeItem(`wappy_mood_last_date_${targetId}`);
+    } catch (e) {}
+    setAlreadyReportedToday(false);
+    setStep(1);
+  };
+
   const handleMoodSelect = async (mood: 'happy' | 'neutral' | 'sad') => {
     setSelectedMood(mood);
     setSubmittingMood(true);
+
+    const bypassLock = isDemoMode || isAdminUser || isDemoUrl;
 
     try {
       const targetCompanyId = company?._id || companyId;
@@ -106,15 +176,19 @@ export default function PublicMoodTracker() {
         mood,
         department,
         deviceId,
+        isDemo: bypassLock,
+        isAdmin: isAdminUser,
       });
 
       if (res.data.success) {
         setTelemetryId(res.data.telemetryId);
-        // Guardar fecha en almacenamiento local para prevenir duplicados hoy
-        try {
-          localStorage.setItem(`wappy_mood_last_date_${targetCompanyId}`, getTodayDateStr());
-        } catch (e) {
-          console.warn('Could not save to localStorage', e);
+        // Guardar fecha en almacenamiento local solo si no es una demostración o admin
+        if (!bypassLock) {
+          try {
+            localStorage.setItem(`wappy_mood_last_date_${targetCompanyId}`, getTodayDateStr());
+          } catch (e) {
+            console.warn('Could not save to localStorage', e);
+          }
         }
 
         if (mood === 'happy') {
@@ -127,11 +201,15 @@ export default function PublicMoodTracker() {
     } catch (error: any) {
       console.error('Error registering mood:', error);
       if (error.response?.data?.alreadyReportedToday || error.response?.status === 429) {
-        const targetCompanyId = company?._id || companyId;
-        try {
-          localStorage.setItem(`wappy_mood_last_date_${targetCompanyId}`, getTodayDateStr());
-        } catch (e) {}
-        setAlreadyReportedToday(true);
+        if (!bypassLock) {
+          const targetCompanyId = company?._id || companyId;
+          try {
+            localStorage.setItem(`wappy_mood_last_date_${targetCompanyId}`, getTodayDateStr());
+          } catch (e) {}
+          setAlreadyReportedToday(true);
+        } else {
+          setStep(mood === 'happy' ? 4 : 2);
+        }
       } else {
         alert(error.response?.data?.error || 'Hubo un error al registrar tu estado de ánimo. Por favor, intenta de nuevo.');
       }
@@ -432,9 +510,17 @@ export default function PublicMoodTracker() {
               <p className="text-[11px] text-emerald-600 font-semibold tracking-wide uppercase">Termómetro Psicosocial</p>
             </div>
           </div>
-          <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-full px-3 py-1 flex items-center gap-1.5 shrink-0 shadow-xs">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-            <span className="text-[10px] font-bold tracking-wide uppercase">100% Anónimo</span>
+          <div className="flex items-center gap-2">
+            {(isDemoMode || isAdminUser) && (
+              <div className="bg-amber-50 border border-amber-300 text-amber-800 rounded-full px-2.5 py-1 flex items-center gap-1.5 shrink-0 shadow-xs">
+                <Sparkles className="w-3 h-3 text-amber-600" />
+                <span className="text-[10px] font-bold tracking-wide uppercase hidden sm:inline">Modo Demo</span>
+              </div>
+            )}
+            <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-full px-3 py-1 flex items-center gap-1.5 shrink-0 shadow-xs">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+              <span className="text-[10px] font-bold tracking-wide uppercase">100% Anónimo</span>
+            </div>
           </div>
         </div>
       </header>
@@ -462,6 +548,18 @@ export default function PublicMoodTracker() {
                 <span>¡Gracias por participar y cuidar tu salud mental! Podrás volver a registrarte mañana.</span>
               </div>
             </div>
+
+            {/* Desbloqueo directo para administradores o demostraciones */}
+            <div className="pt-3 border-t border-slate-200 space-y-2">
+              <p className="text-[11px] text-slate-500 font-medium">¿Eres administrador o estás realizando una demostración?</p>
+              <button
+                onClick={handleUnlockDemo}
+                className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2"
+              >
+                <Sparkles className="w-4 h-4 text-emerald-200" />
+                <span>Habilitar Modo Demostración (Ilimitado)</span>
+              </button>
+            </div>
           </div>
         ) : (
           <>
@@ -469,6 +567,12 @@ export default function PublicMoodTracker() {
             {step === 1 && (
               <div className="w-full bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-7 shadow-sm shadow-slate-200/50 space-y-6 animate-fadeIn">
                 <div className="text-center space-y-2">
+                  {(isDemoMode || isAdminUser) && (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-300 text-amber-800 rounded-full text-[10px] font-bold tracking-wide uppercase mb-1 shadow-xs">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Modo Demostración / Pruebas Activo</span>
+                    </div>
+                  )}
                   <div className="inline-flex p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 mb-1 shadow-xs">
                     <Heart className="w-7 h-7" />
                   </div>
@@ -750,11 +854,24 @@ export default function PublicMoodTracker() {
                   )}
                 </div>
 
-                <div className="pt-1">
+                <div className="pt-1 flex flex-col items-center gap-2.5">
                   <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-700 font-semibold shadow-xs">
                     <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Reporte diario completado. Podrás registrarte de nuevo mañana.</span>
+                    <span>
+                      {isDemoMode || isAdminUser
+                        ? 'Demostración completada con éxito.'
+                        : 'Reporte diario completado. Podrás registrarte de nuevo mañana.'}
+                    </span>
                   </div>
+                  {(isDemoMode || isAdminUser) && (
+                    <button
+                      onClick={handleResetForNewDemo}
+                      className="py-2.5 px-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 mt-1"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      <span>Hacer otra prueba / demostración</span>
+                    </button>
+                  )}
                 </div>
               </div>
             )}

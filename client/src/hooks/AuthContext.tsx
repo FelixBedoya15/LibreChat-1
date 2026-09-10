@@ -64,15 +64,7 @@ const AuthContextProvider = ({
   const navigate = useNavigate();
 
   const getLoginRedirectUrl = useCallback((baseUrl: string = '/login') => {
-    let search = typeof window !== 'undefined' ? window.location.search : '';
-    if (!search) {
-      try {
-        const savedRef = localStorage.getItem('wappy_ref');
-        if (savedRef) {
-          search = `?ref=${encodeURIComponent(savedRef)}`;
-        }
-      } catch (e) {}
-    }
+    const search = typeof window !== 'undefined' ? window.location.search : '';
     return `${baseUrl}${search}`;
   }, []);
 

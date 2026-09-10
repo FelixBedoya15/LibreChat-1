@@ -109,6 +109,11 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
     return `${window.location.origin}/sgsst-public/animo/${companyInfo._id}`;
   }, [companyInfo]);
 
+  const demoQrUrl = useMemo(() => {
+    if (!companyInfo?._id) return '';
+    return `${window.location.origin}/sgsst-public/animo/${companyInfo._id}?demo=1`;
+  }, [companyInfo]);
+
   // QR API Endpoint
   const qrImageSrc = useMemo(() => {
     if (!publicQrUrl) return '';
@@ -542,13 +547,24 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
             </div>
           )}
 
-          <button
-            onClick={handlePrintPoster}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow-sm flex items-center justify-center gap-2 transition-all"
-          >
-            <Printer className="w-4 h-4" />
-            Imprimir Cartel QR
-          </button>
+          <div className="w-full space-y-2 mt-2">
+            <button
+              onClick={handlePrintPoster}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow-sm flex items-center justify-center gap-2 transition-all"
+            >
+              <Printer className="w-4 h-4" />
+              Imprimir Cartel QR
+            </button>
+            <a
+              href={demoQrUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 bg-surface-secondary hover:bg-surface-tertiary border border-border-medium rounded-xl text-[11px] font-semibold text-text-secondary transition-all"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              Abrir para Demostración / Pruebas
+            </a>
+          </div>
         </div>
 
       </div>
