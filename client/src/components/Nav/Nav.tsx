@@ -108,6 +108,9 @@ const Nav = memo(
     // Subscription Plans: only for regular account owners
     const hasAccessToPlans = !isSubUser;
 
+    // Chat access: subusers require explicit chat permission
+    const hasAccessToChat = !isSubUser || subPerms.includes('chat:wappy_general') || subPerms.includes('chat:sst_specialist');
+
     const search = useRecoilValue(store.search);
 
     const { data, fetchNextPage, isFetchingNextPage, isLoading, isFetching, refetch } =
@@ -267,30 +270,34 @@ const Nav = memo(
                     {isCollapsedState ? (
                       <div className="flex flex-col gap-1.5 pt-2 w-full items-center">
                         {/* New Chat icon */}
-                        <TooltipAnchor
-                          description="Nuevo Chat"
-                          side="right"
-                          render={
-                            <MemoNewChat
-                              toggleNav={toggleNavVisible}
-                              isSmallScreen={isSmallScreen}
-                              isCollapsed={true}
-                            />
-                          }
-                        />
+                        {hasAccessToChat && (
+                          <TooltipAnchor
+                            description="Nuevo Chat"
+                            side="right"
+                            render={
+                              <MemoNewChat
+                                toggleNav={toggleNavVisible}
+                                isSmallScreen={isSmallScreen}
+                                isCollapsed={true}
+                              />
+                            }
+                          />
+                        )}
                         {/* Search icon */}
-                        <TooltipAnchor
-                          description="Buscar mensajes"
-                          side="right"
-                          render={
-                            <button
-                              className="flex h-10 w-10 items-center justify-center rounded-xl border border-border-medium/50 bg-surface-primary hover:bg-surface-hover hover:border-teal-400 text-text-primary transition-all duration-300 shadow-sm mb-1 sm:hover:scale-105 sm:hover:-rotate-3"
-                              onClick={() => {}}
-                            >
-                              <Search className="h-5 w-5" />
-                            </button>
-                          }
-                        />
+                        {hasAccessToChat && (
+                          <TooltipAnchor
+                            description="Buscar mensajes"
+                            side="right"
+                            render={
+                              <button
+                                className="flex h-10 w-10 items-center justify-center rounded-xl border border-border-medium/50 bg-surface-primary hover:bg-surface-hover hover:border-teal-400 text-text-primary transition-all duration-300 shadow-sm mb-1 sm:hover:scale-105 sm:hover:-rotate-3"
+                                onClick={() => {}}
+                              >
+                                <Search className="h-5 w-5" />
+                              </button>
+                            }
+                          />
+                        )}
                         {/* SG-SST icon (Somos SST) */}
                         {hasAccessToSGSST && (
                           <Suspense fallback={null}>
@@ -343,23 +350,25 @@ const Nav = memo(
                       /* Expanded: full width with chat history */
                       <div className="flex flex-1 flex-col" ref={outerContainerRef}>
                         <Conversations
-                          conversations={conversations}
+                          conversations={hasAccessToChat ? conversations : []}
                           moveToTop={moveToTop}
                           toggleNav={itemToggleNav}
                           containerRef={listRef}
                           loadMoreConversations={loadMoreConversations}
-                          isLoading={isFetchingNextPage || showLoading || isLoading}
-                          isSearchLoading={isSearchLoading}
+                          isLoading={hasAccessToChat ? (isFetchingNextPage || showLoading || isLoading) : false}
+                          isSearchLoading={hasAccessToChat ? isSearchLoading : false}
                           isCollapsed={false}
                           headerContent={
                             <>
-                              <MemoNewChat
-                                toggleNav={toggleNavVisible}
-                                isSmallScreen={isSmallScreen}
-                                isCollapsed={false}
-                              />
+                              {hasAccessToChat && (
+                                <MemoNewChat
+                                  toggleNav={toggleNavVisible}
+                                  isSmallScreen={isSmallScreen}
+                                  isCollapsed={false}
+                                />
+                              )}
                               <div className="flex flex-col gap-1.5 mt-1 mb-3">
-                                {search.enabled && <SearchBar isSmallScreen={isSmallScreen} isCollapsed={false} />}
+                                {hasAccessToChat && search.enabled && <SearchBar isSmallScreen={isSmallScreen} isCollapsed={false} />}
                                 
                                 {/* 1. Somos SST */}
                                 {hasAccessToSGSST && (

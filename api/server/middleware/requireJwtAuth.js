@@ -30,6 +30,19 @@ const requireJwtAuth = (req, res, next) => {
       return next();
     }
 
+    if (
+      req.user &&
+      req.user.isSubUser &&
+      req.user.parentUser &&
+      req.originalUrl &&
+      req.originalUrl.startsWith('/api/sgsst') &&
+      !req.originalUrl.includes('/subusers/me-permissions')
+    ) {
+      req.user.subUserId = req.user.id;
+      req.user.id = req.user.parentUser.toString();
+      req.user._id = req.user.parentUser;
+    }
+
     checkAccountStatus(req, res, next);
   });
 };

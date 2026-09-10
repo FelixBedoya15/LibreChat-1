@@ -53,7 +53,7 @@ async function resolveApiKeys(userId) {
 
   // Extraer el ID limpio en caso de que se haya pasado el objeto req.user
   const cleanUserId = (typeof userId === 'object' && userId !== null)
-    ? (userId.id || userId._id || userId.userId || String(userId))
+    ? (userId.subUserId || userId.id || userId._id || userId.userId || String(userId))
     : (typeof userId === 'string' ? userId.trim() : null);
 
   // 1. Consultar siempre la clave guardada por el usuario en la base de datos

@@ -21,7 +21,7 @@ const KanbanButton = ({
   const location = useLocation();
   const { user } = useAuthContext();
   const isActive = location.pathname.startsWith('/kanban') || location.pathname.startsWith('/control') || location.pathname.startsWith('/sgsst/automatizaciones');
-  const isProOrAdmin = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+  const isProOrAdmin = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || Boolean(user?.isSubUser);
   const isLocked = !isProOrAdmin;
 
   const handleClick = () => {

@@ -416,7 +416,7 @@ const getFumaStatus = (fuma?: string) => {
 const DashboardPredictivo = () => {
     const { showToast } = useToastContext();
     const { token, user } = useAuthContext();
-    const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+    const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || Boolean(user?.isSubUser);
 
     // Data State
     const [forecast, setForecast] = useState<ForecastData | null>(null);

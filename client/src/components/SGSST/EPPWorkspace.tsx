@@ -111,7 +111,7 @@ export default function EPPWorkspace() {
   const liveEditorRef = useRef<LiveEditorHandle>(null);
   const editorContentRef = useRef<string | null>(null);
 
-  const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+  const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || Boolean(user?.isSubUser);
 
   // Calculations for selected worker
   const selectedDoc = eppDocs.find(doc => doc.workerId === selectedWorker?.id);

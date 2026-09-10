@@ -101,7 +101,7 @@ export default function VehiclesWorkspace() {
   const liveEditorRef = useRef<LiveEditorHandle>(null);
   const editorContentRef = useRef<string | null>(null);
 
-  const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+  const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || Boolean(user?.isSubUser);
 
   const handleGenerate = useCallback(async () => {
     if (!selectedVehicle) {

@@ -27,7 +27,7 @@ export default function AcademiaDashboard() {
   const { user } = useAuthContext();
   const ADMIN_EMAILS = ['cristhian@mauricioposadac.com', 'mauricioposadac@gmail.com', 'felix.bedoya15@gmail.com'];
   const isAdmin = user?.role === 'ADMIN' || (!!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase()));
-  const isProOrAdmin = isAdmin || user?.role === 'USER_PRO' || user?.role === 'USER_CUSTOM';
+  const isProOrAdmin = isAdmin || user?.role === 'USER_PRO' || user?.role === 'USER_CUSTOM' || Boolean(user?.isSubUser);
   const outletContext = useOutletContext<ContextType>();
   const navVisible = outletContext?.navVisible ?? true;
   const setNavVisible = outletContext?.setNavVisible ?? (() => {});

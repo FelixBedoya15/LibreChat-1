@@ -167,10 +167,13 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
     const categories = PHASE_CATEGORIES[phase.id as keyof typeof PHASE_CATEGORIES] || [];
 
     const { hasPermission } = useRolePermissions();
-    const hasAccessToSGSST = useHasAccess({
-        permissionType: PermissionTypes.SGSST,
-        permission: Permissions.USE,
-    }) && hasPermission(PermissionTypes.SGSST) && user?.role !== 'USER_IPEVAR' && user?.role !== 'IPEVAR';
+    const isSubUserWithAccess = Boolean(user?.isSubUser);
+    const hasAccessToSGSST = isSubUserWithAccess || (
+        useHasAccess({
+            permissionType: PermissionTypes.SGSST,
+            permission: Permissions.USE,
+        }) && hasPermission(PermissionTypes.SGSST) && user?.role !== 'USER_IPEVAR' && user?.role !== 'IPEVAR'
+    );
 
     const lockTitle = "Somos SST Pro Exclusivo";
     const lockDesc = "El acceso a la suite completa de aplicativos de Somos SST es exclusivo del Plan Wappy Pro. Evoluciona hoy tu plan para comenzar a implementarlo en tu organización.";

@@ -246,9 +246,9 @@ const PRESET_ROLES: PresetRole[] = [
     {
         id: 'data_entry_field',
         name: 'Operativo SST / Carga de Datos',
-        description: 'Carga de evidencias en campo: Alturas, ATS, EPP, Vehículos, Reporte de Actos, IPEVAR, Capacitaciones y Sociodemográfico.',
+        description: 'Acceso total a todos los aplicativos y matrices de Somos SST para carga y gestión de datos. Sin IA corporativa.',
         hasAi: false,
-        badgeLabel: 'Sin IA (Solo Datos)',
+        badgeLabel: 'Sin IA (Suite Somos SST Completa)',
         permissions: [
             'sgsst:perfil_sociodemografico_self',
             'sgsst:perfil_sociodemografico_all',
@@ -258,7 +258,16 @@ const PRESET_ROLES: PresetRole[] = [
             'sgsst:participacion_ipevar',
             'sgsst:epp',
             'sgsst:vehiculos',
-            'sgsst:programa_capacitaciones'
+            'sgsst:investigacion_atel',
+            'sgsst:matriz_peligros',
+            'sgsst:matriz_legal',
+            'sgsst:matriz_pesv',
+            'sgsst:matriz_compatibilidad',
+            'sgsst:programa_capacitaciones',
+            'kanban:acpm',
+            'audit:checklist',
+            'events:calendar',
+            'community:blog'
         ]
     },
     {
@@ -371,8 +380,10 @@ interface SubUserManagerModalProps {
 }
 
 export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc }: SubUserManagerModalProps) {
-    const { token } = useAuthContext();
+    const { token, user } = useAuthContext();
     const { showToast } = useToastContext();
+
+    const ADMIN_EMAILS = useMemo(() => ['cristhian@mauricioposadac.com', 'mauricioposadac@gmail.com', 'felix.bedoya15@gmail.com'], []);
 
     const [activeTab, setActiveTab] = useState<'list' | 'create' | 'edit'>('list');
     const [subUsers, setSubUsers] = useState<SubUser[]>([]);
@@ -409,6 +420,14 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
     const [subUserLimit, setSubUserLimit] = useState<number | null>(null);
     const [userPlanName, setUserPlanName] = useState<string>('free');
     const [canCreateSubUser, setCanCreateSubUser] = useState<boolean>(true);
+
+    const isAdmin = useMemo(() => {
+        return (
+            user?.role === 'ADMIN' ||
+            userPlanName === 'admin' ||
+            (!!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase()))
+        );
+    }, [user?.role, user?.email, userPlanName, ADMIN_EMAILS]);
 
     // Load initial data
     const loadData = useCallback(async () => {
@@ -535,16 +554,22 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
         setFormEmail(su.email || '');
         setFormPassword(''); // Empty means don't change
         setShowPassword(false);
-        setSelectedPermissions(su.subUserPermissions || []);
         setFormStatus(su.subUserStatus || 'active');
 
-        // Check if permissions match any preset
-        const matchingPreset = PRESET_ROLES.find(preset => {
-            if (preset.id === 'custom') return false;
-            if (preset.permissions.length !== su.subUserPermissions.length) return false;
-            return preset.permissions.every(p => su.subUserPermissions.includes(p));
-        });
-        setSelectedPresetRole(matchingPreset ? matchingPreset.id : 'custom');
+        if (!isAdmin) {
+            const defaultRole = PRESET_ROLES.find(r => r.id === 'data_entry_field');
+            setSelectedPresetRole('data_entry_field');
+            setSelectedPermissions(defaultRole ? [...defaultRole.permissions] : (su.subUserPermissions || []));
+        } else {
+            setSelectedPermissions(su.subUserPermissions || []);
+            // Check if permissions match any preset
+            const matchingPreset = PRESET_ROLES.find(preset => {
+                if (preset.id === 'custom') return false;
+                if (preset.permissions.length !== su.subUserPermissions.length) return false;
+                return preset.permissions.every(p => su.subUserPermissions.includes(p));
+            });
+            setSelectedPresetRole(matchingPreset ? matchingPreset.id : 'custom');
+        }
 
         setActiveTab('edit');
     };
@@ -567,6 +592,13 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
     };
 
     const handlePresetRoleChange = (roleId: string) => {
+        if (!isAdmin && roleId !== 'data_entry_field') {
+            showToast({
+                message: 'Este rol se encuentra en configuración técnica y solo está disponible para Administradores.',
+                type: 'warning'
+            });
+            return;
+        }
         setSelectedPresetRole(roleId);
         const preset = PRESET_ROLES.find(r => r.id === roleId);
         if (preset && preset.id !== 'custom') {
@@ -575,6 +607,13 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
     };
 
     const handleTogglePermission = (permId: string) => {
+        if (!isAdmin) {
+            showToast({
+                message: 'La selección granular de permisos está reservada para Administradores. Tu sub-usuario tiene activada la Suite Operativa SST completa.',
+                type: 'info'
+            });
+            return;
+        }
         setSelectedPresetRole('custom');
         setSelectedPermissions(prev => {
             if (prev.includes(permId)) {
@@ -632,6 +671,11 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
 
         setIsSaving(true);
         try {
+            const operationalRole = PRESET_ROLES.find(r => r.id === 'data_entry_field');
+            const effectivePermissions = isAdmin
+                ? selectedPermissions
+                : (operationalRole ? operationalRole.permissions : selectedPermissions);
+
             if (activeTab === 'create') {
                 const res = await fetch('/api/sgsst/subusers', {
                     method: 'POST',
@@ -645,7 +689,7 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                         name: formName,
                         workerDocument: selectedWorkerDoc,
                         assignedCompany: selectedCompanyId,
-                        subUserPermissions: selectedPermissions
+                        subUserPermissions: effectivePermissions
                     })
                 });
 
@@ -659,7 +703,7 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                 const payload: any = {
                     name: formName,
                     assignedCompany: selectedCompanyId,
-                    subUserPermissions: selectedPermissions,
+                    subUserPermissions: effectivePermissions,
                     subUserStatus: formStatus
                 };
                 if (formPassword && formPassword.trim().length > 0) {
@@ -1223,29 +1267,31 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                                         <Shield className="w-4 h-4 text-teal-600 dark:text-teal-400" />
                                         3. Roles y Permisos de los Aplicativos WAPPY ({selectedPermissions.length} seleccionados)
                                     </h3>
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setSelectedPresetRole('full_platform');
-                                                setSelectedPermissions(AVAILABLE_PERMISSIONS.map(p => p.id));
-                                            }}
-                                            className="text-[11px] font-semibold text-teal-600 dark:text-teal-400 hover:underline cursor-pointer"
-                                        >
-                                            Marcar Todos
-                                        </button>
-                                        <span className="text-border-medium">|</span>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setSelectedPresetRole('custom');
-                                                setSelectedPermissions([]);
-                                            }}
-                                            className="text-[11px] font-semibold text-text-secondary hover:underline cursor-pointer"
-                                        >
-                                            Desmarcar Todos
-                                        </button>
-                                    </div>
+                                    {isAdmin && (
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedPresetRole('full_platform');
+                                                    setSelectedPermissions(AVAILABLE_PERMISSIONS.map(p => p.id));
+                                                }}
+                                                className="text-[11px] font-semibold text-teal-600 dark:text-teal-400 hover:underline cursor-pointer"
+                                            >
+                                                Marcar Todos
+                                            </button>
+                                            <span className="text-border-medium">|</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedPresetRole('custom');
+                                                    setSelectedPermissions([]);
+                                                }}
+                                                className="text-[11px] font-semibold text-text-secondary hover:underline cursor-pointer"
+                                            >
+                                                Desmarcar Todos
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Info Banner for AI Separation and Own Keys */}
@@ -1265,27 +1311,46 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
 
                                 {/* Presets Selector */}
                                 <div>
-                                    <label className="block text-xs font-semibold text-text-secondary mb-2">
-                                        Plantillas de Roles Rápidos:
-                                    </label>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="block text-xs font-semibold text-text-secondary">
+                                            Plantillas de Roles Rápidos:
+                                        </label>
+                                        {!isAdmin && (
+                                            <span className="text-[10px] font-semibold text-teal-700 dark:text-teal-300 bg-teal-500/10 px-2 py-0.5 rounded-md border border-teal-500/20 flex items-center gap-1">
+                                                <Check className="w-3 h-3 text-teal-600 dark:text-teal-400" />
+                                                Rol habilitado: Operativo SST / Carga de Datos
+                                            </span>
+                                        )}
+                                    </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                                         {PRESET_ROLES.map(role => {
                                             const isSelected = selectedPresetRole === role.id;
+                                            const isLocked = !isAdmin && role.id !== 'data_entry_field';
                                             return (
                                                 <button
                                                     key={role.id}
                                                     type="button"
                                                     onClick={() => handlePresetRoleChange(role.id)}
-                                                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                                                        isSelected
-                                                            ? 'border-teal-500 bg-teal-50/50 dark:bg-teal-950/40 text-text-primary shadow-sm ring-1 ring-teal-500'
-                                                            : 'border-border-medium bg-surface-secondary hover:bg-surface-hover text-text-secondary'
+                                                    className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between relative ${
+                                                        isLocked
+                                                            ? 'border-border-medium/60 bg-surface-tertiary/40 opacity-50 cursor-not-allowed text-text-tertiary'
+                                                            : isSelected
+                                                                ? 'border-teal-500 bg-teal-50/50 dark:bg-teal-950/40 text-text-primary shadow-sm ring-1 ring-teal-500 cursor-pointer'
+                                                                : 'border-border-medium bg-surface-secondary hover:bg-surface-hover text-text-secondary cursor-pointer'
                                                     }`}
                                                 >
+                                                    {isLocked && (
+                                                        <div className="absolute top-2.5 right-2.5 flex items-center gap-1 text-[9px] font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/70 px-1.5 py-0.5 rounded border border-amber-300 dark:border-amber-800 shadow-xs">
+                                                            <Lock className="w-2.5 h-2.5" />
+                                                            <span>Solo Admin</span>
+                                                        </div>
+                                                    )}
                                                     <div>
                                                         <div className="flex items-start justify-between mb-1 gap-1">
-                                                            <span className="font-bold text-xs text-text-primary leading-tight">{role.name}</span>
-                                                            {isSelected && <Check className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 flex-shrink-0 mt-0.5" />}
+                                                            <span className={`font-bold text-xs leading-tight ${isLocked ? 'text-text-secondary pr-16' : 'text-text-primary'}`}>
+                                                                {role.name}
+                                                            </span>
+                                                            {isSelected && !isLocked && <Check className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 flex-shrink-0 mt-0.5" />}
                                                         </div>
                                                         <p className="text-[10px] text-text-secondary line-clamp-2 leading-tight mb-2.5">
                                                             {role.description}
@@ -1293,9 +1358,11 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                                                     </div>
                                                     <div>
                                                         <span className={`inline-block text-[9px] font-bold px-2 py-0.5 rounded-md border ${
-                                                            role.hasAi
-                                                                ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
-                                                                : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                                            isLocked
+                                                                ? 'bg-surface-tertiary text-text-tertiary border-border-medium'
+                                                                : role.hasAi
+                                                                    ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
+                                                                    : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                                                         }`}>
                                                             {role.badgeLabel}
                                                         </span>
@@ -1309,9 +1376,17 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                                 {/* Category Pills & Granular Checkboxes */}
                                 <div className="space-y-3 pt-2">
                                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-light pb-2.5">
-                                        <label className="text-xs font-semibold text-text-secondary">
-                                            Módulos Específicos por Aplicativo:
-                                        </label>
+                                        <div className="flex items-center gap-2">
+                                            <label className="text-xs font-semibold text-text-secondary">
+                                                Módulos Específicos por Aplicativo:
+                                            </label>
+                                            {!isAdmin && (
+                                                <span className="text-[10px] text-text-tertiary flex items-center gap-1 font-normal">
+                                                    <Lock className="w-2.5 h-2.5 text-amber-500" />
+                                                    (Configurados por Rol Operativo)
+                                                </span>
+                                            )}
+                                        </div>
 
                                         {/* Category Filter Pills */}
                                         <div className="flex flex-wrap items-center gap-1.5">
@@ -1348,7 +1423,9 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                                                     <div
                                                         key={perm.id}
                                                         onClick={() => handleTogglePermission(perm.id)}
-                                                        className={`p-3 rounded-xl border cursor-pointer select-none transition-all flex items-start gap-2.5 ${
+                                                        className={`p-3 rounded-xl border select-none transition-all flex items-start gap-2.5 ${
+                                                            !isAdmin ? 'cursor-default' : 'cursor-pointer'
+                                                        } ${
                                                             isChecked
                                                                 ? 'border-teal-500/80 bg-teal-50/40 dark:bg-teal-950/20 text-text-primary shadow-xs'
                                                                 : 'border-border-medium bg-surface-secondary text-text-secondary opacity-75 hover:opacity-100 hover:border-teal-500/30'

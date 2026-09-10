@@ -106,7 +106,15 @@ const AuthContextProvider = ({
         return;
       }
       setError(undefined);
-      setUserContext({ token, isAuthenticated: true, user, redirect: '/c/new' });
+      let redirectUrl = '/c/new';
+      if (user?.isSubUser) {
+        const subPerms = user.subUserPermissions || [];
+        const hasChat = subPerms.includes('chat:wappy_general') || subPerms.includes('chat:sst_specialist');
+        if (!hasChat) {
+          redirectUrl = '/sgsst';
+        }
+      }
+      setUserContext({ token, isAuthenticated: true, user, redirect: redirectUrl });
     },
     onError: (error: TResError | unknown) => {
       const resError = error as TResError;

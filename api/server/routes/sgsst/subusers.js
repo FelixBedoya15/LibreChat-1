@@ -24,18 +24,43 @@ const getUserModel = () => {
     return mongoose.models.User || mongoose.model('User');
 };
 
+const ALL_SGSST_OPERATIONAL_PERMS = [
+    'sgsst:perfil_sociodemografico_self',
+    'sgsst:perfil_sociodemografico_all',
+    'sgsst:reporte_actos',
+    'sgsst:permiso_alturas',
+    'sgsst:analisis_trabajo_seguro',
+    'sgsst:participacion_ipevar',
+    'sgsst:epp',
+    'sgsst:vehiculos',
+    'sgsst:investigacion_atel',
+    'sgsst:matriz_peligros',
+    'sgsst:matriz_legal',
+    'sgsst:matriz_pesv',
+    'sgsst:matriz_compatibilidad',
+    'sgsst:programa_capacitaciones',
+    'kanban:acpm',
+    'audit:checklist',
+    'events:calendar',
+    'community:blog'
+];
+
+const ADMIN_EMAILS = ['cristhian@mauricioposadac.com', 'mauricioposadac@gmail.com', 'felix.bedoya15@gmail.com'];
+
 /**
  * Resolves the effective sub-user limit for a given user.
  * Pro users have 1 by default, Admin/Custom 999, others 0.
  * If userPlan.subUserLimit is explicitly configured by an Admin, that takes precedence.
  */
-async function getEffectiveSubUserLimit(userId, userRole) {
+async function getEffectiveSubUserLimit(userId, userRole, userEmail) {
     const UserPlan = mongoose.models.UserPlan || require('~/db/models/UserPlan');
     const userPlanDoc = await UserPlan.findOne({ userId }).lean();
     let plan = userPlanDoc?.plan;
-    if (!plan || plan === 'free') {
-        if (userRole === 'ADMIN') plan = 'admin';
-        else if (userRole === 'USER_PRO') plan = 'pro';
+    const isEmailAdmin = userEmail && ADMIN_EMAILS.includes(userEmail.toLowerCase());
+    if (userRole === 'ADMIN' || isEmailAdmin) {
+        plan = 'admin';
+    } else if (!plan || plan === 'free') {
+        if (userRole === 'USER_PRO') plan = 'pro';
         else if (userRole === 'USER_PLUS') plan = 'plus';
         else if (userRole === 'USER_GO') plan = 'go';
         else if (userRole === 'USER_CUSTOM') plan = 'custom';
@@ -67,7 +92,7 @@ router.get('/limits', requireJwtAuth, async (req, res) => {
         }
 
         const User = getUserModel();
-        const { limit, plan } = await getEffectiveSubUserLimit(req.user.id, req.user.role);
+        const { limit, plan } = await getEffectiveSubUserLimit(req.user.id, req.user.role, req.user.email);
         const count = await User.countDocuments({ parentUser: req.user.id, isSubUser: true });
 
         res.json({
@@ -102,6 +127,15 @@ router.get('/me-permissions', requireJwtAuth, async (req, res) => {
             assignedCompanyInfo = await CompanyInfo.findById(user.assignedCompany).select('companyName nit').lean();
         }
 
+        let permissions = user.subUserPermissions || [];
+        // If operational subuser without AI, ensure they have access to the full Somos SST suite
+        const hasAi = permissions.some(p => ['chat:wappy_general', 'chat:sst_specialist', 'ai:live_analysis'].includes(p));
+        if (user.isSubUser && !hasAi) {
+            permissions = Array.from(new Set([...permissions, ...ALL_SGSST_OPERATIONAL_PERMS]));
+            // Persist to DB in background
+            User.updateOne({ _id: user._id }, { $set: { subUserPermissions: permissions } }).catch(e => logger.debug(e.message));
+        }
+
         res.json({
             isSubUser: !!user.isSubUser,
             parentUser: user.parentUser || null,
@@ -109,7 +143,7 @@ router.get('/me-permissions', requireJwtAuth, async (req, res) => {
             assignedCompanyInfo,
             workerDocument: user.workerDocument || null,
             workerId: user.workerId || null,
-            subUserPermissions: user.subUserPermissions || [],
+            subUserPermissions: permissions,
             subUserStatus: user.subUserStatus || 'active',
             email: user.email,
             name: user.name
@@ -138,6 +172,19 @@ router.get('/', requireJwtAuth, async (req, res) => {
                 { parentUser: req.user.id, isSubUser: true, $or: [{ accountStatus: { $ne: 'active' } }, { isApproved: { $ne: true } }] },
                 { $set: { accountStatus: 'active', isApproved: true } }
             );
+
+            // Auto-heal operational subusers so they have the full suite of Somos SST
+            const opUsers = await User.find({
+                parentUser: req.user.id,
+                isSubUser: true,
+                subUserPermissions: { $nin: ['chat:wappy_general', 'chat:sst_specialist', 'ai:live_analysis'] }
+            });
+            for (const opUser of opUsers) {
+                const combined = Array.from(new Set([...(opUser.subUserPermissions || []), ...ALL_SGSST_OPERATIONAL_PERMS]));
+                if (combined.length !== (opUser.subUserPermissions || []).length) {
+                    await User.updateOne({ _id: opUser._id }, { $set: { subUserPermissions: combined } });
+                }
+            }
         } catch (e) {
             // Ignore if already updated
         }
@@ -283,8 +330,11 @@ router.post('/', requireJwtAuth, async (req, res) => {
             return res.status(403).json({ error: 'No tienes permisos para crear sub-usuarios' });
         }
 
+        const isEmailAdmin = req.user.email && ADMIN_EMAILS.includes(req.user.email.toLowerCase());
+        const isAdmin = req.user.role === 'ADMIN' || isEmailAdmin;
+
         // Limit & Plan verification
-        const { limit: effectiveLimit, plan: userPlanName } = await getEffectiveSubUserLimit(parentUserId, req.user.role);
+        const { limit: effectiveLimit, plan: userPlanName } = await getEffectiveSubUserLimit(parentUserId, req.user.role, req.user.email);
         if (effectiveLimit <= 0) {
             return res.status(403).json({
                 error: 'La creación de sub-usuarios es una función exclusiva del Plan Wappy Pro. Actualiza tu suscripción a Wappy Pro o solicita cupos al administrador.'
@@ -354,8 +404,9 @@ router.post('/', requireJwtAuth, async (req, res) => {
         const salt = bcrypt.genSaltSync(10);
         const hashedPassword = bcrypt.hashSync(password, salt);
 
-        // Sanitize permissions
+        // Sanitize permissions: Non-admins can ONLY assign the operational SST preset permissions
         const validPermissions = Array.isArray(subUserPermissions) ? subUserPermissions : [];
+        const finalPermissions = isAdmin ? validPermissions : ALL_SGSST_OPERATIONAL_PERMS;
 
         const newSubUser = new User({
             name: (name || 'Colaborador SST').trim(),
@@ -375,7 +426,7 @@ router.post('/', requireJwtAuth, async (req, res) => {
             assignedCompany: company._id,
             workerDocument: cleanDoc,
             workerId: workerId || cleanDoc,
-            subUserPermissions: validPermissions,
+            subUserPermissions: finalPermissions,
             subUserStatus: 'active',
             termsAccepted: true
         });
@@ -443,8 +494,11 @@ router.put('/:id', requireJwtAuth, async (req, res) => {
             subUser.assignedCompany = company._id;
         }
 
+        const isEmailAdmin = req.user.email && ADMIN_EMAILS.includes(req.user.email.toLowerCase());
+        const isAdmin = req.user.role === 'ADMIN' || isEmailAdmin;
+
         if (Array.isArray(subUserPermissions)) {
-            subUser.subUserPermissions = subUserPermissions;
+            subUser.subUserPermissions = isAdmin ? subUserPermissions : ALL_SGSST_OPERATIONAL_PERMS;
         }
 
         if (subUserStatus && ['active', 'suspended'].includes(subUserStatus)) {

@@ -36,7 +36,7 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
   const { showToast } = useToastContext();
   const { token, user } = useAuthContext();
   const { conversationId, id: docId } = useParams();
-  const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+  const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || Boolean(user?.isSubUser);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [upgradeModalTitle, setUpgradeModalTitle] = useState('');
   const [upgradeModalDesc, setUpgradeModalDesc] = useState('');

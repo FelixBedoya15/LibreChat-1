@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Spinner } from '@librechat/client';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Constants, EModelEndpoint } from 'librechat-data-provider';
 import { useGetModelsQuery } from 'librechat-data-provider/react-query';
 import type { TPreset } from 'librechat-data-provider';
@@ -17,6 +17,17 @@ import store from '~/store';
 export default function ChatRoute() {
   const { data: startupConfig } = useGetStartupConfig();
   const { isAuthenticated, user } = useAuthRedirect();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user?.isSubUser) {
+      const subPerms = user.subUserPermissions || [];
+      const hasChat = subPerms.includes('chat:wappy_general') || subPerms.includes('chat:sst_specialist');
+      if (!hasChat) {
+        navigate('/sgsst', { replace: true });
+      }
+    }
+  }, [user, navigate]);
 
   const setIsTemporary = useRecoilCallback(
     ({ set }) =>

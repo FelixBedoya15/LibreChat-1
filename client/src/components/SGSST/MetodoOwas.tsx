@@ -149,7 +149,7 @@ const WorkerAutocomplete = ({
 const MetodoOwas = () => {
   const { showToast } = useToastContext();
   const { user, token } = useAuthContext();
-    const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+    const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || Boolean(user?.isSubUser);
     const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const [formData, setFormData] = useState({
