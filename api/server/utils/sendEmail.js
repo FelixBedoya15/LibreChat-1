@@ -158,6 +158,9 @@ const sendEmail = async ({ email, subject, payload, template, from, throwError =
         user: smtpUser,
         pass: smtpPass,
       },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
     };
 
     if (process.env.EMAIL_ENCRYPTION_HOSTNAME) {

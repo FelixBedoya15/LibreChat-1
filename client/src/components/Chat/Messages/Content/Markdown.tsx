@@ -16,7 +16,7 @@ import { CodeBlockProvider } from '~/Providers/CodeBlockContext';
 import MarkdownErrorBoundary from './MarkdownErrorBoundary';
 import { langSubset, preprocessLaTeX } from '~/utils';
 import { unicodeCitation } from '~/components/Web/plugin';
-import { code, a, p } from './MarkdownComponents';
+import { code, a, p, table } from './MarkdownComponents';
 import store from '~/store/settings';
 
 type TContentProps = {
@@ -92,6 +92,7 @@ const Markdown = memo(({ content = '', isLatestMessage }: TContentProps) => {
                 code,
                 a,
                 p,
+                table,
                 artifact: Artifact,
                 canvas: CanvasDirective,
                 citation: Citation,

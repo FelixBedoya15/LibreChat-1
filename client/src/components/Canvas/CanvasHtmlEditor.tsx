@@ -13,7 +13,9 @@ import {
   Plus,
   Lock,
   Maximize,
-  Minimize
+  Minimize,
+  ExternalLink,
+  RotateCw
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { PREMIUM_SST_COMPONENTS } from './sstTemplates';
@@ -43,6 +45,126 @@ const renderIcon = (type: string, colorClass: string) => {
   }
 };
 
+/**
+ * Limpia bloques de código o etiquetas residuales generadas por el LLM
+ */
+function cleanHtmlContent(raw: string): string {
+  if (!raw || typeof raw !== 'string') return '';
+  let cleaned = raw.trim();
+  cleaned = cleaned.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').trim();
+  cleaned = cleaned.replace(/^```(?:html|xml)?\s*\n?([\s\S]*?)\n?```$/i, '$1').trim();
+  return cleaned;
+}
+
+/**
+ * Inyecta shims seguros y estilos base para que presentaciones interactivas (Reveal.js, Swiper, custom sliders)
+ * y páginas HTML se rendericen de forma impecable sin excepciones dentro del iframe en vista previa.
+ */
+function preparePreviewHtml(html: string): string {
+  if (!html) return '';
+  let content = cleanHtmlContent(html);
+
+  const hasHtml = /<html[^>]*>/i.test(content);
+  const hasHead = /<head[^>]*>/i.test(content);
+
+  const safeShim = `
+<script>
+(function() {
+  // 1. Polyfill seguro para localStorage / sessionStorage en iframe sandboxed
+  try {
+    var _testK = '__wappy_test__';
+    window.localStorage.setItem(_testK, _testK);
+    window.localStorage.removeItem(_testK);
+  } catch (e) {
+    var _memStore = {};
+    window.localStorage = {
+      getItem: function(k) { return _memStore.hasOwnProperty(k) ? _memStore[k] : null; },
+      setItem: function(k, v) { _memStore[k] = String(v); },
+      removeItem: function(k) { delete _memStore[k]; },
+      clear: function() { _memStore = {}; }
+    };
+  }
+  try {
+    var _sKey = '__wappy_stest__';
+    window.sessionStorage.setItem(_sKey, _sKey);
+    window.sessionStorage.removeItem(_sKey);
+  } catch (e) {
+    var _sStore = {};
+    window.sessionStorage = {
+      getItem: function(k) { return _sStore.hasOwnProperty(k) ? _sStore[k] : null; },
+      setItem: function(k, v) { _sStore[k] = String(v); },
+      removeItem: function(k) { delete _sStore[k]; },
+      clear: function() { _sStore = {}; }
+    };
+  }
+
+  // 2. Polyfill seguro para history.pushState / history.replaceState
+  // Evita que frameworks de diapositivas que usan URLs/hash fallen con SecurityError
+  try {
+    var _origPush = window.history.pushState;
+    window.history.pushState = function() {
+      try {
+        if (_origPush) return _origPush.apply(window.history, arguments);
+      } catch (err) {}
+    };
+    var _origReplace = window.history.replaceState;
+    window.history.replaceState = function() {
+      try {
+        if (_origReplace) return _origReplace.apply(window.history, arguments);
+      } catch (err) {}
+    };
+  } catch (e) {}
+
+  // 3. Disparador de eventos de resize y readiness para reactivar diapositivas
+  function _kickstartSlides() {
+    try {
+      window.dispatchEvent(new Event('resize'));
+    } catch (e) {}
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _kickstartSlides);
+  } else {
+    setTimeout(_kickstartSlides, 100);
+    setTimeout(_kickstartSlides, 400);
+  }
+})();
+</script>
+`;
+
+  const responsiveBaseStyle = `
+<style id="__canvas_preview_responsive_base__">
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    min-height: 100%;
+    box-sizing: border-box;
+  }
+</style>
+`;
+
+  if (!hasHtml) {
+    content = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  ${safeShim}
+  ${responsiveBaseStyle}
+</head>
+<body>
+  ${content}
+</body>
+</html>`;
+  } else if (hasHead) {
+    content = content.replace(/<head[^>]*>/i, (match) => `${match}\n${safeShim}\n${responsiveBaseStyle}`);
+  } else {
+    content = content.replace(/<html[^>]*>/i, (match) => `${match}\n<head>\n${safeShim}\n${responsiveBaseStyle}\n</head>`);
+  }
+
+  return content;
+}
 
 const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({ 
   initialContent, 
@@ -55,7 +177,8 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
   const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
   const [code, setCode] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'split' | 'code' | 'preview'>(isMaximized ? 'split' : 'preview');
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
+  const [iframeKey, setIframeKey] = useState<number>(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeContainerRef = useRef<HTMLDivElement>(null);
@@ -110,7 +233,7 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
   // Load content with Tailwind CDN included by default for instant premium styling
   useEffect(() => {
     if (initialContent) {
-      setCode(initialContent);
+      setCode(cleanHtmlContent(initialContent));
     } else {
       setCode(`<!DOCTYPE html>
 <html lang="es">
@@ -165,7 +288,8 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
   };
 
   const handleDownloadHtml = () => {
-    const blob = new Blob([code], { type: 'text/html;charset=utf-8' });
+    const cleaned = cleanHtmlContent(code);
+    const blob = new Blob([cleaned], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -175,6 +299,17 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+
+  const handleOpenInNewTab = () => {
+    const cleaned = cleanHtmlContent(code);
+    const blob = new Blob([cleaned], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  };
+
+  const previewDoc = React.useMemo(() => {
+    return preparePreviewHtml(code);
+  }, [code]);
 
   useEffect(() => {
     if (onRegisterDownload) {
@@ -325,20 +460,52 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
 
           <div className="flex items-center gap-2">
             {(activeTab === 'preview' || activeTab === 'split') && (
-              <button
-                onClick={toggleFullscreen}
-                className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
-                title={isFullscreen ? 'Salir Pantalla Completa' : 'Pantalla Completa'}
-              >
-                <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
-                  {isFullscreen ? <Minimize className="h-4 w-4 text-text-primary" /> : <Maximize className="h-4 w-4 text-text-primary" />}
-                </div>
-                <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                  <span className="text-sm font-bold tracking-wide text-text-primary">
-                    {isFullscreen ? 'Salir Pantalla Completa' : 'Pantalla Completa'}
-                  </span>
-                </div>
-              </button>
+              <>
+                <button
+                  onClick={() => setIframeKey((prev) => prev + 1)}
+                  className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+                  title="Recargar vista previa"
+                >
+                  <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
+                    <RotateCw className="h-4 w-4 text-text-primary" />
+                  </div>
+                  <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                    <span className="text-sm font-bold tracking-wide text-text-primary">
+                      Recargar
+                    </span>
+                  </div>
+                </button>
+
+                <button
+                  onClick={handleOpenInNewTab}
+                  className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+                  title="Abrir en pestaña nueva (presentación completa)"
+                >
+                  <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
+                    <ExternalLink className="h-4 w-4 text-text-primary" />
+                  </div>
+                  <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                    <span className="text-sm font-bold tracking-wide text-text-primary">
+                      Abrir en pestaña
+                    </span>
+                  </div>
+                </button>
+
+                <button
+                  onClick={toggleFullscreen}
+                  className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+                  title={isFullscreen ? 'Salir Pantalla Completa' : 'Pantalla Completa'}
+                >
+                  <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
+                    {isFullscreen ? <Minimize className="h-4 w-4 text-text-primary" /> : <Maximize className="h-4 w-4 text-text-primary" />}
+                  </div>
+                  <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                    <span className="text-sm font-bold tracking-wide text-text-primary">
+                      {isFullscreen ? 'Salir Pantalla Completa' : 'Pantalla Completa'}
+                    </span>
+                  </div>
+                </button>
+              </>
             )}
 
             <button
@@ -380,12 +547,17 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
 
           {/* Right Side: Iframe Live Preview */}
           {(activeTab === 'split' || activeTab === 'preview') && (
-            <div ref={iframeContainerRef} className="flex-1 h-full bg-white relative">
+            <div
+              ref={iframeContainerRef}
+              className="flex-1 h-full min-h-0 min-w-0 bg-white relative flex flex-col overflow-hidden"
+            >
               <iframe
+                key={iframeKey}
                 title="Canvas Live View"
-                className="w-full h-full border-none bg-white"
-                sandbox="allow-scripts allow-modals allow-same-origin allow-forms"
-                srcDoc={code}
+                className="w-full h-full flex-1 border-none bg-white min-h-0 min-w-0"
+                sandbox="allow-scripts allow-modals allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-downloads allow-pointer-lock"
+                allow="fullscreen; presentation; clipboard-read; clipboard-write; autoplay"
+                srcDoc={previewDoc}
               />
             </div>
           )}

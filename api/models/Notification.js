@@ -38,45 +38,47 @@ const notificationSchema = new mongoose.Schema({
     },
 }, { timestamps: true });
 
-// Hook para enviar copia por correo electrónico de la notificación
-notificationSchema.post('save', async function (doc) {
-  try {
-    const User = mongoose.model('User');
-    const user = await User.findById(doc.user).select('email name username emailNotifications');
-    if (!user || !user.email) {
-      return;
+// Hook para enviar copia por correo electrónico de la notificación (asíncrono en segundo plano para no bloquear transacciones)
+notificationSchema.post('save', function (doc) {
+  setImmediate(async () => {
+    try {
+      const User = mongoose.model('User');
+      const user = await User.findById(doc.user).select('email name username emailNotifications');
+      if (!user || !user.email) {
+        return;
+      }
+
+      // Si el usuario desactivó recibir notificaciones por correo, cancelamos el envío
+      if (user.emailNotifications === false) {
+        return;
+      }
+
+      // Importación dinámica para evitar dependencias circulares
+      const sendEmail = require('../server/utils/sendEmail');
+      const { checkEmailConfig } = require('@librechat/api');
+
+      if (!checkEmailConfig()) {
+        return;
+      }
+
+      await sendEmail({
+        email: user.email,
+        from: process.env.EMAIL_NOTIFICATIONS_FROM || 'notificaciones@wappy.club',
+        subject: `🔔 WAPPY: ${doc.title}`,
+        payload: {
+          appName: process.env.APP_TITLE || 'WAPPY IA',
+          name: user.name || user.username || 'Usuario',
+          title: doc.title,
+          body: doc.body,
+          year: new Date().getFullYear(),
+        },
+        template: 'systemNotification.handlebars',
+      });
+    } catch (err) {
+      // Registramos el error de forma segura para no interrumpir el flujo principal
+      console.error('[Notification Email Hook Error]:', err.message);
     }
-
-    // Si el usuario desactivó recibir notificaciones por correo, cancelamos el envío
-    if (user.emailNotifications === false) {
-      return;
-    }
-
-    // Importación dinámica para evitar dependencias circulares
-    const sendEmail = require('../server/utils/sendEmail');
-    const { checkEmailConfig } = require('@librechat/api');
-
-    if (!checkEmailConfig()) {
-      return;
-    }
-
-    await sendEmail({
-      email: user.email,
-      from: process.env.EMAIL_NOTIFICATIONS_FROM || 'notificaciones@wappy.club',
-      subject: `🔔 WAPPY: ${doc.title}`,
-      payload: {
-        appName: process.env.APP_TITLE || 'WAPPY IA',
-        name: user.name || user.username || 'Usuario',
-        title: doc.title,
-        body: doc.body,
-        year: new Date().getFullYear(),
-      },
-      template: 'systemNotification.handlebars',
-    });
-  } catch (err) {
-    // Registramos el error de forma segura para no interrumpir el flujo principal
-    console.error('[Notification Email Hook Error]:', err.message);
-  }
+  });
 });
 
 module.exports = mongoose.model('Notification', notificationSchema);

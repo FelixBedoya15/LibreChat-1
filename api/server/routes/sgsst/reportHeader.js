@@ -74,7 +74,7 @@ function buildStandardHeader({ title, companyInfo, date, norm, riskLevel, respon
 </div>
 
 <!-- Tabla Resumen de la Entidad (Estilizada y Limpia) -->
-<div style="margin-bottom: 24px; font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box; page-break-inside: avoid;">
+<div class="table-responsive custom-table-scroll" style="margin-bottom: 24px; font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box; page-break-inside: avoid;">
   <table style="width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; background-color: #ffffff;">
     <thead>
       <tr>

@@ -232,6 +232,7 @@ const POLL_INTERVAL_MS = 2500;
 const DEBOUNCE_SAVE_MS = 10000;
 
 const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
+  const { showToast } = useToastContext();
   const { token, user } = useAuthContext();
   const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);

@@ -1801,7 +1801,10 @@ router.post('/inbox/approve', requireJwtAuth, async (req, res) => {
     if (!doc) return res.status(404).json({ error: 'No se encontró la empresa' });
 
     // Encontrar y actualizar el trabajador
-    const workerIndex = doc.trabajadores.findIndex(w => String(w.id) === String(workerId));
+    const workerIndex = doc.trabajadores.findIndex(w =>
+      String(w.id || w._id || w.identificacion) === String(workerId) ||
+      (w.identificacion && String(w.identificacion).trim() === String(workerId).trim())
+    );
     if (workerIndex !== -1) {
       // Merge changes into the existing worker object
       const currentWorker = doc.trabajadores[workerIndex]._doc || doc.trabajadores[workerIndex];

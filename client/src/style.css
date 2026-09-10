@@ -3283,3 +3283,88 @@ html {
     margin: 4px !important;
   }
 }
+
+/* ==========================================================================
+   Global Responsive Tables & Visible Horizontal Scrollbar (Desktop / Mobile)
+   ========================================================================== */
+.table-responsive,
+.table-container,
+.table-wrapper,
+.custom-table-scroll {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  box-sizing: border-box !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: #0d9488 #f1f5f9 !important;
+}
+
+/* WebKit / Chromium / Safari permanent visible horizontal scrollbar */
+.table-responsive::-webkit-scrollbar,
+.table-container::-webkit-scrollbar,
+.table-wrapper::-webkit-scrollbar,
+.custom-table-scroll::-webkit-scrollbar {
+  height: 10px !important;
+  width: 10px !important;
+  display: block !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+}
+
+.table-responsive::-webkit-scrollbar-track,
+.table-container::-webkit-scrollbar-track,
+.table-wrapper::-webkit-scrollbar-track,
+.custom-table-scroll::-webkit-scrollbar-track {
+  background: #f1f5f9 !important;
+  border-radius: 8px !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+.table-responsive::-webkit-scrollbar-thumb,
+.table-container::-webkit-scrollbar-thumb,
+.table-wrapper::-webkit-scrollbar-thumb,
+.custom-table-scroll::-webkit-scrollbar-thumb {
+  background: #0d9488 !important;
+  border-radius: 8px !important;
+  border: 2px solid #f1f5f9 !important;
+  cursor: grab !important;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover,
+.table-container::-webkit-scrollbar-thumb:hover,
+.table-wrapper::-webkit-scrollbar-thumb:hover,
+.custom-table-scroll::-webkit-scrollbar-thumb:hover {
+  background: #0f766e !important;
+}
+
+/* Dark mode scrollbars */
+.dark .table-responsive,
+.dark .table-container,
+.dark .table-wrapper,
+.dark .custom-table-scroll {
+  scrollbar-color: #14b8a6 #1e293b !important;
+}
+
+.dark .table-responsive::-webkit-scrollbar-track,
+.dark .table-container::-webkit-scrollbar-track,
+.dark .table-wrapper::-webkit-scrollbar-track,
+.dark .custom-table-scroll::-webkit-scrollbar-track {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+.dark .table-responsive::-webkit-scrollbar-thumb,
+.dark .table-container::-webkit-scrollbar-thumb,
+.dark .table-wrapper::-webkit-scrollbar-thumb,
+.dark .custom-table-scroll::-webkit-scrollbar-thumb {
+  background: #14b8a6 !important;
+  border-color: #1e293b !important;
+}
+
+.dark .table-responsive::-webkit-scrollbar-thumb:hover,
+.dark .table-container::-webkit-scrollbar-thumb:hover,
+.dark .table-wrapper::-webkit-scrollbar-thumb:hover,
+.dark .custom-table-scroll::-webkit-scrollbar-thumb:hover {
+  background: #2dd4bf !important;
+}

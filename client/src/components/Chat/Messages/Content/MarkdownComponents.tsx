@@ -179,3 +179,39 @@ type TParagraphProps = {
 export const p: React.ElementType = memo(({ children }: TParagraphProps) => {
   return <p className="mb-2 whitespace-pre-wrap">{children}</p>;
 });
+
+export const table: React.ElementType = memo(({ children, ...props }: any) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      const maxScrollLeft = el.scrollWidth - el.clientWidth;
+      if (maxScrollLeft > 2 && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        const canScrollRight = e.deltaY > 0 && el.scrollLeft < maxScrollLeft - 1;
+        const canScrollLeft = e.deltaY < 0 && el.scrollLeft > 1;
+        if (canScrollRight || canScrollLeft) {
+          e.preventDefault();
+          el.scrollLeft += e.deltaY;
+        }
+      }
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className="table-responsive custom-table-scroll my-3 w-full max-w-full overflow-x-auto rounded-xl border border-border-medium bg-surface-primary"
+    >
+      <table {...props} className="w-full min-w-full border-collapse text-xs">
+        {children}
+      </table>
+    </div>
+  );
+});
+

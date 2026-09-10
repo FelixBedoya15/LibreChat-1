@@ -30,7 +30,15 @@ async function resolveCompanyAndWorker(companyId, { cedula, workerId } = {}) {
   let company = await resolveActiveCompany(companyId);
   if (!company) return { company: null, perfil: null, worker: null };
 
-  const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+  let PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+  if (!PerfilSociodemograficoData) {
+    try {
+      require('./sgsst/perfilSociodemografico');
+      PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+    } catch (e) {
+      logger.warn('[Public SGSST] Could not register PerfilSociodemograficoData:', e.message);
+    }
+  }
   if (!PerfilSociodemograficoData) return { company, perfil: null, worker: null };
 
   const formatStr = (s) => String(s || '').trim().toLowerCase();
@@ -49,7 +57,7 @@ async function resolveCompanyAndWorker(companyId, { cedula, workerId } = {}) {
   let worker = null;
   if (perfil && Array.isArray(perfil.trabajadores) && perfil.trabajadores.length > 0) {
     if (workerId && workerId !== 'undefined') {
-      worker = perfil.trabajadores.find((t) => String(t.id) === String(workerId));
+      worker = perfil.trabajadores.find((t) => String(t.id || t._id || t.identificacion) === String(workerId));
     }
     if (!worker && cedula) {
       worker = perfil.trabajadores.find(
@@ -83,7 +91,7 @@ async function resolveCompanyAndWorker(companyId, { cedula, workerId } = {}) {
       if (altPerfil && Array.isArray(altPerfil.trabajadores) && altPerfil.trabajadores.length > 0) {
         let altWorker = null;
         if (workerId && workerId !== 'undefined') {
-          altWorker = altPerfil.trabajadores.find((t) => String(t.id) === String(workerId));
+          altWorker = altPerfil.trabajadores.find((t) => String(t.id || t._id || t.identificacion) === String(workerId));
         }
         if (!altWorker && cedula) {
           altWorker = altPerfil.trabajadores.find(
@@ -658,7 +666,7 @@ router.get('/perfil-update/:companyId/:workerId?', async (req, res) => {
       companyName: company.companyName || 'Empresa',
       logo: company.logoBase64 || null,
       worker: {
-        id: worker.id,
+        id: worker.id || worker._id?.toString() || worker.identificacion,
         nombre: worker.nombre,
         cargo: worker.cargo,
         identificacion: worker.identificacion,
@@ -727,29 +735,20 @@ router.post('/perfil-update/:companyId/:workerId?', async (req, res) => {
     const { companyId, workerId: paramWorkerId } = req.params;
     const { updates, cedula } = req.body;
 
-    const { company, worker } = await resolveCompanyAndWorker(companyId, { cedula, workerId: paramWorkerId });
+    const { company, perfil, worker } = await resolveCompanyAndWorker(companyId, { cedula, workerId: paramWorkerId });
     if (!company) {
       return res.status(404).json({ error: 'Empresa no encontrada' });
     }
 
-    const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
-    const perfil = await PerfilSociodemograficoData.findOne({
-      user: new mongoose.Types.ObjectId(company.user),
-      $or: [
-        { companyId: company._id },
-        { companyId: company._id.toString() },
-        { companyId: { $exists: false } },
-        { companyId: null },
-      ],
-    });
-    if (!perfil)
+    if (!perfil) {
       return res
         .status(404)
         .json({ error: 'Perfil sociodemográfico no encontrado para esta empresa' });
+    }
 
     if (!worker) return res.status(404).json({ error: 'Trabajador no encontrado' });
 
-    const workerId = worker.id; // Use the real ID found
+    const workerId = worker.id || worker._id?.toString() || worker.identificacion;
 
     // Separate fields into Social and Health categories
     const socialKeys = [
@@ -771,6 +770,7 @@ router.post('/perfil-update/:companyId/:workerId?', async (req, res) => {
       'curso20h',
       'licenciaConduccion',
       'licenciaConduccionVencimiento',
+      'licenciasConduccion',
       'esCopasst',
       'esComiteConvivencia',
       'esBrigadista',
@@ -815,48 +815,58 @@ router.post('/perfil-update/:companyId/:workerId?', async (req, res) => {
       if (healthKeys.includes(key)) healthUpdates[key] = value;
     }
 
-    // Store in the corresponding pending inboxes
+    // Atomic push to pending inboxes via updateOne to prevent heavy validation and hanging
+    const pushOps = {};
+
     if (Object.keys(socialUpdates).length > 0) {
-      if (!perfil.actualizacionesPendientes) perfil.actualizacionesPendientes = [];
-      perfil.actualizacionesPendientes.push({
+      pushOps.actualizacionesPendientes = {
         id: new mongoose.Types.ObjectId().toString(),
         workerId,
-        workerName: worker.nombre, // Standardized key
-        workerCargo: worker.cargo,
-        changes: socialUpdates, // Social changes only
+        workerName: worker.nombre || 'Trabajador',
+        workerCargo: worker.cargo || '',
+        changes: socialUpdates,
         status: 'pending',
         createdAt: new Date(),
-      });
+      };
     }
 
     if (Object.keys(healthUpdates).length > 0) {
-      if (!perfil.actualizacionesPendientesSalud) perfil.actualizacionesPendientesSalud = [];
-      perfil.actualizacionesPendientesSalud.push({
+      pushOps.actualizacionesPendientesSalud = {
         id: new mongoose.Types.ObjectId().toString(),
         workerId,
-        workerName: worker.nombre, // Standardized key
-        workerCargo: worker.cargo,
-        changes: healthUpdates, // Health changes only
+        workerName: worker.nombre || 'Trabajador',
+        workerCargo: worker.cargo || '',
+        changes: healthUpdates,
         status: 'pending',
         createdAt: new Date(),
-      });
+      };
     }
 
-    await perfil.save();
-
-    // Notify admin
-    try {
-      const Notif = require('~/models/Notification');
-      await Notif.create({
-        user: new mongoose.Types.ObjectId(company.user),
-        type: 'sgsst_perfil_update',
-        title: 'Actualización de Perfil y Salud Recibida',
-        body: `${worker.nombre} ha solicitado actualizar sus datos de perfil sociodemográfico y condiciones de salud.`,
-        metadata: { module: 'perfil_socio', workerId },
-      });
-    } catch (notifErr) {
-      logger.warn('[Public Perfil Update] Could not create notification:', notifErr.message);
+    const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+    if (Object.keys(pushOps).length > 0) {
+      await PerfilSociodemograficoData.updateOne(
+        { _id: perfil._id },
+        {
+          $push: pushOps,
+          $set: { updatedAt: new Date() },
+        }
+      );
     }
+
+    // Notify admin asynchronously so it never hangs or delays the HTTP response
+    setImmediate(async () => {
+      try {
+        await Notification.create({
+          user: new mongoose.Types.ObjectId(company.user),
+          type: 'sgsst_perfil_update',
+          title: 'Actualización de Perfil y Salud Recibida',
+          body: `${worker.nombre || 'Un trabajador'} ha solicitado actualizar sus datos de perfil sociodemográfico y condiciones de salud.`,
+          metadata: { module: 'perfil_socio', workerId },
+        });
+      } catch (notifErr) {
+        logger.warn('[Public Perfil Update] Could not create notification:', notifErr.message);
+      }
+    });
 
     res.json({ success: true });
   } catch (err) {

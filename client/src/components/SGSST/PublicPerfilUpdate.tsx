@@ -109,8 +109,11 @@ export default function PublicPerfilUpdate() {
         setVerifying(true);
         setVerifyError('');
         try {
-            // Include cedula as query param just in case workerId is undefined
-            const res = await axios.get(`/api/public-sgsst/perfil-update/${companyId}/${workerId}?cedula=${cedula}`);
+            const verifyWorkerId = (workerId && workerId !== 'undefined') ? workerId : '';
+            const verifyUrl = verifyWorkerId
+                ? `/api/public-sgsst/perfil-update/${companyId}/${verifyWorkerId}?cedula=${encodeURIComponent(cedula)}`
+                : `/api/public-sgsst/perfil-update/${companyId}?cedula=${encodeURIComponent(cedula)}`;
+            const res = await axios.get(verifyUrl, { timeout: 15000 });
             if (res.data.companyName) {
                 setCompany({
                     _id: res.data._id || company?._id || companyId,
@@ -155,7 +158,10 @@ export default function PublicPerfilUpdate() {
             });
             setStep(2);
         } catch (err: any) {
-            setVerifyError(err.response?.data?.error || 'No se pudo cargar el perfil. Intenta de nuevo.');
+            const msg = err.code === 'ECONNABORTED'
+                ? 'El servidor tardó demasiado en responder al buscar la información.'
+                : (err.response?.data?.error || 'No se pudo cargar el perfil. Intenta de nuevo.');
+            setVerifyError(msg);
         } finally {
             setVerifying(false);
         }
@@ -164,16 +170,28 @@ export default function PublicPerfilUpdate() {
     const handleSubmit = async () => {
         setSubmitting(true);
         try {
-            // Use URL param if available, otherwise fallback to workerData.id found during verification
             const targetCompanyId = company?._id || companyId;
-            const targetWorkerId = (workerId && workerId !== 'undefined') ? workerId : workerData?.id;
-            await axios.post(`/api/public-sgsst/perfil-update/${targetCompanyId}/${targetWorkerId}`, {
+            const targetWorkerId = (workerId && workerId !== 'undefined')
+                ? workerId
+                : (workerData?.id || workerData?.identificacion || 'worker');
+
+            const res = await axios.post(`/api/public-sgsst/perfil-update/${targetCompanyId}/${targetWorkerId}`, {
                 updates: formData,
-                cedula: cedula // Fallback for backend finding logic
+                cedula: cedula || workerData?.identificacion
+            }, {
+                timeout: 20000
             });
-            setStep(3);
+
+            if (res.data?.success) {
+                setStep(3);
+            } else {
+                alert(res.data?.error || 'No se pudo guardar la actualización.');
+            }
         } catch (err: any) {
-            alert(err.response?.data?.error || 'Error al enviar. Intenta de nuevo.');
+            const msg = err.code === 'ECONNABORTED'
+                ? 'El servidor tardó demasiado en responder. Por favor verifica tu conexión e intenta de nuevo.'
+                : (err.response?.data?.error || err.message || 'Error al enviar. Intenta de nuevo.');
+            alert(msg);
         } finally {
             setSubmitting(false);
         }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import {
@@ -61,8 +61,8 @@ export interface LiveEditorHandle {
 }
 
 /**
- * Garantiza que cualquier tabla HTML quede envuelta dentro de un contenedor .table-responsive
- * con scroll horizontal interno, evitando que desborde los recuadros internos o la hoja de papel.
+ * Garantiza que cualquier tabla HTML quede envuelta dentro de un contenedor .table-responsive.custom-table-scroll
+ * con scroll horizontal interno visible para ordenadores de sobremesa y portátiles.
  */
 function wrapTablesInResponsiveContainer(html: string): string {
   if (!html || typeof html !== 'string' || !html.includes('<table')) return html;
@@ -80,12 +80,13 @@ function wrapTablesInResponsiveContainer(html: string): string {
         parent &&
         (parent.classList.contains('table-responsive') ||
           parent.classList.contains('table-container') ||
-          parent.classList.contains('table-wrapper'));
+          parent.classList.contains('table-wrapper') ||
+          parent.classList.contains('custom-table-scroll'));
 
       if (!isAlreadyWrapped) {
         changed = true;
         const wrapper = doc.createElement('div');
-        wrapper.className = 'table-responsive';
+        wrapper.className = 'table-responsive custom-table-scroll';
         wrapper.setAttribute(
           'style',
           'width: 100%; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 14px 0; border-radius: 10px; border: 1px solid #e2e8f0; box-sizing: border-box;',
@@ -95,11 +96,18 @@ function wrapTablesInResponsiveContainer(html: string): string {
         table.style.border = 'none';
         table.style.borderRadius = '0';
         table.style.width = '100%';
-        table.style.minWidth = '800px';
+        table.style.display = 'table';
         table.style.tableLayout = 'auto';
 
         table.parentNode?.insertBefore(wrapper, table);
         wrapper.appendChild(table);
+      } else if (parent) {
+        if (!parent.classList.contains('custom-table-scroll')) {
+          parent.classList.add('custom-table-scroll');
+          changed = true;
+        }
+        table.style.display = 'table';
+        table.style.width = '100%';
       }
     });
 
@@ -583,6 +591,101 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
       onUpdateRef.current = onUpdate;
     }, [onUpdate]);
 
+    // Ensure any unwrapped table in editor DOM gets wrapped in .table-responsive.custom-table-scroll
+    const ensureTablesWrappedInDOM = useCallback(() => {
+      if (!editorRef.current) return false;
+      const tables = editorRef.current.querySelectorAll('table');
+      let changed = false;
+      tables.forEach((table) => {
+        const parent = table.parentElement;
+        const isWrapped =
+          parent &&
+          (parent.classList.contains('table-responsive') ||
+            parent.classList.contains('table-container') ||
+            parent.classList.contains('table-wrapper') ||
+            parent.classList.contains('custom-table-scroll'));
+
+        if (!isWrapped && parent) {
+          changed = true;
+          const wrapper = document.createElement('div');
+          wrapper.className = 'table-responsive custom-table-scroll';
+          wrapper.setAttribute(
+            'style',
+            'width: 100%; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 14px 0; border-radius: 10px; border: 1px solid #e2e8f0; box-sizing: border-box;',
+          );
+          table.style.margin = '0';
+          table.style.border = 'none';
+          table.style.borderRadius = '0';
+          table.style.width = '100%';
+          table.style.tableLayout = 'auto';
+          table.style.display = 'table';
+
+          parent.insertBefore(wrapper, table);
+          wrapper.appendChild(table);
+        } else if (parent && !parent.classList.contains('custom-table-scroll')) {
+          parent.classList.add('custom-table-scroll');
+        }
+      });
+      return changed;
+    }, []);
+
+    // ── Mouse Wheel Horizontal Scroll Assistance for Desktop (Non-Laptop) ─────
+    useEffect(() => {
+      const editorEl = editorRef.current;
+      if (!editorEl) return;
+
+      const handleTableWheel = (e: WheelEvent) => {
+        const target = e.target as HTMLElement;
+        const tableWrapper = target.closest(
+          '.table-responsive, .table-container, .table-wrapper, .custom-table-scroll',
+        ) as HTMLElement;
+        if (!tableWrapper) return;
+
+        const maxScrollLeft = tableWrapper.scrollWidth - tableWrapper.clientWidth;
+        if (maxScrollLeft > 2) {
+          // If scrolling vertically with mouse wheel (standard desktop mouse)
+          if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+            const canScrollRight = e.deltaY > 0 && tableWrapper.scrollLeft < maxScrollLeft - 1;
+            const canScrollLeft = e.deltaY < 0 && tableWrapper.scrollLeft > 1;
+
+            if (canScrollRight || canScrollLeft) {
+              e.preventDefault();
+              tableWrapper.scrollLeft += e.deltaY;
+            }
+          }
+        }
+      };
+
+      editorEl.addEventListener('wheel', handleTableWheel, { passive: false });
+      return () => {
+        editorEl.removeEventListener('wheel', handleTableWheel);
+      };
+    }, []);
+
+    // Dynamic sync when initialContent arrives/updates from parent
+    useEffect(() => {
+      if (initialContent && editorRef.current) {
+        const stripped = initialContent.replace(
+          /<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi,
+          '',
+        );
+        const safeHtml = wrapTablesInResponsiveContainer(stripped);
+        const currentInner = editorRef.current.innerHTML.trim();
+        // Sync if empty or initial load wasn't finished
+        if (!currentInner || !initializedRef.current || currentInner !== safeHtml.trim()) {
+          if (!initializedRef.current || !currentInner) {
+            isSyncingRef.current = true;
+            editorRef.current.innerHTML = safeHtml;
+            setContent(safeHtml);
+            initializedRef.current = true;
+            setTimeout(() => {
+              isSyncingRef.current = false;
+            }, 50);
+          }
+        }
+      }
+    }, [initialContent]);
+
     useEffect(() => {
       // Set content ONLY once when the component first mounts and has content
       if (!initializedRef.current && editorRef.current && initialContent) {
@@ -601,6 +704,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
       if (editorRef.current) {
         const observer = new MutationObserver(() => {
           if (isSyncingRef.current) return;
+          ensureTablesWrappedInDOM();
           const newContent = editorRef.current?.innerHTML || '';
           setContent(newContent);
           onUpdateRef.current(newContent);
@@ -1697,7 +1801,8 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
                 }
                 .live-editor-content .table-responsive,
                 .live-editor-content .table-container,
-                .live-editor-content .table-wrapper {
+                .live-editor-content .table-wrapper,
+                .live-editor-content .custom-table-scroll {
                     width: 100% !important;
                     max-width: 100% !important;
                     overflow-x: auto !important;
@@ -1707,40 +1812,75 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
                     border: 1px solid #e2e8f0 !important;
                     box-sizing: border-box !important;
                     display: block !important;
+                    scrollbar-width: thin !important;
+                    scrollbar-color: #0d9488 #f1f5f9 !important;
+                }
+                .live-editor-content .table-responsive::-webkit-scrollbar,
+                .live-editor-content .table-container::-webkit-scrollbar,
+                .live-editor-content .table-wrapper::-webkit-scrollbar,
+                .live-editor-content .custom-table-scroll::-webkit-scrollbar {
+                    height: 10px !important;
+                    width: 10px !important;
+                    display: block !important;
+                    appearance: none !important;
+                    -webkit-appearance: none !important;
+                }
+                .live-editor-content .table-responsive::-webkit-scrollbar-track,
+                .live-editor-content .table-container::-webkit-scrollbar-track,
+                .live-editor-content .table-wrapper::-webkit-scrollbar-track,
+                .live-editor-content .custom-table-scroll::-webkit-scrollbar-track {
+                    background: #f1f5f9 !important;
+                    border-radius: 8px !important;
+                    border: 1px solid #e2e8f0 !important;
+                }
+                .live-editor-content .table-responsive::-webkit-scrollbar-thumb,
+                .live-editor-content .table-container::-webkit-scrollbar-thumb,
+                .live-editor-content .table-wrapper::-webkit-scrollbar-thumb,
+                .live-editor-content .custom-table-scroll::-webkit-scrollbar-thumb {
+                    background: #0d9488 !important;
+                    border-radius: 8px !important;
+                    border: 2px solid #f1f5f9 !important;
+                    cursor: grab !important;
+                }
+                .live-editor-content .table-responsive::-webkit-scrollbar-thumb:hover,
+                .live-editor-content .table-container::-webkit-scrollbar-thumb:hover,
+                .live-editor-content .table-wrapper::-webkit-scrollbar-thumb:hover,
+                .live-editor-content .custom-table-scroll::-webkit-scrollbar-thumb:hover {
+                    background: #0f766e !important;
                 }
                 .live-editor-content table {
                     width: 100% !important;
-                    max-width: 100% !important;
-                    border-collapse: separate;
-                    border-spacing: 0;
+                    max-width: none !important;
+                    border-collapse: collapse !important;
+                    border-spacing: 0 !important;
                     margin: 12px 0;
                     font-size: 0.85em;
                     border-radius: 10px;
                     border: 1px solid #e2e8f0;
-                    table-layout: auto;
+                    table-layout: auto !important;
                     word-break: normal !important;
                     box-sizing: border-box !important;
+                    display: table !important;
                 }
                 .live-editor-content .table-responsive table,
                 .live-editor-content .table-container table,
-                .live-editor-content .table-wrapper table {
+                .live-editor-content .table-wrapper table,
+                .live-editor-content .custom-table-scroll table {
                     margin: 0 !important;
                     border: none !important;
                     border-radius: 0 !important;
-                    min-width: 800px !important;
                     width: 100% !important;
+                    min-width: 100% !important;
                     max-width: none !important;
                     display: table !important;
                     table-layout: auto !important;
                 }
-                /* Salvaguarda para tablas no envueltas: scroll block sin desbordar el recuadro */
+                /* Salvaguarda: las tablas SIEMPRE preservan display: table */
                 .live-editor-content > table,
-                .live-editor-content div:not(.table-responsive):not(.table-container):not(.table-wrapper) > table {
-                    display: block !important;
+                .live-editor-content div:not(.table-responsive):not(.table-container):not(.table-wrapper):not(.custom-table-scroll) > table {
+                    display: table !important;
                     width: 100% !important;
-                    max-width: 100% !important;
-                    overflow-x: auto !important;
-                    -webkit-overflow-scrolling: touch !important;
+                    max-width: none !important;
                 }
                 .live-editor-content table th {
                     background-color: #004d99;
@@ -1753,9 +1893,10 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
                     white-space: normal !important;
                     word-break: normal !important;
                     letter-spacing: 0.01em;
+                    min-width: 110px;
                 }
                 /* Specific column widths for SGSST Reports */
-                .checklist-mode table th:nth-child(1) { width: 38px; } /* # - Narrowest possible */
+                .checklist-mode table th:nth-child(1) { width: 38px; min-width: 38px; } /* # - Narrowest possible */
                 .checklist-mode table th:nth-child(2) { width: 14%; } /* Requisito / Estándar */
                 .checklist-mode table th:nth-child(3) { width: 44%; } /* Hallazgo (Evidencia) */
                 .checklist-mode table th:nth-child(4) { width: 10%; } /* Tipo */
@@ -1769,13 +1910,14 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
                     border-bottom: 1px solid #e2e8f0;
                     border-right: 1px solid #f1f5f9;
                     vertical-align: top;
-                    word-wrap: normal !important;
-                    overflow-wrap: normal !important;
+                    word-wrap: break-word !important;
+                    overflow-wrap: break-word !important;
                     word-break: normal !important;
                     line-height: 1.45;
+                    min-width: 110px;
                 }
-                /* Center and prevent character-by-character wrap on indicator/badge/score cells */
-                .live-editor-content table td:first-child,
+                /* Solo centrar y no romper en celdas numéricas de checklists o centradas explícitamente */
+                .checklist-mode table td:first-child,
                 .live-editor-content table td[style*="text-align:center"],
                 .live-editor-content table td[style*="text-align: center"],
                 .live-editor-content table td[align="center"] {
@@ -1857,8 +1999,9 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
                     border: 1px solid rgba(226, 232, 240, 0.8);
                     width: 100% !important;
                     box-sizing: border-box !important;
-                    margin: 0 auto;
-                    overflow-x: hidden !important;
+                    overflow-x: auto !important;
+                    scrollbar-width: thin !important;
+                    scrollbar-color: #0d9488 #f1f5f9 !important;
                 }
                 @media (max-width: 640px) {
                     .live-editor-content.paper-mode {
