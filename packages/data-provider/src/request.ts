@@ -130,9 +130,14 @@ if (typeof window !== 'undefined') {
             dispatchTokenUpdatedEvent(token);
             processQueue(null, token);
             return await axios(originalRequest);
-          } else if (window.location.href.includes('share/')) {
+          } else if (
+            window.location.href.includes('share/') ||
+            window.location.href.includes('sgsst-public/') ||
+            window.location.href.includes('/report/') ||
+            window.location.href.includes('/public')
+          ) {
             console.log(
-              `Refresh token failed from shared link, attempting request to ${originalRequest.url}`,
+              `Refresh token failed on public route, avoiding redirect to /login for ${originalRequest.url}`,
             );
           } else {
             window.location.href = '/login';

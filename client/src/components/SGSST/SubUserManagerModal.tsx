@@ -389,6 +389,7 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
     const [formName, setFormName] = useState('');
     const [formEmail, setFormEmail] = useState('');
     const [formPassword, setFormPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [selectedPresetRole, setSelectedPresetRole] = useState<string>('data_entry_field');
     const [selectedPermissions, setSelectedPermissions] = useState<string[]>([
         'sgsst:perfil_sociodemografico_self',
@@ -496,6 +497,7 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
             setSelectedCompanyId(worker.companyId || (companies[0]?._id || ''));
         }
         setFormPassword(doc); // Default password as document number
+        setShowPassword(false);
         const defaultRole = PRESET_ROLES.find(r => r.id === 'data_entry_field');
         setSelectedPresetRole('data_entry_field');
         setSelectedPermissions(defaultRole ? [...defaultRole.permissions] : ['sgsst:perfil_sociodemografico_self']);
@@ -517,6 +519,7 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
         setFormName('');
         setFormEmail('');
         setFormPassword('');
+        setShowPassword(false);
         const defaultRole = PRESET_ROLES.find(r => r.id === 'data_entry_field');
         setSelectedPresetRole('data_entry_field');
         setSelectedPermissions(defaultRole ? [...defaultRole.permissions] : ['sgsst:perfil_sociodemografico_self']);
@@ -531,6 +534,7 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
         setFormName(su.name || '');
         setFormEmail(su.email || '');
         setFormPassword(''); // Empty means don't change
+        setShowPassword(false);
         setSelectedPermissions(su.subUserPermissions || []);
         setFormStatus(su.subUserStatus || 'active');
 
