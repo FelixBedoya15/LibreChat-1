@@ -12,6 +12,21 @@ const { saveMessage, updateMessageText, getMessages } = require('~/models/Messag
 const { updateTagsForConversation } = require('~/models/ConversationTag');
 const CompanyInfo = require('~/models/CompanyInfo');
 const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
+const { scanComplianceForUser } = require('./complianceScanner');
+
+/**
+ * GET /api/sgsst/diagnostico/compliance-scan
+ * Scans active company data across all WAPPY modules and returns verified compliance evidence.
+ */
+router.get('/compliance-scan', requireJwtAuth, async (req, res) => {
+    try {
+        const result = await scanComplianceForUser(req.user.id, req.user);
+        return res.json(result);
+    } catch (error) {
+        logger.error('[ComplianceScanner] Error scanning compliance:', error.message, error.stack);
+        return res.status(500).json({ error: 'Error scanning compliance data', details: error.message });
+    }
+});
 
 
 /**
