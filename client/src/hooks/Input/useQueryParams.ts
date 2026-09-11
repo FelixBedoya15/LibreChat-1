@@ -269,6 +269,15 @@ export default function useQueryParams({
     pendingSubmitRef.current = false;
 
     const textToSend = promptTextRef.current;
+    const lastSub = (window as any).__lastSubmittedPrompt;
+    const lastTime = (window as any).__lastSubmittedPromptTime || 0;
+    if (lastSub === textToSend && Date.now() - lastTime < 4000) {
+      console.log('[useQueryParams] Consulta ya enviada recientemente, omitiendo duplicado');
+      return;
+    }
+    (window as any).__lastSubmittedPrompt = textToSend;
+    (window as any).__lastSubmittedPromptTime = Date.now();
+
     methods.setValue('text', textToSend, { shouldValidate: true });
     if (textAreaRef.current) {
       textAreaRef.current.value = textToSend;
@@ -369,19 +378,12 @@ export default function useQueryParams({
       // Handle auto-submission
       if (shouldAutoSubmit && decodedPrompt) {
         pendingSubmitRef.current = true;
-        if (Object.keys(validSettings).length > 0) {
-          // Timeout de respaldo en caso de que la aplicación del preset demore
-          settingsTimeoutRef.current = setTimeout(() => {
-            if (!submissionHandledRef.current && pendingSubmitRef.current) {
-              console.warn(
-                'Settings application timeout reached, proceeding with submission anyway',
-              );
-              processSubmission();
-            }
-          }, 1200);
-        } else {
-          processSubmission();
-        }
+        setTimeout(() => {
+          if (!submissionHandledRef.current) {
+            console.log('[useQueryParams] Ejecutando auto-envío de la consulta:', decodedPrompt);
+            processSubmission();
+          }
+        }, 400);
       } else if (!decodedPrompt) {
         submissionHandledRef.current = true;
       }
@@ -395,9 +397,6 @@ export default function useQueryParams({
 
     return () => {
       clearInterval(intervalId);
-      if (settingsTimeoutRef.current) {
-        clearTimeout(settingsTimeoutRef.current);
-      }
     };
   }, [
     searchParams,

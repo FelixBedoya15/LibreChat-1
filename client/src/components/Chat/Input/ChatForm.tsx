@@ -224,13 +224,17 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
   // Listener para auto-envío de consultas delegadas por Tenshi
   useEffect(() => {
     const handleTenshiSubmit = async (e: any) => {
-      if (window.location.search.includes('submit=true')) {
-        console.log('[ChatForm] useQueryParams manejará el auto-envío desde los parámetros URL');
-        return;
-      }
-
       const { agentId, prompt } = e.detail || {};
       console.log('[ChatForm] tenshi-submit-agent-prompt recibido:', { agentId, prompt });
+
+      if (!prompt) return;
+
+      const lastSub = (window as any).__lastSubmittedPrompt;
+      const lastTime = (window as any).__lastSubmittedPromptTime || 0;
+      if (lastSub === prompt && Date.now() - lastTime < 4000) {
+        console.log('[ChatForm] Consulta ya enviada recientemente, omitiendo duplicado');
+        return;
+      }
 
       // 1. Si se especificó un agente y es diferente al actual, seleccionarlo formalmente
       if (agentId && conversation?.agent_id !== agentId) {
@@ -241,8 +245,6 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         }
       }
 
-      if (!prompt) return;
-
       // 2. Colocar el texto en react-hook-form y en el textarea para feedback visual inmediato
       methods.setValue('text', prompt, { shouldValidate: true });
       if (textAreaRef.current) {
@@ -250,8 +252,16 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         textAreaRef.current.focus();
       }
 
-      // 3. Enviar el mensaje una vez que el agente esté sincronizado
+      // 3. Enviar el mensaje
       setTimeout(() => {
+        const curLast = (window as any).__lastSubmittedPrompt;
+        const curTime = (window as any).__lastSubmittedPromptTime || 0;
+        if (curLast === prompt && Date.now() - curTime < 4000) {
+          return;
+        }
+        (window as any).__lastSubmittedPrompt = prompt;
+        (window as any).__lastSubmittedPromptTime = Date.now();
+        console.log('[ChatForm] Ejecutando submitMessage para Tenshi:', prompt);
         methods.setValue('text', prompt, { shouldValidate: true });
         submitMessage({ text: prompt });
       }, 500);
@@ -262,6 +272,45 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
       window.removeEventListener('tenshi-submit-agent-prompt', handleTenshiSubmit);
     };
   }, [methods, submitMessage, textAreaRef, onSelectAgent, conversation?.agent_id]);
+
+  // Respaldo al montar ChatForm si se cargó la URL con submit=true
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlPrompt = params.get('prompt') || params.get('q');
+      const urlSubmit = params.get('submit') === 'true';
+
+      if (urlSubmit && urlPrompt) {
+        const lastSub = (window as any).__lastSubmittedPrompt;
+        const lastTime = (window as any).__lastSubmittedPromptTime || 0;
+        if (lastSub === urlPrompt && Date.now() - lastTime < 4000) {
+          return;
+        }
+
+        methods.setValue('text', urlPrompt, { shouldValidate: true });
+        if (textAreaRef.current) {
+          textAreaRef.current.value = urlPrompt;
+        }
+
+        const timer = setTimeout(() => {
+          const curLast = (window as any).__lastSubmittedPrompt;
+          const curTime = (window as any).__lastSubmittedPromptTime || 0;
+          if (curLast === urlPrompt && Date.now() - curTime < 4000) {
+            return;
+          }
+          (window as any).__lastSubmittedPrompt = urlPrompt;
+          (window as any).__lastSubmittedPromptTime = Date.now();
+          console.log('[ChatForm] Auto-submit ejecutado desde URL mount:', urlPrompt);
+          methods.setValue('text', urlPrompt, { shouldValidate: true });
+          submitMessage({ text: urlPrompt });
+        }, 600);
+
+        return () => clearTimeout(timer);
+      }
+    } catch (e) {
+      console.warn('[ChatForm] Error verificando query params en mount:', e);
+    }
+  }, [methods, submitMessage, textAreaRef]);
 
   const isMoreThanThreeRows = visualRowCount > 3;
 

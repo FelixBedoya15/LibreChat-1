@@ -387,7 +387,7 @@ export default function TenshiChat() {
     try {
       if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
         const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-        audioContextRef.current = new AudioContextClass({ sampleRate: 24000 });
+        audioContextRef.current = new AudioContextClass();
       }
       const ctx = audioContextRef.current;
       if (!ctx) return;
@@ -681,15 +681,20 @@ export default function TenshiChat() {
             const targetRoute = `/c/new${params.toString() ? `?${params.toString()}` : ''}`;
             navigate(targetRoute);
 
-            // Emitir evento para que ChatForm seleccione el agente, sincronice el texto y lo envíe
-            window.dispatchEvent(
-              new CustomEvent('tenshi-submit-agent-prompt', {
-                detail: {
-                  agentId: matchedAgent?.id,
-                  prompt: pregunta,
-                },
-              })
-            );
+            // Emitir evento inmediatamente y con reintentos para asegurar que ChatForm lo capture al montarse
+            const emitPromptEvent = () => {
+              window.dispatchEvent(
+                new CustomEvent('tenshi-submit-agent-prompt', {
+                  detail: {
+                    agentId: matchedAgent?.id,
+                    prompt: pregunta,
+                  },
+                })
+              );
+            };
+            emitPromptEvent();
+            setTimeout(emitPromptEvent, 350);
+            setTimeout(emitPromptEvent, 800);
 
             // Ocultar drawer si estaba abierto para dar paso a la vista del chat del especialista
             setIsOpen(false);
@@ -774,6 +779,22 @@ export default function TenshiChat() {
   const startVoiceMode = useCallback(() => {
     setIsVoiceActive(true);
     playChime();
+
+    // Desbloquear AudioContext dentro del evento de interacción del usuario (crítico para Safari y dispositivos móviles)
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContextClass) {
+        if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+          audioContextRef.current = new AudioContextClass();
+        }
+        if (audioContextRef.current.state === 'suspended') {
+          audioContextRef.current.resume().catch(console.warn);
+        }
+      }
+    } catch (e) {
+      console.warn('[Tenshi Voice] Error inicializando AudioContext en click:', e);
+    }
+
     lastActivityRef.current = Date.now();
     setVoiceStatusText('Conectando a Tenshi en vivo...');
     connectVoice();
@@ -804,6 +825,21 @@ export default function TenshiChat() {
       if (animFrame) cancelAnimationFrame(animFrame);
     };
   }, [isVoiceActive, getInputVolume]);
+
+  // Desbloqueo universal de audio para Safari / iOS en cualquier interacción del usuario
+  useEffect(() => {
+    const unlockAudio = () => {
+      if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+        audioContextRef.current.resume().catch(() => {});
+      }
+    };
+    window.addEventListener('click', unlockAudio);
+    window.addEventListener('touchstart', unlockAudio);
+    return () => {
+      window.removeEventListener('click', unlockAudio);
+      window.removeEventListener('touchstart', unlockAudio);
+    };
+  }, []);
 
   // ⏱️ Auto-desactivación por inactividad tras 1 minuto (60 segundos)
   useEffect(() => {
