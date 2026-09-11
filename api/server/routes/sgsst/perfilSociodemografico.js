@@ -1672,6 +1672,8 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
           workersToSave = currentList;
         }
       }
+    }
+
     // Auto-integrate pending EstudioPuestoTrabajo (EPT) for workers
     try {
       const EstudioPuestoTrabajo = mongoose.models.EstudioPuestoTrabajo || require('~/models/EstudioPuestoTrabajo');
