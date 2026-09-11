@@ -269,7 +269,7 @@ function buildWorkerSubHeader({ workerName, workerId, cargo, actividad, evaluati
   const modalityLabel = isAuto ? 'Auto-evaluación en línea (Cámara / Portátil)' : 'Evaluación Asistida (Inspector / Prevencionista SST)';
   const modalityPillBg = isAuto ? '#e0f2fe' : '#fef3c7';
   const modalityPillColor = isAuto ? '#0369a1' : '#92400e';
-  const evaluatorDisplay = isAuto ? 'Auto-reporte asistido por WAPPY Fisio IA' : (evaluatorName || 'Inspector SG-SST');
+  const evaluatorDisplay = isAuto ? 'Auto-reporte asistido por WAPPY IA' : (evaluatorName || 'Inspector SG-SST');
 
   return `
 <!-- Sub-Encabezado Oficial: Ficha Técnica y Caracterización del Puesto (EPT) -->

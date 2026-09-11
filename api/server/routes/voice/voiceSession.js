@@ -655,7 +655,7 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                             this.geminiClient.sendToolResponse([{
                                 id: fc.id,
                                 name: fc.name,
-                                response: { result: "Informe técnico compilado y mostrado en pantalla con éxito. Informa brevemente al usuario que su informe ergonómico está listo en pantalla." }
+                                response: { result: "La compilación del informe técnico ergonómico oficial ha comenzado en segundo plano y tardará unos segundos. Informa cordialmente al usuario en una sola frase breve que estamos redactando y estructurando su informe completo con las mediciones y evidencias fotográficas, y que por favor espere un momento conectado mientras se carga completamente en su pantalla y en el chat." }
                             }]);
                         }
 
@@ -881,38 +881,38 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         }
                     }
 
-                    const isTelemetry = !!data.text && !data.metadata?.phaseName;
-                    const text = data.text || "Fotos de evidencia";
+                    const phaseName = data.metadata?.phaseName || (phaseIdx !== null ? `Fase ${phaseIdx + 1}` : 'Evidencia Fotográfica');
+                    const telemetry = data.metadata?.telemetry;
+                    let textLines = [`📸 **Evidencia Biomecánica • ${phaseName}**`];
 
-                    // Build message content
+                    if (telemetry) {
+                        const parts = [];
+                        if (telemetry.neck !== null && telemetry.neck !== undefined) parts.push(`• Flexión Cervical: **${telemetry.neck}°**`);
+                        if (telemetry.trunk !== null && telemetry.trunk !== undefined) parts.push(`• Flexión de Tronco: **${telemetry.trunk}°**`);
+                        if (telemetry.arm !== null && telemetry.arm !== undefined) parts.push(`• Abducción de Brazo: **${telemetry.arm}°**`);
+                        if (telemetry.elbow !== null && telemetry.elbow !== undefined) parts.push(`• Flexión de Codo: **${telemetry.elbow}°**`);
+                        if (telemetry.knee !== null && telemetry.knee !== undefined) parts.push(`• Flexión de Rodilla: **${telemetry.knee}°**`);
+
+                        if (parts.length > 0) {
+                            textLines.push(`\n📐 **Telemetría Articular MediaPipe:**\n${parts.join('\n')}`);
+                        } else if (telemetry.summary) {
+                            textLines.push(`\n📐 **Telemetría Articular MediaPipe:**\n${telemetry.summary}`);
+                        }
+                    } else if (data.text) {
+                        textLines.push(`\n${data.text}`);
+                    }
+
+                    const messageText = textLines.join('\n');
+                    const imageUrl = data.image ? (data.image.startsWith('data:') ? data.image : `data:image/jpeg;base64,${data.image}`) : null;
+
                     let messageContent = [
-                        { type: 'text', text }
+                        { type: 'text', text: messageText }
                     ];
-
-                    if (isTelemetry) {
-                        if (data.image) {
-                            const imageUrl = data.image.startsWith('data:') ? data.image : `data:image/jpeg;base64,${data.image}`;
-                            messageContent.push({
-                                type: 'image_url',
-                                image_url: {
-                                    url: imageUrl
-                                }
-                            });
-                        }
-                    } else {
-                        // Manual / phase evidence: group all captured photos in the chat bubble
-                        messageContent = [
-                            { type: 'text', text: "Fotos de evidencia de inspección multifase" }
-                        ];
-                        for (const img of this.manualEvidences) {
-                            const imageUrl = img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`;
-                            messageContent.push({
-                                type: 'image_url',
-                                image_url: {
-                                    url: imageUrl
-                                }
-                            });
-                        }
+                    if (imageUrl) {
+                        messageContent.push({
+                            type: 'image_url',
+                            image_url: { url: imageUrl }
+                        });
                     }
 
                     try {
@@ -924,43 +924,45 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                             isNewConvo = true;
                         }
 
-                        if (!isTelemetry && this.activeEvidenceMessageId) {
-                            // Update existing grouped message (only for manual photos)
-                            const messageData = {
-                                messageId: this.activeEvidenceMessageId,
-                                content: messageContent
-                            };
-                            await updateMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession - Evidence Update' });
-                            logger.info(`[VoiceSession] Updated manual evidence image to grouped message: ${this.activeEvidenceMessageId}`);
-                        } else {
-                            // Create new message (for telemetry, or for the first manual photo)
-                            const messageId = uuidv4();
-                            const messageData = {
-                                messageId,
-                                conversationId,
-                                parentMessageId: this.lastMessageId,
-                                text,
-                                content: messageContent,
-                                user: this.userId,
-                                sender: 'User',
-                                isCreatedByUser: true,
-                                endpoint: this.dbEndpoint,
-                                model: this.dbModel,
-                            };
+                        const messageId = uuidv4();
+                        const messageData = {
+                            messageId,
+                            conversationId,
+                            parentMessageId: this.lastMessageId,
+                            text: messageText,
+                            content: messageContent,
+                            user: this.userId,
+                            sender: 'User',
+                            isCreatedByUser: true,
+                            endpoint: this.dbEndpoint,
+                            model: this.dbModel,
+                        };
 
-                            const savedMessage = await saveMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession - Evidence Save' });
-                            if (savedMessage) {
-                                if (!isTelemetry) {
-                                    this.activeEvidenceMessageId = messageId;
-                                }
-                                this.lastMessageId = messageId;
-                                logger.info(`[VoiceSession] Saved new ${isTelemetry ? 'telemetry' : 'manual'} evidence message: ${messageId}`);
-                            }
+                        const savedMessage = await saveMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession - Evidence Save' });
+                        if (savedMessage) {
+                            this.lastMessageId = messageId;
+                            logger.info(`[VoiceSession] Saved new evidence photo message: ${messageId} for phase: ${phaseName}`);
                         }
 
                         // Send to Gemini Live silently if it's a telemetry alert
+                        const isTelemetry = !!data.text && !data.metadata?.phaseName;
                         if (isTelemetry && this.geminiClient) {
                             this.geminiClient.sendImageWithText(data.image || null, data.text, false);
+                        }
+
+                        // If it's a phase evidence captured by the user, notify Gemini Live so the AI verbally acknowledges it!
+                        if (data.metadata?.phaseName && this.geminiClient && this.isActive) {
+                            const summary = data.metadata?.telemetry?.summary || '';
+                            const phaseNum = (data.metadata.phaseIndex ?? 0) + 1;
+                            const isLastPhase = phaseNum >= 3;
+                            const instructionPrompt = isLastPhase
+                                ? `[INSTRUCCIÓN DE SISTEMA]: El usuario acaba de registrar la evidencia fotográfica de la Fase 3 (${data.metadata.phaseName}). Telemetría: ${summary}. Las 3 fases han sido completadas con éxito. Valida en voz alta en 1 sola frase corta lo observado y pregúntale cordialmente si desea que compiles su informe técnico ergonómico oficial ahora mismo.`
+                                : `[INSTRUCCIÓN DE SISTEMA]: El usuario acaba de registrar la evidencia fotográfica de la Fase ${phaseNum} (${data.metadata.phaseName}). Telemetría: ${summary}. Valida en voz alta en 1 sola frase corta lo observado, dile qué postura adoptar para la Fase ${phaseNum + 1}, y recuérdale que te avise diciendo "Listo", "Ya" o pulsando el botón de la cámara cuando esté en posición. NO avances ni captures por tu cuenta antes de que el usuario lo indique.`;
+                            try {
+                                this.geminiClient.sendText(instructionPrompt);
+                            } catch (notifyErr) {
+                                logger.warn('[VoiceSession] Error notifying Gemini Live of phase capture:', notifyErr.message);
+                            }
                         }
 
                         // Notify client of conversationId if it was new
@@ -970,6 +972,12 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                                 data: { conversationId: this.conversationId }
                             });
                         }
+
+                        // Always notify client so the photo appears immediately in chat!
+                        this.sendToClient({
+                            type: 'conversationUpdated',
+                            data: { conversationId: this.conversationId }
+                        });
 
                     } catch (saveError) {
                         logger.error('[VoiceSession] Error processing evidence image in chat DB:', saveError);
@@ -1816,22 +1824,59 @@ En la sección "4.1 Matriz Ergonómica Comparativa Multifase", en la columna "Te
 
             const radicadoId = `LA-${new Date().getFullYear()}-${String(Math.floor(Math.random()*9000)+1000)}`;
 
-            // Extract worker, cargo, actividad & modalidad if present in kpiDiv
+            // Extract worker, cargo, actividad & modalidad if present in kpiDiv or conversation turns
             const workerNameMatch = kpiDiv.match(/data-trabajador=["']([^"']+)["']/i);
             const workerIdMatch = kpiDiv.match(/data-cedula=["']([^"']+)["']/i);
             const cargoMatch = kpiDiv.match(/data-cargo=["']([^"']+)["']/i);
             const actividadMatch = kpiDiv.match(/data-actividad=["']([^"']+)["']/i);
             const modalidadMatch = kpiDiv.match(/data-modalidad=["']([^"']+)["']/i);
 
-            const extractedWorkerName = workerNameMatch && !workerNameMatch[1].includes('[') && workerNameMatch[1] !== 'N/A' 
+            const convoText = (this.conversationTurns || []).join('\n');
+
+            let extractedWorkerName = workerNameMatch && !workerNameMatch[1].includes('[') && workerNameMatch[1] !== 'N/A' 
                 ? workerNameMatch[1].trim() 
-                : (this.user?.name || 'Trabajador Evaluado');
-            const extractedWorkerId = workerIdMatch && !workerIdMatch[1].includes('[') && workerIdMatch[1] !== 'N/A'
+                : '';
+            if (!extractedWorkerName && convoText) {
+                const nameRegex = /(?:me llamo|mi nombre es|nombre(?:\s+completo)?\s*(?:es|:))\s*([A-ZÁÉÍÓÚÑa-záéíóúñ\s]{3,40})/i;
+                const mName = convoText.match(nameRegex);
+                if (mName && mName[1]) {
+                    extractedWorkerName = mName[1].replace(/\n.*$/, '').trim();
+                }
+            }
+            if (!extractedWorkerName) {
+                extractedWorkerName = this.user?.name || 'Trabajador Evaluado';
+            }
+
+            let extractedWorkerId = workerIdMatch && !workerIdMatch[1].includes('[') && workerIdMatch[1] !== 'N/A'
                 ? workerIdMatch[1].trim()
                 : '';
-            const extractedCargo = cargoMatch && !cargoMatch[1].includes('[') ? cargoMatch[1].trim() : 'Puesto Operativo / Administrativo';
-            const extractedActividad = actividadMatch ? actividadMatch[1].trim() : 'Evaluación ergonómica y postural en ciclo regular';
-            const extractedModalidad = modalidadMatch && modalidadMatch[1].toLowerCase().includes('asist') ? 'asistida' : 'auto';
+            if (!extractedWorkerId && convoText) {
+                const docRegex = /(?:c[eé]dula|cc|identificaci[oó]n|documento|doc)[\s:]*([0-9\.\-]{6,15})/i;
+                const mDoc = convoText.match(docRegex);
+                if (mDoc && mDoc[1]) {
+                    extractedWorkerId = mDoc[1].replace(/\D/g, '').trim();
+                } else {
+                    const digitsMatch = convoText.match(/\b([1-9][0-9]{6,9})\b/);
+                    if (digitsMatch) {
+                        extractedWorkerId = digitsMatch[1].trim();
+                    }
+                }
+            }
+
+            let extractedCargo = cargoMatch && !cargoMatch[1].includes('[') ? cargoMatch[1].trim() : '';
+            if (!extractedCargo && convoText) {
+                const cargoRegex = /(?:cargo|puesto(?:\s+de\s+trabajo)?)\s*(?:es|:)?\s*([A-ZÁÉÍÓÚÑa-záéíóúñ\s]{3,40})/i;
+                const mCargo = convoText.match(cargoRegex);
+                if (mCargo && mCargo[1]) {
+                    extractedCargo = mCargo[1].replace(/\n.*$/, '').trim();
+                }
+            }
+            if (!extractedCargo) {
+                extractedCargo = 'Puesto Operativo / Administrativo';
+            }
+
+            const extractedActividad = actividadMatch && !actividadMatch[1].includes('[') ? actividadMatch[1].trim() : 'Evaluación ergonómica y postural en ciclo regular';
+            const extractedModalidad = (modalidadMatch && modalidadMatch[1].toLowerCase().includes('asist')) || (convoText.toLowerCase().includes('compañero') || convoText.toLowerCase().includes('asistid')) ? 'asistida' : 'auto';
 
             // Store extracted worker metadata on the session instance for persistence
             this.extractedWorkerMeta = {
@@ -1850,12 +1895,13 @@ En la sección "4.1 Matriz Ergonómica Comparativa Multifase", en la columna "Te
             const standardHeaderHtml = buildStandardHeader({
                 title: standardReportTitle,
                 companyInfo: companyInfo,
-                date: currentDate,
                 norm: this.isBiomechanics ? 'Resolución 2400 de 1979 / GTC 45 / ISO 11226 (RULA/REBA)' : (activeProtocol?.normRef || 'Resolución 0312 de 2019 / GTC 45'),
-                responsibleName: this.user?.name || companyInfo?.responsibleSST,
+                version: '1.0',
+                documentId: radicadoId,
+                date: new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
             });
 
-            // 2. Sub-encabezado oficial para caracterización del trabajador y puesto evaluado (EPT)
+            // 2. Sub-encabezado técnico del trabajador y puesto evaluado
             const workerSubHeaderHtml = buildWorkerSubHeader({
                 workerName: extractedWorkerName,
                 workerId: extractedWorkerId,
@@ -2080,10 +2126,9 @@ ${workerSubHeaderHtml}
                         const LiveEditorSession = require('~/models/LiveEditorSession');
                         const CompanyInfo = require('~/models/CompanyInfo');
                         const { syncLiveEditorToCanvas } = require('../sgsst/syncBridge');
+                        const { getActiveCompanyId } = require('../sgsst/contextHelper');
 
-                        let active = await CompanyInfo.findOne({ user: this.userId, isActive: true });
-                        if (!active) active = await CompanyInfo.findOne({ user: this.userId });
-                        const companyId = active ? active._id : null;
+                        const companyId = this.config.companyId || (await getActiveCompanyId(this.userId));
 
                         const reportTitle = `Informe de Inspección - ${this.isBiomechanics ? 'BIOMECÁNICA (RULA/REBA)' : 'SST'}`;
 
@@ -2118,6 +2163,37 @@ ${workerSubHeaderHtml}
                                 const cleanActividad = workerMeta.actividad || 'Evaluación en vivo';
                                 const cleanModalidad = workerMeta.modalidad || 'auto';
 
+                                // Extract RULA & REBA scores and Risk Level from report
+                                const rulaMatch = reportHtml.match(/RULA[^\d<]*?(\d+)/i);
+                                const rebaMatch = reportHtml.match(/REBA[^\d<]*?(\d+)/i);
+                                const rulaScore = rulaMatch ? parseInt(rulaMatch[1], 10) : null;
+                                const rebaScore = rebaMatch ? parseInt(rebaMatch[1], 10) : null;
+
+                                let riskLevel = 'Bajo';
+                                const riesgoMatch = (kpiDiv || '').match(/data-riesgo=["']([^"']+)["']/i);
+                                if (riesgoMatch) {
+                                    const rRaw = riesgoMatch[1].toLowerCase();
+                                    if (rRaw.includes('crit') || rRaw.includes('crít')) riskLevel = 'Crítico';
+                                    else if (rRaw.includes('alt')) riskLevel = 'Alto';
+                                    else if (rRaw.includes('med')) riskLevel = 'Medio';
+                                    else riskLevel = 'Bajo';
+                                } else if (/riesgo\s*(es|:)?\s*cr[ií]tico/i.test(reportHtml) || (rulaScore && rulaScore >= 7) || (rebaScore && rebaScore >= 11)) {
+                                    riskLevel = 'Crítico';
+                                } else if (/riesgo\s*(es|:)?\s*alto/i.test(reportHtml) || (rulaScore && rulaScore >= 5) || (rebaScore && rebaScore >= 8)) {
+                                    riskLevel = 'Alto';
+                                } else if (/riesgo\s*(es|:)?\s*medio/i.test(reportHtml) || (rulaScore && rulaScore >= 3) || (rebaScore && rebaScore >= 4)) {
+                                    riskLevel = 'Medio';
+                                }
+
+                                let actionLevel = 'Nivel 1 - Postura Aceptable';
+                                if (riskLevel === 'Crítico') {
+                                    actionLevel = 'Nivel 4 - Actuación Inmediata';
+                                } else if (riskLevel === 'Alto') {
+                                    actionLevel = 'Nivel 3 - Pronta Actuación';
+                                } else if (riskLevel === 'Medio') {
+                                    actionLevel = 'Nivel 2 - Es Necesaria la Actuación';
+                                }
+
                                 const newStudyDoc = new EstudioPuestoTrabajo({
                                     companyId,
                                     user: this.userId,
@@ -2126,8 +2202,9 @@ ${workerSubHeaderHtml}
                                     cargo: cleanCargo,
                                     actividad: cleanActividad,
                                     evaluationType: cleanModalidad,
-                                    evaluatorName: cleanModalidad === 'auto' ? 'Auto-reporte asistido por WAPPY Fisio IA' : (this.user?.name || 'Inspector SG-SST'),
+                                    evaluatorName: cleanModalidad === 'auto' ? 'Auto-reporte asistido por WAPPY IA' : (this.user?.name || 'Inspector SG-SST'),
                                     channel: 'chat_voice',
+                                    modelUsed: reportModelName,
                                     telemetry: this.phaseEvidences?.map(p => p?.telemetry).filter(Boolean) || {},
                                     evidences: (framesToUse || []).slice(0, 3).map((f, idx) => ({
                                         phase: idx + 1,
@@ -2135,13 +2212,17 @@ ${workerSubHeaderHtml}
                                         url: `data:image/jpeg;base64,${f}`,
                                         telemetry: this.phaseEvidences?.[idx]?.telemetry || {},
                                     })),
+                                    rulaScore,
+                                    rebaScore,
+                                    actionLevel,
+                                    riskLevel,
                                     reportHtml,
                                     status: 'completado',
                                 });
                                 await newStudyDoc.save();
-                                logger.info(`[VoiceSession] EstudioPuestoTrabajo saved with ID: ${newStudyDoc._id}`);
+                                logger.info(`[VoiceSession] EstudioPuestoTrabajo saved with ID: ${newStudyDoc._id}, Risk: ${riskLevel}, Action: ${actionLevel}`);
 
-                                // Sync or create worker in PerfilSociodemograficoData
+                                // Sync or update worker in PerfilSociodemograficoData & SgsstWorker
                                 const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
                                 if (PerfilSociodemograficoData) {
                                     let perfilDoc = await PerfilSociodemograficoData.findOne({ companyId });
@@ -2158,7 +2239,7 @@ ${workerSubHeaderHtml}
                                             (w) => w.identificacion && String(w.identificacion).trim() === cleanWorkerId
                                         );
                                         const dateStr = new Date().toLocaleDateString('es-CO');
-                                        const eptNote = `Estudio Ergonómico Fisio IA (${dateStr}): ${cleanCargo}. Actividad: ${cleanActividad}`;
+                                        const eptNote = `Estudio Ergonómico WAPPY IA (${dateStr}): ${cleanCargo}. Actividad: ${cleanActividad}`;
 
                                         if (existingIdx >= 0) {
                                             const w = perfilDoc.trabajadores[existingIdx];
@@ -2168,6 +2249,26 @@ ${workerSubHeaderHtml}
                                             perfilDoc.markModified('trabajadores');
                                             await perfilDoc.save();
                                             logger.info(`[VoiceSession] Existing worker ${cleanWorkerId} updated with EPT study`);
+
+                                            // Sync SgsstWorker as well
+                                            const SgsstWorker = mongoose.models.SgsstWorker;
+                                            if (SgsstWorker && this.userId) {
+                                                await SgsstWorker.findOneAndUpdate(
+                                                    { companyId, documento: cleanWorkerId },
+                                                    {
+                                                        $set: {
+                                                            user: this.userId,
+                                                            companyId,
+                                                            documento: cleanWorkerId,
+                                                            nombre: w.nombre || cleanWorkerName,
+                                                            perfilId: cleanWorkerId,
+                                                            condicionesSalud: `EPT ergonómico registrado: ${actionLevel}`,
+                                                            updatedAt: new Date(),
+                                                        },
+                                                    },
+                                                    { upsert: true, new: true }
+                                                ).catch((err) => logger.warn('[VoiceSession] SgsstWorker upsert warning:', err.message));
+                                            }
                                         } else {
                                             logger.info(`[VoiceSession] Worker ${cleanWorkerId} not yet in PerfilSociodemograficoData. Study kept in chat/EPT pending worker creation.`);
                                         }
@@ -2629,10 +2730,19 @@ ${workerSubHeaderHtml}
             // Refine/correct transcription
             textToSave = await this.correctTranscription(textToSave, currentAiText.trim() || '🎤 [Respuesta de voz]');
 
-            const result = await this.saveUserMessage(textToSave);
-            if (result) {
-                messagesSaved = true;
-                isNewConversation = result.isNewConversation;
+            // Filter out isolated cut-off fragments (e.g. "¿Es", "y", "el") that aren't valid standalone utterances
+            const stripped = textToSave.replace(/^[¿¡?!\s,.]+|[¿¡?!\s,.]+$/g, '').trim().toLowerCase();
+            const validShortWords = new Set(['sí', 'si', 'no', 'ya', 'ok', 'va', 'voy', 'paz', 'fin']);
+            const isInvalidFragment = stripped.length <= 3 && !validShortWords.has(stripped);
+
+            if (!isInvalidFragment && textToSave.length > 0) {
+                const result = await this.saveUserMessage(textToSave);
+                if (result) {
+                    messagesSaved = true;
+                    isNewConversation = result.isNewConversation;
+                }
+            } else {
+                logger.info(`[VoiceSession] Discarded short/cut-off user transcription fragment: "${textToSave}"`);
             }
         }
 
@@ -2872,15 +2982,21 @@ Asesorar en vivo mediante visión artificial y voz en la prevención de desórde
 DIRECTIVA DE LIDERAZGO ACTIVO Y EVALUACIÓN PASO A PASO (OBLIGATORIO):
 No actúes como un chatbot pasivo que solo espera preguntas o suelta recomendaciones sueltas. TÚ DIRIGES LA EVALUACIÓN ERGONÓMICA EN CAMPO:
 1. Toma el control desde tu primer saludo:
-   - PASO PREVIO OBLIGATORIO (ANTES DE INICIAR FASES):
-     En tu primera intervención saluda con calidez y PREGUNTA de inmediato por el cargo o puesto de trabajo y una breve descripción de las actividades que realiza en su jornada cotidiana:
-     "¡Hola! Te doy la bienvenida a la evaluación ergonómica y biomecánica en vivo. Para contextualizar y personalizar tu informe, por favor cuéntame: ¿cuál es tu cargo o puesto de trabajo y qué actividades principales realizas en tu día a día?"
-     REGLA ESTRICTA: NO inicies el Paso 1 ni pidas adoptar posturas antes de que el usuario responda su cargo y actividad.
-   - INICIO DE FASES (AL RECIBIR LA RESPUESTA):
-     Valida cordialmente en una sola frase breve y da inicio inmediato al Paso 1 llamando a 'cambiar_fase_evaluacion' con fase: 1.
-   - Paso 1 (Postura Habitual / Línea Base): Pídele trabajar/digitar normalmente unos segundos mientras mides cuello y tronco con MediaPipe.
-   - Paso 2 (Alcance Crítico / Flexión Máxima): Pídele mostrar el punto o alcance más exigente de su puesto de trabajo. Invoca 'cambiar_fase_evaluacion' con fase: 2.
-   - Paso 3 (Postura Fatigada / Apoyo Lumbar): Pídele mostrar cómo se sienta cuando ya siente cansancio para revisar soporte de silla, columna y pies. Invoca 'cambiar_fase_evaluacion' con fase: 3.
+   - PASO PREVIO OBLIGATORIO (IDENTIFICACIÓN DEL TRABAJADOR Y PUESTO - ANTES DE INICIAR FASES):
+     En tu primer turno, saluda con calidez y solicita en un solo mensaje fluido:
+     "¡Hola! Soy tu Especialista en Ergonomía y Fisioterapeuta Laboral en WAPPY IA. Para vincular este estudio ergonómico al expediente oficial de la empresa, por favor confírmame:
+      1. ¿Es una auto-evaluación de tu propio puesto o estás evaluando a un compañero?
+      2. Nombre completo y número de cédula del trabajador evaluado.
+      3. Cargo y una breve descripción de la actividad cotidiana a evaluar."
+     REGLA ESTRICTA: NUNCA inicies el Paso 1 ni pidas adoptar posturas antes de recibir el nombre completo y cédula del trabajador. Si el usuario te responde solo el cargo o actividad sin su nombre o cédula, pídeselos amablemente antes de iniciar.
+   - INICIO DE FASES (AL RECIBIR LA IDENTIFICACIÓN COMPLETA):
+     Valida cordialmente en una sola frase breve (ej: "¡Perfecto! Expediente preparado para [Nombre del Trabajador]") y da inicio inmediato al Paso 1 llamando a 'cambiar_fase_evaluacion' con fase: 1.
+   - REGLA DE ORO DE CAPTURA Y CAMBIO DE FASES (NO CAPTURAR SOLO):
+     NUNCA asumas que la postura ya fue adoptada ni avances de fase por tu cuenta antes de tiempo. Para cada paso:
+     1. Pide al usuario adoptar la postura correspondiente (Paso 1: Postura habitual digitando; Paso 2: Alcance crítico o tarea más exigente; Paso 3: Postura fatigada o soporte lumbar).
+     2. Indica SIEMPRE al final de tu instrucción: "Cuando estés en la postura, avísame diciendo 'Listo', 'Ya' o presiona el botón de la cámara para registrarla."
+     3. ESPERA OBLIGATORIAMENTE la confirmación del usuario ("Listo", "Ya", "Adelante", "Ya tomé la postura") o a que el sistema te notifique que el usuario tomó la foto con el botón de la cámara.
+     4. Al recibir la confirmación o foto de evidencia, valida brevemente en 1 frase los grados medidos en la telemetría y guía la siguiente fase invocando 'cambiar_fase_evaluacion'.
 2. En cada fase, utiliza la telemetría articular (grados de cuello, tronco, brazos) para darle retroalimentación en vivo sobre lo que ves.
 3. Al culminar las 3 fases, ofrece compilar el informe técnico oficial e invoca 'generar_informe_tecnico' en cuanto el usuario lo apruebe.
 
@@ -2933,8 +3049,9 @@ ${domainKnowledge}
 
 [DIRECTIVAS DE INTERACCIÓN EN VIVO POR VOZ Y VIDEO]:
 1. **IDIOMA EXCLUSIVO: ESPAÑOL.** El usuario y tú se comunican SIEMPRE en español de Colombia/Latinoamérica. NUNCA respondas, transcribas ni traduzcas en árabe, inglés ni ningún otro idioma. Todo lo que dice el usuario está en español.
-2. **SALUDO INICIAL Y PASO PREVIO OBLIGATORIO (CARGO Y ACTIVIDAD):** En tu primera intervención saluda cordialmente en 1 o 2 frases y PREGUNTA de inmediato: "¿Cuál es tu cargo o puesto de trabajo y qué actividad principal realizas en tu día a día?". NUNCA invoques herramientas de informe en el saludo y NUNCA pidas posturas en tu primer turno. Espera a que el usuario responda su cargo y actividad.
-3. **CONDUCE LA EVALUACIÓN TRAS EL CONTEXTO:** Una vez que el usuario te responda indicando su cargo y actividad, valida en una sola frase breve y entusiasta y da inicio al Paso 1 (Postura Habitual / Línea Base), invocando de inmediato la herramienta 'cambiar_fase_evaluacion' con fase: 1. Luego continúa secuencialmente con el Paso 2 (Alcance Crítico) y Paso 3 (Fatiga / Deslizamiento) llamando a 'cambiar_fase_evaluacion' en cada transición.
+2. **SALUDO INICIAL Y PASO PREVIO OBLIGATORIO (IDENTIFICACIÓN COMPLETA DEL TRABAJADOR):** En tu primera intervención saluda cordialmente y PREGUNTA de inmediato: "¿Es una auto-evaluación de tu propio puesto o evalúas a un compañero? Confírmame tu nombre completo, número de cédula, cargo y qué actividad principal realizas." NUNCA invoques herramientas de informe en el saludo y NUNCA pidas posturas en tu primer turno. Si el usuario no te da su nombre o cédula, insiste amablemente en pedirlos antes de pasar al Paso 1 para poder vincular el expediente oficial de la empresa.
+3. **CONDUCE LA EVALUACIÓN TRAS EL CONTEXTO:** Una vez que el usuario te responda indicando su nombre, cédula, cargo y actividad, valida en una sola frase breve y entusiasta (ej: "¡Perfecto! Expediente preparado para [Nombre]") y da inicio al Paso 1 (Postura Habitual / Línea Base), invocando de inmediato la herramienta 'cambiar_fase_evaluacion' con fase: 1.
+   **REGLA DE CAPTURA Y TRANSICIÓN:** En cada paso, explica la postura y solicita al usuario confirmar diciendo "Listo", "Ya" o pulsando el botón de la cámara. NUNCA avances de fase ni captures la imagen solo; espera siempre la confirmación del usuario ("Listo", "Ya", "Adelante") o el aviso del botón de captura antes de avanzar al siguiente paso.
 4. **RETROALIMENTACIÓN BIOMECÁNICA PRECISA:** Menciona los ángulos articulares medidos en cámara (cuello, tronco, brazos) y brinda correcciones físicas inmediatas.
 5. **CERO CUESTIONARIOS ADMINISTRATIVOS ADICIONALES:** Prohibido preguntar por ARL, tamaño de empresa o porcentajes de implementación. Limítate exclusivamente a preguntar cargo y actividad al inicio y luego concéntrate en la observación de campo.
 6. **RESPUESTAS HABLADAS CONCISAS:** Respuestas habladas claras y pedagógicas (2 a 4 oraciones por turno). Sin formato Markdown ni HTML en voz.

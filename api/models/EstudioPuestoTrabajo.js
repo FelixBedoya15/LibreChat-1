@@ -55,7 +55,7 @@ const estudioPuestoTrabajoSchema = new mongoose.Schema(
     },
     evaluatorName: {
       type: String,
-      default: 'Auto-reporte asistido por WAPPY Fisio IA',
+      default: 'Auto-reporte asistido por WAPPY IA',
     },
     channel: {
       type: String,

@@ -104,7 +104,7 @@ export const PHASE_CATEGORIES = {
             normativity: 'Hito 4: Dinámica Operativa y Terreno' 
         },
         { 
-            id: 'estudio_puesto', title: 'Estudio de Puesto de Trabajo (EPT Fisio IA)', icon: 'Activity',
+            id: 'estudio_puesto', title: 'Estudio de Puesto de Trabajo (EPT)', icon: 'Activity',
             bioRationale: 'Evaluación postural y biomecánica en vivo mediante visión artificial MediaPipe, RULA/REBA, Live Editor y código QR de auto-evaluación.', 
             normativity: 'Hito 4: Dinámica Operativa y Terreno (Res. 2400 / ISO 11226)' 
         },

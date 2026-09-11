@@ -184,12 +184,14 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
 
     const capturePhaseEvidenceRef = useRef<((phaseIdx?: number, isAuto?: boolean) => void) | null>(null);
     const autoCapturedPhasesRef = useRef<Set<number>>(new Set());
+    const manualCapturedPhasesRef = useRef<Set<number>>(new Set());
 
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const videoIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
     const transcriptTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const manualPhotosCountRef = useRef<number>(0);
+    const lastVoiceCaptureTimeRef = useRef<number>(0);
 
     // Biomechanics vison-AI states and refs
     const [neckAngle, setNeckAngle] = useState<number | null>(null);
@@ -275,23 +277,15 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                 console.log('[VoiceModal] User transcription:', text);
                 setLastUserTranscript(text);
                 if (transcriptTimeoutRef.current) clearTimeout(transcriptTimeoutRef.current);
-            } else if (text) {
-                // AI text response: check for explicit phase advancement commands spoken by AI
-                const lower = text.toLowerCase();
-                let targetIdx: number | null = null;
-                if (/(?:pasemos|vamos|avancemos|iniciemos|comencemos|pasa|pasar|ve\s+al|cambiemos)\s+(?:al\s+|a\s+la\s+)?(?:paso|fase)\s*2\b/i.test(lower)) {
-                    targetIdx = 1;
-                } else if (/(?:pasemos|vamos|avancemos|iniciemos|comencemos|pasa|pasar|ve\s+al|cambiemos)\s+(?:al\s+|a\s+la\s+)?(?:paso|fase)\s*3\b/i.test(lower)) {
-                    targetIdx = 2;
-                } else if (/(?:regresemos|volver|volvamos|reiniciemos)\s+(?:al\s+|a\s+la\s+)?(?:paso|fase)\s*1\b/i.test(lower)) {
-                    targetIdx = 0;
-                }
 
-                if (targetIdx !== null && targetIdx !== currentPhaseIndexRef.current) {
-                    console.log(`[VoiceModal] AI voice cue triggered phase transition: ${currentPhaseIndexRef.current} -> ${targetIdx}`);
-                    // Secure capture of current phase before advancing
-                    capturePhaseEvidenceRef.current?.(currentPhaseIndexRef.current, true);
-                    setCurrentPhaseIndex(targetIdx);
+                // Check for user verbal confirmation to capture current posture and advance:
+                // "listo", "ya", "adelante", "ya tomé la postura", "ya estoy listo", "ya me ubiqué", "ya está", "toma la foto", "captura", "dale", "de una"
+                const userVoiceCaptureRegex = /\b(listo|ya\s+estoy(\s+listo)?|ya|adelante|ya\s+me\s+ubiqu[eé]|ya\s+tom[eé]\s+(la\s+)?postura|toma\s+(la\s+)?foto|captura(r)?|dale|de\s+una)\b/i;
+                const now = Date.now();
+                if (userVoiceCaptureRegex.test(text) && isCameraOn && (now - lastVoiceCaptureTimeRef.current > 3500)) {
+                    lastVoiceCaptureTimeRef.current = now;
+                    console.log('[VoiceModal] User verbal confirmation matched ("' + text + '"): capturing current phase posture and advancing');
+                    capturePhaseEvidenceRef.current?.(currentPhaseIndexRef.current, false);
                 }
             }
         },
@@ -303,13 +297,13 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                     if (requestedPhase === 1) {
                         // Starting a new inspection cycle: clear previous photo caches
                         autoCapturedPhasesRef.current.clear();
+                        manualCapturedPhasesRef.current.clear();
                         manualPhotosCountRef.current = 0;
                         setManualCapturedPhotos([]);
                     }
                     const targetIdx = requestedPhase - 1;
                     if (targetIdx !== currentPhaseIndexRef.current) {
-                        console.log(`[VoiceModal] Wappy action changed phase to: ${targetIdx + 1}`);
-                        capturePhaseEvidenceRef.current?.(currentPhaseIndexRef.current, true);
+                        console.log(`[VoiceModal] Wappy action updated active phase tab to: ${targetIdx + 1}`);
                         setCurrentPhaseIndex(targetIdx);
                     }
                 }
@@ -322,6 +316,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             setReportSuccess(true);
             // Reset capture buffers so subsequent inspections in the same session capture fresh photos
             autoCapturedPhasesRef.current.clear();
+            manualCapturedPhasesRef.current.clear();
             manualPhotosCountRef.current = 0;
             setManualCapturedPhotos([]);
             if (html && html.length > 30 && !html.includes('⚠️ Error de Generación')) {
@@ -347,8 +342,11 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             console.log('[VoiceModal] Status changed:', newStatus);
             if (newStatus === 'generating_report') {
                 setIsGeneratingReport(true);
-                // Secure capture of current phase immediately so report prompt has complete evidence
-                capturePhaseEvidenceRef.current?.(currentPhaseIndexRef.current, true);
+                // Secure capture of current phase only if neither manual nor auto evidence was taken yet
+                const curIdx = currentPhaseIndexRef.current;
+                if (!manualCapturedPhasesRef.current.has(curIdx) && !autoCapturedPhasesRef.current.has(curIdx)) {
+                    capturePhaseEvidenceRef.current?.(curIdx, true);
+                }
             } else if (newStatus === 'listening') {
                 if (transcriptTimeoutRef.current) clearTimeout(transcriptTimeoutRef.current);
                 transcriptTimeoutRef.current = setTimeout(() => {
@@ -501,6 +499,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             setManualCapturedPhotos([]);
             manualPhotosCountRef.current = 0;
             autoCapturedPhasesRef.current.clear();
+            manualCapturedPhasesRef.current.clear();
             setLastUserTranscript('');
             setZoom(1);
         }
@@ -681,6 +680,44 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                 if (isBiomechanicsAgent && canvasRef.current) {
                     ctx.drawImage(canvasRef.current, 0, 0, targetW, targetH);
                 }
+
+                if (isBiomechanicsAgent) {
+                    const currentAngles = anglesRef.current || {};
+                    const proto = activeProtocolRef.current;
+                    const phase = proto.phases[currentPhaseIndexRef.current] || proto.phases[0];
+                    const phaseTitle = (phase?.name || `Fase ${currentPhaseIndexRef.current + 1}`).toUpperCase();
+
+                    const nAngle = currentAngles.neck;
+                    const tAngle = currentAngles.trunk;
+                    const aAngle = currentAngles.arm;
+                    const eAngle = currentAngles.elbow;
+
+                    const bannerH = 46;
+                    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+                    ctx.fillRect(0, targetH - bannerH, targetW, bannerH);
+
+                    // Cyan accent top line
+                    ctx.fillStyle = '#06b6d4';
+                    ctx.fillRect(0, targetH - bannerH, targetW, 2);
+
+                    // Phase label
+                    ctx.font = 'bold 12px sans-serif';
+                    ctx.fillStyle = '#22d3ee';
+                    ctx.fillText(`📐 ${phaseTitle}`, 12, targetH - bannerH + 18);
+
+                    // Angle metrics
+                    const metrics: string[] = [];
+                    if (nAngle !== null && nAngle !== undefined) metrics.push(`Cuello: ${nAngle}°`);
+                    if (tAngle !== null && tAngle !== undefined) metrics.push(`Tronco: ${tAngle}°`);
+                    if (aAngle !== null && aAngle !== undefined) metrics.push(`Brazo: ${aAngle}°`);
+                    if (eAngle !== null && eAngle !== undefined) metrics.push(`Codo: ${eAngle}°`);
+
+                    ctx.font = '11px sans-serif';
+                    ctx.fillStyle = '#f8fafc';
+                    const metricsStr = metrics.length > 0 ? metrics.join('  •  ') : 'Telemetría MediaPipe Activa';
+                    ctx.fillText(metricsStr, 12, targetH - bannerH + 34);
+                }
+
                 const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
                 console.log(`[VoiceModal] Snapshot captured and scaled: ${targetW}x${targetH} (original: ${w}x${h}, zoom: ${zoom}x)`);
                 return dataUrl;
@@ -1058,6 +1095,11 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         if (!isCameraOn && !isScreenSharing) return;
 
         const targetPhaseIdx = phaseIdx !== undefined ? phaseIdx : currentPhaseIndexRef.current;
+        if (isAuto && manualCapturedPhasesRef.current.has(targetPhaseIdx)) {
+            console.log(`[VoiceModal] Skipping auto-capture for phase ${targetPhaseIdx} because user already manually captured it.`);
+            return;
+        }
+
         const proto = activeProtocolRef.current;
         const phase = proto.phases[targetPhaseIdx] || proto.phases[0];
         const perspective = capturePerspectiveRef.current || 'Auto-evaluación';
@@ -1066,6 +1108,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         if (!dataUrl) return;
 
         if (!isAuto) {
+            manualCapturedPhasesRef.current.add(targetPhaseIdx);
             // Trigger visual flash only on user click
             setIsFlashActive(true);
             setTimeout(() => setIsFlashActive(false), 250);
@@ -1136,20 +1179,6 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     useEffect(() => {
         capturePhaseEvidenceRef.current = capturePhaseEvidence;
     }, [capturePhaseEvidence]);
-
-    // Auto-capture stabilization timer: captures each phase after ~5 seconds if not yet captured
-    useEffect(() => {
-        if (!isCameraOn && !isScreenSharing) return;
-
-        const timer = setTimeout(() => {
-            if (!autoCapturedPhasesRef.current.has(currentPhaseIndex)) {
-                console.log(`[VoiceModal] Auto-capturing stabilized posture for phase ${currentPhaseIndex}`);
-                capturePhaseEvidenceRef.current?.(currentPhaseIndex, true);
-            }
-        }, 5000);
-
-        return () => clearTimeout(timer);
-    }, [currentPhaseIndex, isCameraOn, isScreenSharing]);
 
     const handleManualCapture = useCallback(() => {
         if (!isCameraOn && !isScreenSharing) return;

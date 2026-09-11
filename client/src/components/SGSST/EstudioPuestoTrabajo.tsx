@@ -122,12 +122,11 @@ export default function EstudioPuestoTrabajo() {
   // Load Active Company Info
   const loadCompanyInfo = async () => {
     try {
-      const res = await fetch('/api/sgsst/company-info/active');
+      const res = await fetch('/api/sgsst/company-info');
       if (res.ok) {
-        const data = await res.json();
-        const comp = data.companyInfo || data;
-        setCompanyInfo(comp);
-        if (comp._id) {
+        const comp = await res.json();
+        if (comp && comp._id) {
+          setCompanyInfo(comp);
           setActiveCompanyId(comp._id);
         }
       }
@@ -238,7 +237,7 @@ export default function EstudioPuestoTrabajo() {
         cargo: newStudyForm.cargo,
         actividad: newStudyForm.actividad || 'Evaluación dimensional de puesto y postura',
         evaluationType: newStudyForm.evaluationType,
-        evaluatorName: newStudyForm.evaluatorName || (newStudyForm.evaluationType === 'auto' ? 'Auto-reporte asistido por WAPPY Fisio IA' : user?.name),
+        evaluatorName: newStudyForm.evaluatorName || (newStudyForm.evaluationType === 'auto' ? 'Auto-reporte asistido por WAPPY IA' : user?.name),
         riskLevel: newStudyForm.riskLevel,
         rulaScore: newStudyForm.rulaScore,
         rebaScore: newStudyForm.rebaScore,
@@ -319,7 +318,7 @@ export default function EstudioPuestoTrabajo() {
       {/* ─── TOOLBAR SUPERIOR ESTÁNDAR ───────────────────────────────────── */}
       <SGSSTToolbar
         activeModule="estudio_puesto"
-        moduleTitle="Estudios de Puesto de Trabajo (EPT Fisio IA)"
+        moduleTitle="Estudios de Puesto de Trabajo (EPT)"
         companyInfo={companyInfo}
         onCompanyChange={(newComp) => {
           setCompanyInfo(newComp);
@@ -812,7 +811,7 @@ export default function EstudioPuestoTrabajo() {
                       type="text"
                       placeholder={
                         newStudyForm.evaluationType === 'auto'
-                          ? 'Auto-reporte asistido por WAPPY Fisio IA'
+                          ? 'Auto-reporte asistido por WAPPY IA'
                           : user?.name || 'Inspector SG-SST'
                       }
                       value={newStudyForm.evaluatorName}

@@ -113,6 +113,8 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
     const currentPhaseRef = useRef(currentPhase);
     currentPhaseRef.current = currentPhase;
+    const currentPhaseIndexRef = useRef(currentPhaseIndex);
+    currentPhaseIndexRef.current = currentPhaseIndex;
     const capturePerspectiveRef = useRef(capturePerspective);
     capturePerspectiveRef.current = capturePerspective;
     const activeProtocolRef = useRef(activeProtocol);
@@ -395,6 +397,49 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                 const sx = (w - sw) / 2;
                 const sy = (h - sh) / 2;
                 ctx.drawImage(video, sx, sy, sw, sh, 0, 0, targetW, targetH);
+
+                const isBiomech = selectedTemplate === 'biomecanico_mediapipe' || activeProtocolRef.current?.id === 'biomecanico';
+                if (isBiomech && canvasRef.current) {
+                    ctx.drawImage(canvasRef.current, 0, 0, targetW, targetH);
+                }
+
+                if (isBiomech) {
+                    const currentAngles = anglesRef.current || {};
+                    const proto = activeProtocolRef.current;
+                    const phase = proto?.phases?.[currentPhaseIndexRef.current] || proto?.phases?.[0];
+                    const phaseTitle = (phase?.name || `Fase ${currentPhaseIndexRef.current + 1}`).toUpperCase();
+
+                    const nAngle = currentAngles.neck;
+                    const tAngle = currentAngles.trunk;
+                    const aAngle = currentAngles.arm;
+                    const eAngle = currentAngles.elbow;
+
+                    const bannerH = 46;
+                    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+                    ctx.fillRect(0, targetH - bannerH, targetW, bannerH);
+
+                    // Cyan accent top line
+                    ctx.fillStyle = '#06b6d4';
+                    ctx.fillRect(0, targetH - bannerH, targetW, 2);
+
+                    // Phase label
+                    ctx.font = 'bold 12px sans-serif';
+                    ctx.fillStyle = '#22d3ee';
+                    ctx.fillText(`📐 ${phaseTitle}`, 12, targetH - bannerH + 18);
+
+                    // Angle metrics
+                    const metrics: string[] = [];
+                    if (nAngle !== null && nAngle !== undefined) metrics.push(`Cuello: ${nAngle}°`);
+                    if (tAngle !== null && tAngle !== undefined) metrics.push(`Tronco: ${tAngle}°`);
+                    if (aAngle !== null && aAngle !== undefined) metrics.push(`Brazo: ${aAngle}°`);
+                    if (eAngle !== null && eAngle !== undefined) metrics.push(`Codo: ${eAngle}°`);
+
+                    ctx.font = '11px sans-serif';
+                    ctx.fillStyle = '#f8fafc';
+                    const metricsStr = metrics.length > 0 ? metrics.join('  •  ') : 'Telemetría MediaPipe Activa';
+                    ctx.fillText(metricsStr, 12, targetH - bannerH + 34);
+                }
+
                 const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
                 console.log(`[LiveAnalysisModal] Snapshot captured and scaled: ${targetW}x${targetH} (original: ${w}x${h}, zoom: ${zoom}x)`);
                 return dataUrl;
@@ -1103,7 +1148,20 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             telemetryText = `[Captura de Evidencia Técnica • ${proto.title} • ${phase.name} • Perspectiva: ${perspective} • Enfoque: ${phase.focus}] Evidencia fotográfica registrada en el ciclo de inspección.`;
         }
 
-        sendEvidenceImage(base64, telemetryText);
+        const metadata = {
+            phaseIndex: currentPhaseIndexRef.current,
+            phaseName: phase.name,
+            telemetry: {
+                neck: nAngle,
+                trunk: tAngle,
+                arm: aAngle,
+                elbow: eAngle,
+                knee: kAngle,
+                summary: telemetryParts.join(' • ')
+            }
+        };
+
+        sendEvidenceImage(base64, telemetryText, metadata);
 
         // Auto-advance to next phase if not at last phase
         setCurrentPhaseIndex((prev) => (prev < proto.phases.length - 1 ? prev + 1 : prev));
