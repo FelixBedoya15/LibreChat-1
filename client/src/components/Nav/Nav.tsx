@@ -246,6 +246,8 @@ const Nav = memo(
             zIndex: 1000,
             width: navVisible ? navWidth : '0px',
             transform: navVisible ? 'translateX(0)' : 'translateX(-100%)',
+            paddingTop: isSmallScreen ? 'max(env(safe-area-inset-top, 0px), 20px)' : undefined,
+            paddingBottom: isSmallScreen ? 'max(env(safe-area-inset-bottom, 0px), 16px)' : undefined,
           }}
           onMouseEnter={() => setIsHovering(true)}
           onMouseLeave={() => setIsHovering(false)}

@@ -3,13 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useSetRecoilState, useRecoilValue } from 'recoil';
 import type { Dispatch, SetStateAction } from 'react';
 import { motion } from 'framer-motion';
-import {
-  PanelLeft,
-  GraduationCap,
-  Plus,
-  ShieldCheck,
-  PanelRight,
-} from 'lucide-react';
+import { GraduationCap, Plus, ShieldCheck } from 'lucide-react';
 import store from '~/store';
 import { cn } from '~/utils';
 
@@ -17,6 +11,50 @@ interface MobileBottomNavProps {
   navVisible?: boolean;
   setNavVisible?: Dispatch<SetStateAction<boolean>>;
 }
+
+// Icono innovador para el Panel Izquierdo (Menú / Navegación)
+const LeftPanelIcon = ({ active }: { active: boolean }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    className={cn(
+      'h-5 w-5 transition-all duration-200',
+      active ? 'text-teal-500 scale-105' : 'text-text-secondary hover:text-text-primary',
+    )}
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="4" width="18" height="16" rx="4" />
+    <path d="M9 4.5v15" strokeWidth="2" className={active ? 'stroke-teal-500' : 'stroke-currentColor'} />
+    <circle cx="6" cy="9" r="0.9" fill="currentColor" />
+    <circle cx="6" cy="12" r="0.9" fill="currentColor" />
+    <circle cx="6" cy="15" r="0.9" fill="currentColor" />
+  </svg>
+);
+
+// Icono innovador para el Panel Derecho (Herramientas / Side Panel)
+const RightPanelIcon = ({ active }: { active: boolean }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    className={cn(
+      'h-5 w-5 transition-all duration-200',
+      active ? 'text-teal-500 scale-105' : 'text-text-secondary hover:text-text-primary',
+    )}
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="4" width="18" height="16" rx="4" />
+    <path d="M15 4.5v15" strokeWidth="2" className={active ? 'stroke-teal-500' : 'stroke-currentColor'} />
+    <circle cx="18" cy="9" r="0.9" fill="currentColor" />
+    <circle cx="18" cy="12" r="0.9" fill="currentColor" />
+    <circle cx="18" cy="15" r="0.9" fill="currentColor" />
+  </svg>
+);
 
 function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
   const navigate = useNavigate();
@@ -96,48 +134,51 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
   };
 
   return (
-    <nav
-      id="wappy-mobile-bottom-nav"
-      aria-label="Navegación principal móvil"
+    <div
+      id="wappy-mobile-bottom-nav-wrapper"
+      className={cn(
+        'md:hidden flex-shrink-0 w-full z-40 px-3 transition-all duration-200 ease-out',
+        isKeyboardOpen
+          ? 'max-h-0 opacity-0 pointer-events-none overflow-hidden pb-0'
+          : 'max-h-24 opacity-100 pointer-events-auto overflow-visible',
+      )}
       style={{
         paddingBottom: isKeyboardOpen
           ? '0px'
-          : 'max(6px, calc(env(safe-area-inset-bottom, 0px) - 8px))',
+          : 'max(8px, calc(env(safe-area-inset-bottom, 0px) - 6px))',
       }}
-      className={cn(
-        'md:hidden flex-shrink-0 w-full z-40',
-        'bg-surface-primary/95 text-text-primary backdrop-blur-xl',
-        'border-t border-border-medium/35',
-        'shadow-[0_-2px_12px_rgba(0,0,0,0.04)] dark:shadow-[0_-2px_18px_rgba(0,0,0,0.25)]',
-        'transition-all duration-200 ease-out',
-        isKeyboardOpen
-          ? 'max-h-0 opacity-0 pointer-events-none overflow-hidden border-t-0'
-          : 'max-h-20 opacity-100 pointer-events-auto overflow-visible',
-      )}
     >
-      <div className="flex items-center justify-between px-2 pt-1 pb-0.5 max-w-md mx-auto relative">
+      <nav
+        aria-label="Navegación principal móvil"
+        className={cn(
+          'relative flex items-center justify-between px-2 py-1 max-w-md mx-auto',
+          'bg-surface-primary/90 dark:bg-surface-primary/95 text-text-primary backdrop-blur-2xl',
+          'rounded-2xl border border-border-medium/50',
+          'shadow-[0_8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.45)]',
+        )}
+      >
         {/* 1. EXTREMO IZQUIERDO: PANEL IZQUIERDO (SIN TEXTO) */}
         <motion.button
-          whileTap={{ scale: 0.9 }}
+          whileTap={{ scale: 0.88 }}
           onClick={toggleLeftPanel}
           aria-label="Abrir panel izquierdo"
           className={cn(
-            'flex items-center justify-center flex-1 py-2 px-1 rounded-xl transition-colors',
+            'flex items-center justify-center flex-1 py-2 px-1 rounded-xl transition-all',
             navVisible
-              ? 'text-teal-600 dark:text-teal-400'
-              : 'text-text-secondary hover:text-text-primary',
+              ? 'bg-teal-500/10 text-teal-500'
+              : 'hover:bg-surface-hover active:bg-surface-hover/80',
           )}
         >
-          <PanelLeft className="h-[22px] w-[22px] transition-transform duration-150" />
+          <LeftPanelIcon active={!!navVisible} />
         </motion.button>
 
         {/* 2. MANO IZQUIERDA: ACADEMIA */}
         <motion.button
-          whileTap={{ scale: 0.9 }}
+          whileTap={{ scale: 0.88 }}
           onClick={() => navigate('/academia')}
           aria-label="Ir a Academia WAPPY"
           className={cn(
-            'flex flex-col items-center justify-center flex-1 py-0.5 px-0.5 rounded-xl transition-colors',
+            'flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl transition-all',
             isAcademiaActive
               ? 'text-teal-600 dark:text-teal-400 font-semibold'
               : 'text-text-secondary hover:text-text-primary',
@@ -159,33 +200,34 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
           </span>
         </motion.button>
 
-        {/* 3. CENTRO DESTACADO: NUEVO CHAT */}
-        <div className="flex flex-col items-center justify-center flex-1 -mt-3">
+        {/* 3. CENTRO DESTACADO: NUEVO CHAT (HERO BUTTON) */}
+        <div className="flex flex-col items-center justify-center flex-1 -mt-4">
           <motion.button
-            whileHover={{ scale: 1.06 }}
-            whileTap={{ scale: 0.9 }}
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.88 }}
             onClick={handleNewChat}
             aria-label="Nuevo Chat"
             className={cn(
-              'flex items-center justify-center w-11 h-11 rounded-2xl shadow-md transition-all duration-200',
-              'bg-gradient-to-tr from-teal-600 via-teal-500 to-emerald-400 text-white',
-              'ring-2 ring-surface-primary shadow-teal-500/25 active:shadow-none',
+              'relative flex items-center justify-center w-12 h-12 rounded-2xl transition-all duration-200',
+              'bg-gradient-to-tr from-teal-500 via-emerald-400 to-teal-300 text-white',
+              'shadow-[0_4px_18px_rgba(20,184,166,0.45)] ring-4 ring-surface-primary',
+              'active:shadow-none group',
             )}
           >
-            <Plus className="h-6 w-6 text-white stroke-[2.5]" />
+            <Plus className="h-6 w-6 text-white stroke-[2.8] transition-transform duration-200 group-active:rotate-90" />
           </motion.button>
-          <span className="text-[10px] mt-0.5 font-medium tracking-tight text-text-primary">
+          <span className="text-[10px] mt-0.5 font-semibold tracking-tight text-text-primary">
             Nuevo Chat
           </span>
         </div>
 
         {/* 4. MANO DERECHA: SOMOS SST */}
         <motion.button
-          whileTap={{ scale: 0.9 }}
+          whileTap={{ scale: 0.88 }}
           onClick={() => navigate('/sgsst')}
           aria-label="Ir a Somos SST"
           className={cn(
-            'flex flex-col items-center justify-center flex-1 py-0.5 px-0.5 rounded-xl transition-colors',
+            'flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl transition-all',
             isSSTActive
               ? 'text-teal-600 dark:text-teal-400 font-semibold'
               : 'text-text-secondary hover:text-text-primary',
@@ -209,20 +251,20 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
 
         {/* 5. EXTREMO DERECHO: PANEL DERECHO (SIN TEXTO) */}
         <motion.button
-          whileTap={{ scale: 0.9 }}
+          whileTap={{ scale: 0.88 }}
           onClick={toggleRightPanel}
           aria-label="Abrir panel derecho"
           className={cn(
-            'flex items-center justify-center flex-1 py-2 px-1 rounded-xl transition-colors',
+            'flex items-center justify-center flex-1 py-2 px-1 rounded-xl transition-all',
             isRightPanelOpen
-              ? 'text-teal-600 dark:text-teal-400'
-              : 'text-text-secondary hover:text-text-primary',
+              ? 'bg-teal-500/10 text-teal-500'
+              : 'hover:bg-surface-hover active:bg-surface-hover/80',
           )}
         >
-          <PanelRight className="h-[22px] w-[22px] transition-transform duration-150" />
+          <RightPanelIcon active={isRightPanelOpen} />
         </motion.button>
-      </div>
-    </nav>
+      </nav>
+    </div>
   );
 }
 

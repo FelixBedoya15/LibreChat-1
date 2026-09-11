@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, memo } from 'react';
 import { useUserKeyQuery } from 'librechat-data-provider/react-query';
 import { ResizableHandleAlt, ResizablePanel, useMediaQuery } from '@librechat/client';
+import { SlidersHorizontal, X } from 'lucide-react';
 import type { TEndpointsConfig, TInterfaceConfig } from 'librechat-data-provider';
 import type { ImperativePanelHandle } from 'react-resizable-panels';
 import useSideNavLinks from '~/hooks/Nav/useSideNavLinks';
@@ -155,6 +156,8 @@ const SidePanel = ({
         style={{
           overflowY: 'auto',
           transition: 'width 0.2s ease, visibility 0s linear 0.2s',
+          paddingTop: isSmallScreen ? 'max(env(safe-area-inset-top, 0px), 24px)' : undefined,
+          paddingBottom: isSmallScreen ? 'max(env(safe-area-inset-bottom, 0px), 16px)' : undefined,
         }}
         onExpand={() => {
           setIsCollapsed(false);
@@ -172,6 +175,24 @@ const SidePanel = ({
           !isSmallScreen && ((isCollapsed && (minSize === 0 || collapsedSize === 0)) || fullCollapse) && 'hidden min-w-0',
         )}
       >
+        {isSmallScreen && !isCollapsed && (
+          <div className="flex items-center justify-between px-4 py-2.5 mb-1 border-b border-border-medium/30">
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal className="h-4 w-4 text-teal-500" />
+              <span className="font-semibold text-sm text-text-primary">Panel de Herramientas</span>
+            </div>
+            <button
+              onClick={() => {
+                setIsCollapsed(true);
+                setFullCollapse(true);
+              }}
+              className="inline-flex size-8 items-center justify-center rounded-lg hover:bg-surface-hover text-text-secondary hover:text-text-primary transition-colors"
+              aria-label="Cerrar panel"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
         <Nav
           resize={panelRef.current?.resize}
           isCollapsed={isCollapsed}
