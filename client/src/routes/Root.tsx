@@ -18,7 +18,7 @@ import {
 } from '~/Providers';
 import { useUserTermsQuery, useGetStartupConfig } from '~/data-provider';
 import { TermsAndConditionsModal, RequiredInfoModal } from '~/components/ui';
-import { Nav, MobileNav, MobileBottomNav } from '~/components/Nav';
+import { Nav, MobileBottomNav } from '~/components/Nav';
 import { useHealthCheck } from '~/data-provider';
 import { Banner } from '~/components/Banners';
 import InactiveAccount from '~/components/Auth/InactiveAccount';
@@ -178,11 +178,10 @@ export default function Root() {
                 <div className={`relative z-0 flex h-full w-full ${isEditorFullscreen ? '' : 'overflow-hidden'}`}>
                   <Nav navVisible={navVisible} setNavVisible={setNavVisible} />
                   <div className={`relative flex h-full max-w-full flex-1 flex-col ${isEditorFullscreen ? '' : 'overflow-hidden'}`}>
-                    <MobileNav setNavVisible={setNavVisible} />
-                    <div className="relative flex flex-1 flex-col min-h-0 overflow-hidden">
+                    <div className="relative flex flex-1 flex-col min-h-0 overflow-hidden pt-[env(safe-area-inset-top,0px)] md:pt-0">
                       <Outlet context={{ navVisible, setNavVisible } satisfies ContextType} />
                     </div>
-                    <MobileBottomNav />
+                    <MobileBottomNav navVisible={navVisible} setNavVisible={setNavVisible} />
                   </div>
                 </div>
               </div>
