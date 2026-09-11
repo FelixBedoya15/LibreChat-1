@@ -19,12 +19,17 @@ export default function MobileNav({
   };
 
   return (
-    <div className="bg-token-main-surface-primary sticky top-0 z-10 flex min-h-[40px] items-center justify-between bg-white px-1 dark:bg-gray-800 dark:text-white md:hidden">
+    <div
+      style={{
+        paddingTop: 'max(env(safe-area-inset-top, 0px), 6px)',
+      }}
+      className="bg-surface-primary text-text-primary sticky top-0 z-10 flex min-h-[44px] items-center justify-between px-2 border-b border-border-medium/30 transition-colors md:hidden"
+    >
       <button
         type="button"
         data-testid="mobile-header-open-history-button"
         aria-label={localize('com_nav_open_sidebar')}
-        className="m-1 inline-flex size-10 items-center justify-center rounded-full hover:bg-surface-hover transition-colors"
+        className="m-1 inline-flex size-10 items-center justify-center rounded-full hover:bg-surface-hover text-text-primary transition-colors"
         onClick={() =>
           setNavVisible((prev) => {
             localStorage.setItem('navVisible', JSON.stringify(!prev));
@@ -56,7 +61,7 @@ export default function MobileNav({
         type="button"
         data-testid="mobile-header-open-tools-button"
         aria-label="Open tool sidebar"
-        className="m-1 inline-flex size-10 items-center justify-center rounded-full hover:bg-surface-hover transition-colors"
+        className="m-1 inline-flex size-10 items-center justify-center rounded-full hover:bg-surface-hover text-text-primary transition-colors"
         onClick={toggleRightPanel}
       >
         <span className="sr-only">Open tool sidebar</span>

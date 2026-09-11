@@ -86,29 +86,29 @@ function MobileBottomNav() {
       style={{
         paddingBottom: isKeyboardOpen
           ? '0px'
-          : 'max(0.45rem, env(safe-area-inset-bottom, 0px))',
+          : 'max(4px, calc(env(safe-area-inset-bottom, 0px) - 10px))',
       }}
       className={cn(
         'md:hidden flex-shrink-0 w-full z-40',
-        'bg-white/95 dark:bg-[#111827]/95 backdrop-blur-xl',
-        'border-t border-border-medium/60 dark:border-gray-800/80',
-        'shadow-[0_-4px_20px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_25px_rgba(0,0,0,0.35)]',
+        'bg-surface-primary/95 text-text-primary backdrop-blur-xl',
+        'border-t border-border-medium/40',
+        'shadow-[0_-2px_12px_rgba(0,0,0,0.05)] dark:shadow-[0_-2px_18px_rgba(0,0,0,0.25)]',
         'transition-all duration-200 ease-out',
         isKeyboardOpen
           ? 'max-h-0 opacity-0 pointer-events-none overflow-hidden border-t-0'
-          : 'max-h-24 opacity-100 pointer-events-auto overflow-visible',
+          : 'max-h-20 opacity-100 pointer-events-auto overflow-visible',
       )}
     >
-      <div className="flex items-center justify-around px-2 pt-1.5 pb-1 max-w-lg mx-auto relative">
+      <div className="flex items-center justify-around px-1 pt-1 pb-0.5 max-w-lg mx-auto relative">
         {/* 1. SOMOS SST */}
         <motion.button
           whileTap={{ scale: 0.92 }}
           onClick={() => navigate('/sgsst')}
           className={cn(
-            'flex flex-col items-center justify-center flex-1 py-1 px-0.5 rounded-xl transition-colors',
+            'flex flex-col items-center justify-center flex-1 py-0.5 px-0.5 rounded-xl transition-colors',
             isSSTActive
               ? 'text-teal-600 dark:text-teal-400 font-semibold'
-              : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200',
+              : 'text-text-secondary hover:text-text-primary',
           )}
         >
           <div className="relative">
@@ -122,7 +122,7 @@ function MobileBottomNav() {
               <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-teal-500 rounded-full" />
             )}
           </div>
-          <span className="text-[10px] mt-1 tracking-tight truncate max-w-[62px]">
+          <span className="text-[10px] mt-0.5 tracking-tight truncate max-w-[62px]">
             Somos SST
           </span>
         </motion.button>
@@ -132,10 +132,10 @@ function MobileBottomNav() {
           whileTap={{ scale: 0.92 }}
           onClick={() => navigate('/academia')}
           className={cn(
-            'flex flex-col items-center justify-center flex-1 py-1 px-0.5 rounded-xl transition-colors',
+            'flex flex-col items-center justify-center flex-1 py-0.5 px-0.5 rounded-xl transition-colors',
             isAcademiaActive
               ? 'text-teal-600 dark:text-teal-400 font-semibold'
-              : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200',
+              : 'text-text-secondary hover:text-text-primary',
           )}
         >
           <div className="relative">
@@ -149,33 +149,33 @@ function MobileBottomNav() {
               <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-teal-500 rounded-full" />
             )}
           </div>
-          <span className="text-[10px] mt-1 tracking-tight truncate max-w-[62px]">
+          <span className="text-[10px] mt-0.5 tracking-tight truncate max-w-[62px]">
             Academia
           </span>
         </motion.button>
 
         {/* 3. CHAT (CENTRAL HERO BUTTON) */}
-        <div className="flex flex-col items-center justify-center flex-1 -mt-4">
+        <div className="flex flex-col items-center justify-center flex-1 -mt-2">
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.92 }}
             onClick={handleOpenChat}
             aria-label="Abrir Chat"
             className={cn(
-              'flex items-center justify-center w-12 h-12 rounded-2xl shadow-lg transition-all duration-200',
+              'flex items-center justify-center w-11 h-11 rounded-2xl shadow-md transition-all duration-200',
               'bg-gradient-to-tr from-teal-600 via-teal-500 to-emerald-400 text-white',
-              'ring-4 ring-white dark:ring-[#111827] shadow-teal-500/30',
-              isChatActive ? 'ring-teal-400/40 shadow-teal-500/50' : '',
+              'ring-2 ring-surface-primary shadow-teal-500/25',
+              isChatActive ? 'ring-teal-400/50 shadow-teal-500/40' : '',
             )}
           >
-            <MessageSquarePlus className="h-6 w-6 text-white" />
+            <MessageSquarePlus className="h-5 w-5 text-white" />
           </motion.button>
           <span
             className={cn(
-              'text-[10px] mt-1 font-medium tracking-tight',
+              'text-[10px] mt-0.5 font-medium tracking-tight',
               isChatActive
                 ? 'text-teal-600 dark:text-teal-400 font-semibold'
-                : 'text-gray-500 dark:text-gray-400',
+                : 'text-text-secondary',
             )}
           >
             Chat
@@ -187,10 +187,10 @@ function MobileBottomNav() {
           whileTap={{ scale: 0.92 }}
           onClick={() => navigate('/control')}
           className={cn(
-            'flex flex-col items-center justify-center flex-1 py-1 px-0.5 rounded-xl transition-colors',
+            'flex flex-col items-center justify-center flex-1 py-0.5 px-0.5 rounded-xl transition-colors',
             isControlActive
               ? 'text-teal-600 dark:text-teal-400 font-semibold'
-              : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200',
+              : 'text-text-secondary hover:text-text-primary',
           )}
         >
           <div className="relative">
@@ -204,7 +204,7 @@ function MobileBottomNav() {
               <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-teal-500 rounded-full" />
             )}
           </div>
-          <span className="text-[10px] mt-1 tracking-tight truncate max-w-[62px]">
+          <span className="text-[10px] mt-0.5 tracking-tight truncate max-w-[62px]">
             Control
           </span>
         </motion.button>
@@ -213,7 +213,7 @@ function MobileBottomNav() {
         <motion.button
           whileTap={{ scale: 0.92 }}
           onClick={handleOpenSettings}
-          className="flex flex-col items-center justify-center flex-1 py-1 px-0.5 rounded-xl transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+          className="flex flex-col items-center justify-center flex-1 py-0.5 px-0.5 rounded-xl transition-colors text-text-secondary hover:text-text-primary"
         >
           <div className="relative flex items-center justify-center h-5 w-5">
             {user ? (
@@ -226,7 +226,7 @@ function MobileBottomNav() {
               <User className="h-5 w-5" />
             )}
           </div>
-          <span className="text-[10px] mt-1 tracking-tight truncate max-w-[62px]">
+          <span className="text-[10px] mt-0.5 tracking-tight truncate max-w-[62px]">
             Perfil
           </span>
         </motion.button>
