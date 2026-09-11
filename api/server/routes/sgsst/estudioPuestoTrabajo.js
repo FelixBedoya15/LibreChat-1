@@ -84,17 +84,6 @@ async function syncWorkerWithCompanyProfile({ companyId, userId, workerName, wor
         logger.info(`[EPT Sync] Worker ${cleanDoc} does not exist yet in company profile. Study kept in chat/EPT collection pending integration.`);
       }
     }
-            companyId,
-            documento: cleanDoc,
-            nombre: cleanName || cleanDoc,
-            perfilId: cleanDoc,
-            condicionesSalud: `EPT ergonómico registrado: ${actionLevel || 'Completado'}`,
-            updatedAt: new Date(),
-          },
-        },
-        { upsert: true, new: true }
-      ).catch((err) => logger.warn('[EPT Sync] SgsstWorker upsert warning:', err.message));
-    }
   } catch (err) {
     logger.error('[EPT Sync] Error syncing worker with company profile:', err);
   }
