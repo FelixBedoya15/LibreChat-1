@@ -7,4 +7,5 @@ export { default as NewChat } from './NewChat';
 export { default as SearchBar } from './SearchBar';
 export { default as ChatSSTButton } from './ChatSSTButton';
 export { default as Settings } from './Settings';
+export { default as MobileBottomNav } from './MobileBottomNav';
 

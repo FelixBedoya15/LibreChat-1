@@ -18,7 +18,7 @@ import {
 } from '~/Providers';
 import { useUserTermsQuery, useGetStartupConfig } from '~/data-provider';
 import { TermsAndConditionsModal, RequiredInfoModal } from '~/components/ui';
-import { Nav, MobileNav } from '~/components/Nav';
+import { Nav, MobileNav, MobileBottomNav } from '~/components/Nav';
 import { useHealthCheck } from '~/data-provider';
 import { Banner } from '~/components/Banners';
 import InactiveAccount from '~/components/Auth/InactiveAccount';
@@ -179,7 +179,10 @@ export default function Root() {
                   <Nav navVisible={navVisible} setNavVisible={setNavVisible} />
                   <div className={`relative flex h-full max-w-full flex-1 flex-col ${isEditorFullscreen ? '' : 'overflow-hidden'}`}>
                     <MobileNav setNavVisible={setNavVisible} />
-                    <Outlet context={{ navVisible, setNavVisible } satisfies ContextType} />
+                    <div className="relative flex flex-1 flex-col min-h-0 overflow-hidden">
+                      <Outlet context={{ navVisible, setNavVisible } satisfies ContextType} />
+                    </div>
+                    <MobileBottomNav />
                   </div>
                 </div>
               </div>

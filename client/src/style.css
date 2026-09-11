@@ -3368,3 +3368,14 @@ html {
 .dark .custom-table-scroll::-webkit-scrollbar-thumb:hover {
   background: #2dd4bf !important;
 }
+
+/* Mobile Safe Area helpers for PWA and notches */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.bottom-nav-safe {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+}
