@@ -28,6 +28,7 @@ import PermisoAlturas from './PermisoAlturas';
 import ReporteActosCondiciones from './ReporteActosCondiciones';
 import AnalisisTrabajoSeguro from './AnalisisTrabajoSeguro';
 import MetodoOwas from './MetodoOwas';
+import EstudioPuestoTrabajo from './EstudioPuestoTrabajo';
 import AnalisisVulnerabilidad from './AnalisisVulnerabilidad';
 import BioIndividualHub from './BioIndividualHub';
 import ParticipacionIPEVAR from './ParticipacionIPEVAR';
@@ -519,6 +520,13 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                 {category.id === 'metodo_owas' && (
                                                     <div className="mb-6">
                                                         <MetodoOwas />
+                                                    </div>
+                                                )}
+
+                                                {/* Show EstudioPuestoTrabajo for estudio_puesto category */}
+                                                {category.id === 'estudio_puesto' && (
+                                                    <div className="mb-6">
+                                                        <EstudioPuestoTrabajo />
                                                     </div>
                                                 )}
 

@@ -104,6 +104,11 @@ export const PHASE_CATEGORIES = {
             normativity: 'Hito 4: Dinámica Operativa y Terreno' 
         },
         { 
+            id: 'estudio_puesto', title: 'Estudio de Puesto de Trabajo (EPT Fisio IA)', icon: 'Activity',
+            bioRationale: 'Evaluación postural y biomecánica en vivo mediante visión artificial MediaPipe, RULA/REBA, Live Editor y código QR de auto-evaluación.', 
+            normativity: 'Hito 4: Dinámica Operativa y Terreno (Res. 2400 / ISO 11226)' 
+        },
+        { 
             id: 'epp_delivery', title: 'Entrega y Seguimiento de EPP', icon: 'Shield',
             bioRationale: 'Asegura la entrega oportuna, control de caducidad y firmas de conformidad de elementos de protección personal.', 
             normativity: 'Hito 4: Dinámica Operativa y Terreno' 

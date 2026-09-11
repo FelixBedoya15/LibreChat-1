@@ -1672,6 +1672,30 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
           workersToSave = currentList;
         }
       }
+    // Auto-integrate pending EstudioPuestoTrabajo (EPT) for workers
+    try {
+      const EstudioPuestoTrabajo = mongoose.models.EstudioPuestoTrabajo || require('~/models/EstudioPuestoTrabajo');
+      if (EstudioPuestoTrabajo && Array.isArray(workersToSave)) {
+        for (const w of workersToSave) {
+          if (!w.identificacion) continue;
+          const cleanDoc = String(w.identificacion).trim();
+          const previousStudies = await EstudioPuestoTrabajo.find({ companyId, workerId: cleanDoc }).sort({ createdAt: -1 });
+          if (previousStudies && previousStudies.length > 0) {
+            const latestEpt = previousStudies[0];
+            const dateStr = latestEpt.createdAt ? new Date(latestEpt.createdAt).toLocaleDateString('es-CO') : 'Reciente';
+            const eptSummary = `EPT Ergonómico Integrado (${dateStr}): ${latestEpt.cargo || w.cargo}. Riesgo: ${latestEpt.riskLevel || 'Evaluado'}. Nivel de Acción: ${latestEpt.actionLevel || '1'}.`;
+            if (!w.diagnosticoMedico || !w.diagnosticoMedico.includes('EPT Ergonómico')) {
+              w.diagnosticoMedico = w.diagnosticoMedico ? `${w.diagnosticoMedico} | ${eptSummary}` : eptSummary;
+              w.completedByAI = true;
+            }
+            if (w.nombre && (!latestEpt.workerName || latestEpt.workerName === 'Trabajador Evaluado')) {
+              await EstudioPuestoTrabajo.updateMany({ companyId, workerId: cleanDoc }, { $set: { workerName: w.nombre } });
+            }
+          }
+        }
+      }
+    } catch (eptErr) {
+      logger.warn('[PerfilSociodemografico] Error integrating EPT studies into saved workers:', eptErr.message);
     }
 
     // First save the raw data with recalculated bio-fit values

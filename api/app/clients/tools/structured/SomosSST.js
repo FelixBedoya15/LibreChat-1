@@ -33,9 +33,10 @@ class SomosSST extends Tool {
           'consultar_centro_control_acpm',
           'crear_actividad_acpm',
           'actualizar_actividad_acpm',
+          'crear_trabajador',
         ])
         .describe(
-          'La acción a ejecutar: consultar_expediente_integral, listar_trabajadores, resumen_empresa, editar_cualquier_aplicativo, generar_informe_html, consultar_historial_informes, consultar_planes_y_sistema, consultar_centro_control_acpm, crear_actividad_acpm, o actualizar_actividad_acpm.',
+          'La acción a ejecutar: consultar_expediente_integral, listar_trabajadores, resumen_empresa, crear_trabajador, editar_cualquier_aplicativo, generar_informe_html, consultar_historial_informes, consultar_planes_y_sistema, consultar_centro_control_acpm, crear_actividad_acpm, o actualizar_actividad_acpm.',
         ),
       tipo_informe: z
         .string()
@@ -53,8 +54,12 @@ class SomosSST extends Tool {
         .string()
         .optional()
         .describe(
-          'Nombre, apellido, cédula, ID, o Nombre del Cargo del trabajador a consultar o modificar.',
+          'Nombre, apellido, cédula, ID, o Nombre del Cargo del trabajador a consultar o modificar (o nombre completo al crearlo con crear_trabajador).',
         ),
+      cargo_trabajador: z
+        .string()
+        .optional()
+        .describe('Cargo del trabajador al crearlo con crear_trabajador (ej: "Analista de Operaciones").'),
       nombre_aplicativo: z
         .string()
         .optional()
@@ -281,6 +286,129 @@ class SomosSST extends Tool {
         return JSON.stringify({
           mensaje: `Se encontraron ${trabajadores.length} trabajadores registrados en el Motor Bio-Individual.`,
           trabajadores: trabajadores
+        });
+      }
+
+      // ── ACTION: CREAR TRABAJADOR (CON INTEGRACIÓN AUTOMÁTICA DE EPT PENDIENTE) ─
+      if (accion === 'crear_trabajador') {
+        const rawName = input.nombre_o_cargo || '';
+        const rawDoc = input.identificador_o_filtro || '';
+        const rawCargo = input.cargo_trabajador || input.campo_a_modificar || 'Puesto Operativo / Administrativo';
+
+        if (!rawName || !rawDoc) {
+          return JSON.stringify({
+            error: 'Debes proporcionar nombre_o_cargo (nombre completo) e identificador_o_filtro (cédula) para registrar al trabajador.',
+          });
+        }
+
+        const cleanDoc = String(rawDoc).trim();
+        const cleanName = String(rawName).trim();
+        const cleanCargo = String(rawCargo).trim();
+
+        // 1. Cargar o crear PerfilSociodemograficoData
+        let perfil = PerfilSocioModel ? await PerfilSocioModel.findOne({ companyId }) : null;
+        if (!perfil && PerfilSocioModel) {
+          perfil = new PerfilSocioModel({
+            user: userId,
+            companyId,
+            trabajadores: [],
+          });
+        }
+
+        if (!perfil) {
+          return JSON.stringify({ error: 'No se pudo acceder al modelo de Perfil Sociodemográfico.' });
+        }
+
+        let existingWorker = perfil.trabajadores.find(
+          (w) => w.identificacion && String(w.identificacion).trim() === cleanDoc
+        );
+
+        // 2. Buscar si existen Estudios de Puesto de Trabajo (EPT) previos en el chat para esta cédula
+        let integratedEpt = false;
+        let eptSummary = '';
+        try {
+          const EstudioPuestoTrabajo = mongoose.models.EstudioPuestoTrabajo || require('~/models/EstudioPuestoTrabajo');
+          if (EstudioPuestoTrabajo) {
+            const previousStudies = await EstudioPuestoTrabajo.find({
+              companyId,
+              workerId: cleanDoc,
+            }).sort({ createdAt: -1 });
+
+            if (previousStudies && previousStudies.length > 0) {
+              const latestEpt = previousStudies[0];
+              integratedEpt = true;
+              const dateStr = latestEpt.createdAt ? new Date(latestEpt.createdAt).toLocaleDateString('es-CO') : 'Reciente';
+              eptSummary = `EPT Ergonómico Integrado (${dateStr}): ${latestEpt.cargo || cleanCargo}. Riesgo: ${latestEpt.riskLevel || 'Evaluado'}. Nivel de Acción: ${latestEpt.actionLevel || '1'}.`;
+
+              // Actualizar los estudios previos con el nombre oficial del trabajador
+              await EstudioPuestoTrabajo.updateMany(
+                { companyId, workerId: cleanDoc },
+                { $set: { workerName: cleanName, cargo: cleanCargo } }
+              );
+            }
+          }
+        } catch (eptErr) {
+          console.warn('[SomosSST Tool] Error checking pending EPT for worker creation:', eptErr.message);
+        }
+
+        let workerResult;
+        if (existingWorker) {
+          existingWorker.nombre = cleanName;
+          if (cleanCargo) existingWorker.cargo = cleanCargo;
+          if (integratedEpt && (!existingWorker.diagnosticoMedico || !existingWorker.diagnosticoMedico.includes('EPT Ergonómico'))) {
+            existingWorker.diagnosticoMedico = existingWorker.diagnosticoMedico
+              ? `${existingWorker.diagnosticoMedico} | ${eptSummary}`
+              : eptSummary;
+          }
+          workerResult = existingWorker;
+        } else {
+          const newWorkerEntry = {
+            id: new mongoose.Types.ObjectId().toString(),
+            nombre: cleanName,
+            identificacion: cleanDoc,
+            cargo: cleanCargo,
+            diagnosticoMedico: integratedEpt ? eptSummary : '',
+            recomendacionesMedicas: integratedEpt ? 'Seguimiento biomecánico e higiene postural según EPT previo.' : '',
+            completedByAI: true,
+          };
+          perfil.trabajadores.push(newWorkerEntry);
+          workerResult = newWorkerEntry;
+        }
+
+        perfil.markModified('trabajadores');
+        await perfil.save();
+
+        // 3. Sincronizar en SgsstWorker
+        if (SgsstWorkerModel) {
+          await SgsstWorkerModel.findOneAndUpdate(
+            { companyId, documento: cleanDoc },
+            {
+              $set: {
+                user: userId,
+                companyId,
+                documento: cleanDoc,
+                nombre: cleanName,
+                perfilId: cleanDoc,
+                condicionesSalud: integratedEpt ? eptSummary : '',
+                updatedAt: new Date(),
+              },
+            },
+            { upsert: true, new: true }
+          ).catch((e) => console.warn('[SomosSST] SgsstWorker upsert err:', e.message));
+        }
+
+        return JSON.stringify({
+          success: true,
+          mensaje: integratedEpt
+            ? `✅ Trabajador ${cleanName} (C.C. ${cleanDoc}) registrado con éxito en el Perfil Sociodemográfico. ¡Se detectó y vinculó automáticamente su Estudio de Puesto de Trabajo (EPT) previo realizado en el chat! (${eptSummary})`
+            : `✅ Trabajador ${cleanName} (C.C. ${cleanDoc}, Cargo: ${cleanCargo}) registrado exitosamente en el Perfil Sociodemográfico de la empresa.`,
+          trabajador: {
+            nombre: cleanName,
+            identificacion: cleanDoc,
+            cargo: cleanCargo,
+            eptIntegrado: integratedEpt,
+            diagnosticoMedico: workerResult.diagnosticoMedico || '',
+          },
         });
       }
 

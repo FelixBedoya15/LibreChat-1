@@ -8,7 +8,7 @@ const { v4: uuidv4 } = require('uuid');
 const { generateWithKeyRotation, SGSST_FALLBACK_MODELS, LIVE_FALLBACK_MODELS } = require('../sgsst/sgsstGemini');
 const mongoose = require('mongoose');
 const CompanyInfo = require('~/models/CompanyInfo');
-const { buildSignatureSection, buildStandardHeader } = require('../sgsst/reportHeader');
+const { buildSignatureSection, buildStandardHeader, buildWorkerSubHeader } = require('../sgsst/reportHeader');
 const fs = require('fs');
 const path = require('path');
 const SKILLS_DIR = path.resolve(__dirname, '../../../config/skills');
@@ -1513,10 +1513,13 @@ ${activeProtocol.reportMatrixHeader}
             ESTRUCTURA HTML OBLIGATORIA:
 
             PRIMERA LÍNEA (ANTES de cualquier otro HTML, sin excepción):
-            <div id="wappy-kpi" data-riesgo="[ALTO|MEDIO|BAJO]" data-cargo="[Nombre del cargo o puesto de trabajo mencionado por el usuario]" data-actividad="[Breve resumen de la actividad laboral evaluada]" data-accion="[Inmediata|Programada|Preventiva]" data-consecuencia="[Mortal|Incapacitante|Leve]" data-npeligros="[N]" style="display:none"></div>
+            <div id="wappy-kpi" data-riesgo="[ALTO|MEDIO|BAJO]" data-trabajador="[Nombre completo del trabajador evaluado]" data-cedula="[Cédula o documento del trabajador si fue mencionada, o N/A]" data-cargo="[Nombre del cargo o puesto de trabajo mencionado por el usuario]" data-actividad="[Breve resumen de la actividad laboral evaluada]" data-modalidad="[auto|asistida]" data-accion="[Inmediata|Programada|Preventiva]" data-consecuencia="[Mortal|Incapacitante|Leve]" data-npeligros="[N]" style="display:none"></div>
             - data-riesgo: El nivel de riesgo predominante que encontraste.
-            - data-cargo: Cargo o puesto de trabajo que el usuario indicó al inicio (ej. Desarrollador de Software, Asistente Administrativo, etc.).
+            - data-trabajador: Nombre completo del trabajador evaluado (mencionado en el saludo o conversación).
+            - data-cedula: Cédula de ciudadanía o identificación del trabajador (si se indicó).
+            - data-cargo: Cargo o puesto de trabajo que se indicó al inicio (ej. Desarrollador de Software, Asistente Administrativo, etc.).
             - data-actividad: Breve descripción de la actividad habitual evaluada.
+            - data-modalidad: "auto" si el trabajador se auto-evalúa, o "asistida" si un prevencionista o compañero lo evalúa.
             - data-accion: La acción requerida con mayor urgencia.
             - data-consecuencia: La consecuencia máxima posible de materialización del riesgo crítico (Mortal, Incapacitante o Leve).
             - data-npeligros: El número exacto de peligros que listaste en la Matriz de Riesgos (debe ser ≥ 5).
@@ -1813,24 +1816,53 @@ En la sección "4.1 Matriz Ergonómica Comparativa Multifase", en la columna "Te
 
             const radicadoId = `LA-${new Date().getFullYear()}-${String(Math.floor(Math.random()*9000)+1000)}`;
 
-            // Extract cargo & actividad if present in kpiDiv
+            // Extract worker, cargo, actividad & modalidad if present in kpiDiv
+            const workerNameMatch = kpiDiv.match(/data-trabajador=["']([^"']+)["']/i);
+            const workerIdMatch = kpiDiv.match(/data-cedula=["']([^"']+)["']/i);
             const cargoMatch = kpiDiv.match(/data-cargo=["']([^"']+)["']/i);
             const actividadMatch = kpiDiv.match(/data-actividad=["']([^"']+)["']/i);
-            const extractedCargo = cargoMatch ? cargoMatch[1] : '';
-            const extractedActividad = actividadMatch ? actividadMatch[1] : '';
+            const modalidadMatch = kpiDiv.match(/data-modalidad=["']([^"']+)["']/i);
+
+            const extractedWorkerName = workerNameMatch && !workerNameMatch[1].includes('[') && workerNameMatch[1] !== 'N/A' 
+                ? workerNameMatch[1].trim() 
+                : (this.user?.name || 'Trabajador Evaluado');
+            const extractedWorkerId = workerIdMatch && !workerIdMatch[1].includes('[') && workerIdMatch[1] !== 'N/A'
+                ? workerIdMatch[1].trim()
+                : '';
+            const extractedCargo = cargoMatch && !cargoMatch[1].includes('[') ? cargoMatch[1].trim() : 'Puesto Operativo / Administrativo';
+            const extractedActividad = actividadMatch ? actividadMatch[1].trim() : 'Evaluación ergonómica y postural en ciclo regular';
+            const extractedModalidad = modalidadMatch && modalidadMatch[1].toLowerCase().includes('asist') ? 'asistida' : 'auto';
+
+            // Store extracted worker metadata on the session instance for persistence
+            this.extractedWorkerMeta = {
+                workerName: extractedWorkerName,
+                workerId: extractedWorkerId,
+                cargo: extractedCargo,
+                actividad: extractedActividad,
+                modalidad: extractedModalidad,
+            };
 
             const standardReportTitle = this.isBiomechanics 
                 ? 'INFORME TÉCNICO DE ERGONOMÍA Y BIOMECÁNICA' 
                 : (activeProtocol?.title ? activeProtocol.title.toUpperCase() : 'INFORME TÉCNICO DE EVALUACIÓN DE RIESGOS');
 
+            // 1. Encabezado institucional de la entidad (100% puro e intacto)
             const standardHeaderHtml = buildStandardHeader({
                 title: standardReportTitle,
                 companyInfo: companyInfo,
                 date: currentDate,
                 norm: this.isBiomechanics ? 'Resolución 2400 de 1979 / GTC 45 / ISO 11226 (RULA/REBA)' : (activeProtocol?.normRef || 'Resolución 0312 de 2019 / GTC 45'),
                 responsibleName: this.user?.name || companyInfo?.responsibleSST,
+            });
+
+            // 2. Sub-encabezado oficial para caracterización del trabajador y puesto evaluado (EPT)
+            const workerSubHeaderHtml = buildWorkerSubHeader({
+                workerName: extractedWorkerName,
+                workerId: extractedWorkerId,
                 cargo: extractedCargo,
                 actividad: extractedActividad,
+                evaluationType: extractedModalidad,
+                evaluatorName: extractedModalidad === 'auto' ? 'Auto-reporte asistido por WAPPY Fisio IA' : (this.user?.name || 'Inspector SG-SST'),
             });
 
             const finalWrappedHtml = `<div class="report-container" style="font-family:'Segoe UI',Arial,sans-serif; max-width:900px; margin:0 auto; color:#111827;">
@@ -1846,6 +1878,7 @@ ${kpiDiv}
 </style>
 
 ${standardHeaderHtml}
+${workerSubHeaderHtml}
 
 <div style="background:#ffffff; padding:10px 0; min-height:400px; display:flex; flex-direction:column; color:#1f2937;">
     ${evidenceHtml}
@@ -2072,6 +2105,78 @@ ${standardHeaderHtml}
 
                         await syncLiveEditorToCanvas(this.conversationId, reportHtml, reportTitle, this.userId);
                         logger.info('[VoiceSession] Report synced to LiveEditorSession and Canvas successfully');
+
+                        // If this is a Biomechanics / Ergonomics study, persist to EstudioPuestoTrabajo and sync worker
+                        if (this.isBiomechanics && companyId) {
+                            try {
+                                const EstudioPuestoTrabajo = require('~/models/EstudioPuestoTrabajo');
+                                const workerMeta = this.extractedWorkerMeta || {};
+                                const rawWorkerId = workerMeta.workerId || '';
+                                const cleanWorkerId = rawWorkerId ? String(rawWorkerId).trim() : `CC-${Date.now().toString().slice(-6)}`;
+                                const cleanWorkerName = workerMeta.workerName || this.user?.name || 'Trabajador Evaluado';
+                                const cleanCargo = workerMeta.cargo || 'Puesto Evaluado';
+                                const cleanActividad = workerMeta.actividad || 'Evaluación en vivo';
+                                const cleanModalidad = workerMeta.modalidad || 'auto';
+
+                                const newStudyDoc = new EstudioPuestoTrabajo({
+                                    companyId,
+                                    user: this.userId,
+                                    workerId: cleanWorkerId,
+                                    workerName: cleanWorkerName,
+                                    cargo: cleanCargo,
+                                    actividad: cleanActividad,
+                                    evaluationType: cleanModalidad,
+                                    evaluatorName: cleanModalidad === 'auto' ? 'Auto-reporte asistido por WAPPY Fisio IA' : (this.user?.name || 'Inspector SG-SST'),
+                                    channel: 'chat_voice',
+                                    telemetry: this.phaseEvidences?.map(p => p?.telemetry).filter(Boolean) || {},
+                                    evidences: (framesToUse || []).slice(0, 3).map((f, idx) => ({
+                                        phase: idx + 1,
+                                        label: `Fase ${idx + 1}`,
+                                        url: `data:image/jpeg;base64,${f}`,
+                                        telemetry: this.phaseEvidences?.[idx]?.telemetry || {},
+                                    })),
+                                    reportHtml,
+                                    status: 'completado',
+                                });
+                                await newStudyDoc.save();
+                                logger.info(`[VoiceSession] EstudioPuestoTrabajo saved with ID: ${newStudyDoc._id}`);
+
+                                // Sync or create worker in PerfilSociodemograficoData
+                                const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+                                if (PerfilSociodemograficoData) {
+                                    let perfilDoc = await PerfilSociodemograficoData.findOne({ companyId });
+                                    if (!perfilDoc && this.userId) {
+                                        perfilDoc = new PerfilSociodemograficoData({
+                                            user: this.userId,
+                                            companyId,
+                                            trabajadores: [],
+                                        });
+                                    }
+
+                                    if (perfilDoc) {
+                                        const existingIdx = perfilDoc.trabajadores.findIndex(
+                                            (w) => w.identificacion && String(w.identificacion).trim() === cleanWorkerId
+                                        );
+                                        const dateStr = new Date().toLocaleDateString('es-CO');
+                                        const eptNote = `Estudio Ergonómico Fisio IA (${dateStr}): ${cleanCargo}. Actividad: ${cleanActividad}`;
+
+                                        if (existingIdx >= 0) {
+                                            const w = perfilDoc.trabajadores[existingIdx];
+                                            if (!w.cargo && cleanCargo) w.cargo = cleanCargo;
+                                            w.completedByAI = true;
+                                            w.diagnosticoMedico = w.diagnosticoMedico ? `${w.diagnosticoMedico} | ${eptNote}` : eptNote;
+                                            perfilDoc.markModified('trabajadores');
+                                            await perfilDoc.save();
+                                            logger.info(`[VoiceSession] Existing worker ${cleanWorkerId} updated with EPT study`);
+                                        } else {
+                                            logger.info(`[VoiceSession] Worker ${cleanWorkerId} not yet in PerfilSociodemograficoData. Study kept in chat/EPT pending worker creation.`);
+                                        }
+                                    }
+                                }
+                            } catch (eptErr) {
+                                logger.warn('[VoiceSession] Error saving EstudioPuestoTrabajo from voice session:', eptErr.message);
+                            }
+                        }
                     } catch (syncErr) {
                         logger.warn('[VoiceSession] Error syncing report to LiveEditor/Canvas:', syncErr.message);
                     }

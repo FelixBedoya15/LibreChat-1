@@ -342,52 +342,22 @@ export default function TenshiChat() {
   }, []);
 
   const playChime = useCallback(() => {
-    try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContextClass) return;
-      const ctx = new AudioContextClass();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(587.33, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.18);
-      gain.gain.setValueAtTime(0.08, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.4);
-    } catch (e) {
-      console.warn('Chime could not be played:', e);
-    }
+    // Silenciado completamente a petición del usuario (eliminado pitido artificial)
   }, []);
 
   const playPowerDownChime = useCallback(() => {
-    try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContextClass) return;
-      const ctx = new AudioContextClass();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(783.99, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.22);
-      gain.gain.setValueAtTime(0.06, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.4);
-    } catch (e) {
-      console.warn('Power down chime could not be played:', e);
-    }
+    // Silenciado completamente a petición del usuario
   }, []);
 
   const handleAudioReceived = useCallback((audioData: string) => {
     try {
       if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
         const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-        audioContextRef.current = new AudioContextClass();
+        const existing = (window as any).sharedAudioContext24k;
+        audioContextRef.current = (existing && existing.state !== 'closed')
+          ? existing
+          : new AudioContextClass({ sampleRate: 24000 });
+        (window as any).sharedAudioContext24k = audioContextRef.current;
       }
       const ctx = audioContextRef.current;
       if (!ctx) return;
@@ -397,18 +367,21 @@ export default function TenshiChat() {
 
       const binaryString = atob(audioData);
       const len = binaryString.length;
+      const numSamples = Math.floor(len / 2);
+      if (numSamples <= 0) return;
+
       const bytes = new Uint8Array(len);
       for (let i = 0; i < len; i++) {
         bytes[i] = binaryString.charCodeAt(i);
       }
       const dataView = new DataView(bytes.buffer);
-      const float32Data = new Float32Array(len / 2);
-      for (let i = 0; i < len / 2; i++) {
+      const float32Data = new Float32Array(numSamples);
+      for (let i = 0; i < numSamples; i++) {
         const int16 = dataView.getInt16(i * 2, true);
         float32Data[i] = int16 / 32768.0;
       }
 
-      const audioBuffer = ctx.createBuffer(1, float32Data.length, 24000);
+      const audioBuffer = ctx.createBuffer(1, numSamples, 24000);
       audioBuffer.getChannelData(0).set(float32Data);
 
       const currentTime = ctx.currentTime;
@@ -778,27 +751,37 @@ export default function TenshiChat() {
 
   const startVoiceMode = useCallback(() => {
     setIsVoiceActive(true);
-    playChime();
 
-    // Desbloquear AudioContext dentro del evento de interacción del usuario (crítico para Safari y dispositivos móviles)
+    // Desbloquear AudioContext en Safari de forma silenciosa e instantánea (sin pitidos)
     try {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (AudioContextClass) {
-        if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
-          audioContextRef.current = new AudioContextClass();
+        const existing = (window as any).sharedAudioContext24k;
+        const ctx = (existing && existing.state !== 'closed')
+          ? existing
+          : new AudioContextClass({ sampleRate: 24000 });
+        audioContextRef.current = ctx;
+        (window as any).sharedAudioContext24k = ctx;
+
+        if (ctx.state === 'suspended') {
+          ctx.resume().catch(console.warn);
         }
-        if (audioContextRef.current.state === 'suspended') {
-          audioContextRef.current.resume().catch(console.warn);
-        }
+
+        // Buffer silencioso de 1 sample para desbloquear el motor de Safari
+        const silentBuffer = ctx.createBuffer(1, 1, 24000);
+        const silentSource = ctx.createBufferSource();
+        silentSource.buffer = silentBuffer;
+        silentSource.connect(ctx.destination);
+        silentSource.start(0);
       }
     } catch (e) {
-      console.warn('[Tenshi Voice] Error inicializando AudioContext en click:', e);
+      console.warn('[Tenshi Voice] Error desbloqueando AudioContext:', e);
     }
 
     lastActivityRef.current = Date.now();
     setVoiceStatusText('Conectando a Tenshi en vivo...');
     connectVoice();
-  }, [connectVoice, playChime]);
+  }, [connectVoice]);
 
   const toggleVoiceMode = useCallback(() => {
     if (isVoiceActive) {

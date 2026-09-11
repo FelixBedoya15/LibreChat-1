@@ -251,4 +251,66 @@ function buildSignatureSection(companyInfo, worker = null) {
   return html;
 }
 
-module.exports = { buildStandardHeader, buildCompanyContextString, buildSignatureSection };
+/**
+ * Sub-encabezado oficial para caracterización del trabajador y estudio de puesto de trabajo (EPT).
+ * Diseñado para ubicarse inmediatamente debajo de buildStandardHeader sin modificar la tabla de la entidad.
+ *
+ * @param {Object} options
+ * @param {string} [options.workerName]
+ * @param {string} [options.workerId]
+ * @param {string} [options.cargo]
+ * @param {string} [options.actividad]
+ * @param {string} [options.evaluationType] - 'auto' | 'asistida'
+ * @param {string} [options.evaluatorName]
+ * @returns {string} HTML string
+ */
+function buildWorkerSubHeader({ workerName, workerId, cargo, actividad, evaluationType = 'auto', evaluatorName } = {}) {
+  const isAuto = evaluationType === 'auto' || !evaluatorName || (typeof evaluatorName === 'string' && evaluatorName.toLowerCase().includes('auto'));
+  const modalityLabel = isAuto ? 'Auto-evaluación en línea (Cámara / Portátil)' : 'Evaluación Asistida (Inspector / Prevencionista SST)';
+  const modalityPillBg = isAuto ? '#e0f2fe' : '#fef3c7';
+  const modalityPillColor = isAuto ? '#0369a1' : '#92400e';
+  const evaluatorDisplay = isAuto ? 'Auto-reporte asistido por WAPPY Fisio IA' : (evaluatorName || 'Inspector SG-SST');
+
+  return `
+<!-- Sub-Encabezado Oficial: Ficha Técnica y Caracterización del Puesto (EPT) -->
+<div class="table-responsive custom-table-scroll" style="margin-bottom: 22px; font-family: sans-serif; width: 100%; box-sizing: border-box; page-break-inside: avoid;">
+  <table style="width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1.5px solid #0f766e; background-color: #ffffff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.04);">
+    <thead>
+      <tr>
+        <th colspan="4" style="background: linear-gradient(90deg, #0f766e, #14b8a6); color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.75px; padding: 9px 14px; text-align: left; border: none;">
+          📋 CARACTERIZACIÓN DEL PUESTO Y TRABAJADOR EVALUADO (EPT - RES. 2400 / ISO 11226)
+        </th>
+      </tr>
+    </thead>
+    <tbody style="font-size: 11px; color: #1e293b;">
+      <tr>
+        <td style="padding: 8px 12px; font-weight: bold; background-color: #f0fdfa; border-bottom: 1px solid #ccfbf1; border-right: 1px solid #ccfbf1; color: #0f766e; width: 22%;">Trabajador Evaluado:</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #ccfbf1; border-right: 1px solid #ccfbf1; font-weight: 700; color: #0f766e; width: 28%; word-break: break-word;">${workerName || 'No especificado'}</td>
+        <td style="padding: 8px 12px; font-weight: bold; background-color: #f0fdfa; border-bottom: 1px solid #ccfbf1; border-right: 1px solid #ccfbf1; color: #0f766e; width: 22%;">C.C. / Identificación:</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #ccfbf1; width: 28%; font-weight: 600; word-break: break-word;">${workerId || 'No registrado'}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 12px; font-weight: bold; background-color: #f0fdfa; border-bottom: 1px solid #ccfbf1; border-right: 1px solid #ccfbf1; color: #0f766e;">Cargo / Puesto:</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #ccfbf1; border-right: 1px solid #ccfbf1; font-weight: 600; word-break: break-word;">${cargo || 'Puesto Operativo / Administrativo'}</td>
+        <td style="padding: 8px 12px; font-weight: bold; background-color: #f0fdfa; border-bottom: 1px solid #ccfbf1; border-right: 1px solid #ccfbf1; color: #0f766e;">Modalidad de Estudio:</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #ccfbf1; word-break: break-word;">
+          <span style="display: inline-block; padding: 3px 8px; border-radius: 9999px; font-size: 10px; font-weight: 700; background: ${modalityPillBg}; color: ${modalityPillColor};">
+            ${modalityLabel}
+          </span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 12px; font-weight: bold; background-color: #f0fdfa; border-bottom: 1px solid #ccfbf1; border-right: 1px solid #ccfbf1; color: #0f766e;">Evaluado por:</td>
+        <td colspan="3" style="padding: 8px 12px; border-bottom: 1px solid #ccfbf1; color: #334155; word-break: break-word;">${evaluatorDisplay}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 12px; font-weight: bold; background-color: #f0fdfa; border-right: 1px solid #ccfbf1; color: #0f766e;">Actividad Evaluada:</td>
+        <td colspan="3" style="padding: 8px 12px; line-height: 1.45; color: #334155; word-break: break-word;">${actividad || 'Evaluación de postura y ergonomía en ciclo regular de trabajo'}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+}
+
+module.exports = { buildStandardHeader, buildWorkerSubHeader, buildCompanyContextString, buildSignatureSection };

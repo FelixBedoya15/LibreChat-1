@@ -1108,4 +1108,148 @@ router.post('/mood/chat/:companyId', async (req, res) => {
   }
 });
 
+// ─── GET /api/public-sgsst/estudio-puesto/:companyId ───────────────────────────
+// Valida la empresa y lista los cargos/trabajadores para autocompletado en el QR
+router.get('/estudio-puesto/:companyId', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const company = await resolveActiveCompany(companyId);
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada o enlace inactivo.' });
+    }
+
+    const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+    let workers = [];
+    if (PerfilSociodemograficoData) {
+      const perfilDoc = await PerfilSociodemograficoData.findOne({ companyId: company._id }).lean();
+      if (perfilDoc && Array.isArray(perfilDoc.trabajadores)) {
+        workers = perfilDoc.trabajadores.map((w) => ({
+          nombre: w.nombre || '',
+          identificacion: w.identificacion || '',
+          cargo: w.cargo || '',
+        }));
+      }
+    }
+
+    return res.json({
+      success: true,
+      company: {
+        id: company._id,
+        name: company.companyName,
+        logo: company.logoBase64 || null,
+        city: company.city || '',
+      },
+      workers,
+    });
+  } catch (error) {
+    logger.error('[Public SGSST] GET /estudio-puesto error:', error);
+    return res.status(500).json({ error: 'Error al consultar datos de auto-evaluación.' });
+  }
+});
+
+// ─── POST /api/public-sgsst/estudio-puesto/:companyId ──────────────────────────
+// Registra la auto-evaluación ergonómica enviada por el trabajador mediante el código QR
+router.post('/estudio-puesto/:companyId', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const company = await resolveActiveCompany(companyId);
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada o enlace inactivo.' });
+    }
+
+    const {
+      workerName,
+      workerId,
+      cargo,
+      actividad,
+      telemetry,
+      evidences,
+      rulaScore,
+      rebaScore,
+      actionLevel,
+      riskLevel,
+      notes,
+    } = req.body;
+
+    if (!workerName || !workerId || !cargo) {
+      return res.status(400).json({ error: 'Nombre, identificación y cargo son obligatorios.' });
+    }
+
+    const EstudioPuestoTrabajo = require('~/models/EstudioPuestoTrabajo');
+    const newStudy = new EstudioPuestoTrabajo({
+      companyId: company._id,
+      user: company.user,
+      workerId: String(workerId).trim(),
+      workerName: String(workerName).trim(),
+      cargo: String(cargo).trim(),
+      actividad: String(actividad || '').trim(),
+      evaluationType: 'auto',
+      evaluatorName: 'Auto-reporte por trabajador vía QR',
+      channel: 'qr_public',
+      telemetry: telemetry || {},
+      evidences: evidences || [],
+      rulaScore: rulaScore || null,
+      rebaScore: rebaScore || null,
+      actionLevel: actionLevel || 'Nivel 1 - Aceptable',
+      riskLevel: riskLevel || 'Bajo',
+      notes: notes || '',
+      status: 'completado',
+    });
+
+    await newStudy.save();
+
+    // Sincronizar o crear el trabajador en el perfil sociodemográfico de la empresa
+    const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+    if (PerfilSociodemograficoData) {
+      const cleanDoc = String(workerId).trim();
+      let perfilDoc = await PerfilSociodemograficoData.findOne({ companyId: company._id });
+      if (!perfilDoc && company.user) {
+        perfilDoc = new PerfilSociodemograficoData({
+          user: company.user,
+          companyId: company._id,
+          trabajadores: [],
+        });
+      }
+
+      if (perfilDoc) {
+        const existingIdx = perfilDoc.trabajadores.findIndex(
+          (w) => w.identificacion && String(w.identificacion).trim() === cleanDoc
+        );
+
+        const dateStr = new Date().toLocaleDateString('es-CO');
+        const eptNote = `Auto-evaluación EPT vía QR (${dateStr}): ${actionLevel || 'Evaluado'}. Actividad: ${actividad || cargo}`;
+
+        if (existingIdx >= 0) {
+          const w = perfilDoc.trabajadores[existingIdx];
+          if (!w.cargo && cargo) w.cargo = cargo.trim();
+          w.completedByAI = true;
+          w.diagnosticoMedico = w.diagnosticoMedico ? `${w.diagnosticoMedico} | ${eptNote}` : eptNote;
+        } else {
+          perfilDoc.trabajadores.push({
+            id: new mongoose.Types.ObjectId().toString(),
+            nombre: String(workerName).trim(),
+            identificacion: cleanDoc,
+            cargo: String(cargo).trim(),
+            completedByAI: true,
+            diagnosticoMedico: eptNote,
+            recomendacionesMedicas: 'Revisión postural y pausas activas periódicas.',
+          });
+        }
+        perfilDoc.markModified('trabajadores');
+        await perfilDoc.save();
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: 'Auto-evaluación ergonómica registrada exitosamente.',
+      studyId: newStudy._id,
+    });
+  } catch (error) {
+    logger.error('[Public SGSST] POST /estudio-puesto error:', error);
+    return res.status(500).json({ error: 'Error al registrar la auto-evaluación ergonómica.' });
+  }
+});
+
 module.exports = router;
+

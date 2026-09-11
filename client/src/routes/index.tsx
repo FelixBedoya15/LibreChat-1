@@ -6,6 +6,7 @@ import PublicAltaDireccion from '~/components/SGSST/PublicAltaDireccion';
 import PublicAtelTestimonio from '~/components/SGSST/PublicAtelTestimonio';
 import PublicPerfilUpdate from '~/components/SGSST/PublicPerfilUpdate';
 import PublicMoodTracker from '~/components/SGSST/PublicMoodTracker';
+import PublicEstudioPuesto from '~/components/SGSST/PublicEstudioPuesto';
 import MoodAnalyticsDashboard from '~/components/SGSST/MoodAnalyticsDashboard';
 import PrivacyPolicyPage from '~/components/Auth/PrivacyPolicyPage';
 import TermsOfServicePage from '~/components/Auth/TermsOfServicePage';
@@ -116,6 +117,11 @@ export const router = createBrowserRouter(
     {
       path: 'sgsst-public/animo/:companyId',
       element: <PublicMoodTracker />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'sgsst-public/estudio-puesto/:companyId',
+      element: <PublicEstudioPuesto />,
       errorElement: <RouteErrorBoundary />,
     },
     {

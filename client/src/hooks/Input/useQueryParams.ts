@@ -269,21 +269,21 @@ export default function useQueryParams({
     pendingSubmitRef.current = false;
 
     const textToSend = promptTextRef.current;
-    const lastSub = (window as any).__lastSubmittedPrompt;
-    const lastTime = (window as any).__lastSubmittedPromptTime || 0;
-    if (lastSub === textToSend && Date.now() - lastTime < 4000) {
-      console.log('[useQueryParams] Consulta ya enviada recientemente, omitiendo duplicado');
-      return;
-    }
-    (window as any).__lastSubmittedPrompt = textToSend;
-    (window as any).__lastSubmittedPromptTime = Date.now();
-
     methods.setValue('text', textToSend, { shouldValidate: true });
     if (textAreaRef.current) {
       textAreaRef.current.value = textToSend;
+      textAreaRef.current.dispatchEvent(new Event('input', { bubbles: true }));
+      textAreaRef.current.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
-    submitMessage({ text: textToSend });
+    const sendBtn = (document.getElementById('send-button') ||
+      document.querySelector('button[data-testid="send-button"]')) as HTMLButtonElement | null;
+    if (sendBtn && !sendBtn.disabled) {
+      console.log('[useQueryParams] Auto-submitting vía click en #send-button');
+      sendBtn.click();
+    } else {
+      submitMessage({ text: textToSend });
+    }
 
     const newUrl = window.location.pathname;
     window.history.replaceState({}, '', newUrl);

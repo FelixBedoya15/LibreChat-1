@@ -221,96 +221,106 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
     setBackupBadges([]);
   }, [backupBadges, setBadges, setIsEditingBadges]);
 
-  // Listener para auto-envío de consultas delegadas por Tenshi
-  useEffect(() => {
-    const handleTenshiSubmit = async (e: any) => {
-      const { agentId, prompt } = e.detail || {};
-      console.log('[ChatForm] tenshi-submit-agent-prompt recibido:', { agentId, prompt });
+  // Ejecutor robusto de auto-envío para consultas delegadas por Tenshi
+  const triggerTenshiSend = useCallback(
+    (promptToSend: string, agentId?: string) => {
+      if (!promptToSend || !promptToSend.trim()) return;
+      const prompt = promptToSend.trim();
 
-      if (!prompt) return;
-
-      const lastSub = (window as any).__lastSubmittedPrompt;
-      const lastTime = (window as any).__lastSubmittedPromptTime || 0;
-      if (lastSub === prompt && Date.now() - lastTime < 4000) {
-        console.log('[ChatForm] Consulta ya enviada recientemente, omitiendo duplicado');
-        return;
-      }
+      console.log('[ChatForm] triggerTenshiSend ejecutando para:', prompt, { agentId });
 
       // 1. Si se especificó un agente y es diferente al actual, seleccionarlo formalmente
       if (agentId && conversation?.agent_id !== agentId) {
         try {
-          await onSelectAgent(agentId);
+          onSelectAgent(agentId).catch((err) => {
+            console.error('[ChatForm] Error al seleccionar agente delegado por Tenshi:', err);
+          });
         } catch (err) {
-          console.error('[ChatForm] Error al seleccionar agente delegado por Tenshi:', err);
+          console.error('[ChatForm] Error al invocar onSelectAgent:', err);
         }
       }
 
-      // 2. Colocar el texto en react-hook-form y en el textarea para feedback visual inmediato
+      // 2. Colocar el texto de inmediato en react-hook-form y en el textarea
       methods.setValue('text', prompt, { shouldValidate: true });
       if (textAreaRef.current) {
         textAreaRef.current.value = prompt;
+        textAreaRef.current.dispatchEvent(new Event('input', { bubbles: true }));
+        textAreaRef.current.dispatchEvent(new Event('change', { bubbles: true }));
         textAreaRef.current.focus();
       }
 
-      // 3. Enviar el mensaje
-      setTimeout(() => {
-        const curLast = (window as any).__lastSubmittedPrompt;
-        const curTime = (window as any).__lastSubmittedPromptTime || 0;
-        if (curLast === prompt && Date.now() - curTime < 4000) {
-          return;
+      // 3. Intentar hacer click en el botón nativo de envío (#send-button)
+      let submitted = false;
+      const tryClickSend = () => {
+        if (submitted) return true;
+        const sendBtn =
+          submitButtonRef.current ||
+          (document.getElementById('send-button') as HTMLButtonElement | null) ||
+          (document.querySelector('button[data-testid="send-button"]') as HTMLButtonElement | null) ||
+          (document.querySelector('form button[type="submit"]') as HTMLButtonElement | null);
+
+        if (sendBtn && !sendBtn.disabled) {
+          console.log('[ChatForm] Click programático exitoso en send-button');
+          submitted = true;
+          sendBtn.click();
+          return true;
         }
-        (window as any).__lastSubmittedPrompt = prompt;
-        (window as any).__lastSubmittedPromptTime = Date.now();
-        console.log('[ChatForm] Ejecutando submitMessage para Tenshi:', prompt);
-        methods.setValue('text', prompt, { shouldValidate: true });
-        submitMessage({ text: prompt });
-      }, 500);
+        return false;
+      };
+
+      // Si ya está listo el botón, click inmediato
+      if (!tryClickSend()) {
+        // Reintentar en ráfaga (150ms, 300ms, 600ms, 1000ms, 1500ms) hasta que el botón esté habilitado
+        const delays = [150, 300, 600, 1000, 1500];
+        delays.forEach((delay, idx) => {
+          setTimeout(() => {
+            if (submitted) return;
+            if (!tryClickSend() && idx === delays.length - 1) {
+              // Respaldo final si no se pudo hacer click: invocar submitMessage directamente
+              console.log('[ChatForm] Respaldo final: submitMessage directo');
+              submitted = true;
+              methods.setValue('text', prompt, { shouldValidate: true });
+              submitMessage({ text: prompt });
+            }
+          }, delay);
+        });
+      }
+    },
+    [methods, submitMessage, textAreaRef, onSelectAgent, conversation?.agent_id],
+  );
+
+  // Listener para auto-envío de consultas delegadas por Tenshi
+  useEffect(() => {
+    const handleTenshiSubmit = (e: any) => {
+      const { agentId, prompt } = e.detail || {};
+      console.log('[ChatForm] tenshi-submit-agent-prompt recibido:', { agentId, prompt });
+      if (prompt) {
+        triggerTenshiSend(prompt, agentId);
+      }
     };
 
     window.addEventListener('tenshi-submit-agent-prompt', handleTenshiSubmit);
     return () => {
       window.removeEventListener('tenshi-submit-agent-prompt', handleTenshiSubmit);
     };
-  }, [methods, submitMessage, textAreaRef, onSelectAgent, conversation?.agent_id]);
+  }, [triggerTenshiSend]);
 
-  // Respaldo al montar ChatForm si se cargó la URL con submit=true
+  // Respaldo al montar ChatForm o si la URL contiene submit=true
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
       const urlPrompt = params.get('prompt') || params.get('q');
       const urlSubmit = params.get('submit') === 'true';
+      const urlAgent = params.get('agent_id') || undefined;
 
       if (urlSubmit && urlPrompt) {
-        const lastSub = (window as any).__lastSubmittedPrompt;
-        const lastTime = (window as any).__lastSubmittedPromptTime || 0;
-        if (lastSub === urlPrompt && Date.now() - lastTime < 4000) {
-          return;
-        }
-
-        methods.setValue('text', urlPrompt, { shouldValidate: true });
-        if (textAreaRef.current) {
-          textAreaRef.current.value = urlPrompt;
-        }
-
-        const timer = setTimeout(() => {
-          const curLast = (window as any).__lastSubmittedPrompt;
-          const curTime = (window as any).__lastSubmittedPromptTime || 0;
-          if (curLast === urlPrompt && Date.now() - curTime < 4000) {
-            return;
-          }
-          (window as any).__lastSubmittedPrompt = urlPrompt;
-          (window as any).__lastSubmittedPromptTime = Date.now();
-          console.log('[ChatForm] Auto-submit ejecutado desde URL mount:', urlPrompt);
-          methods.setValue('text', urlPrompt, { shouldValidate: true });
-          submitMessage({ text: urlPrompt });
-        }, 600);
-
-        return () => clearTimeout(timer);
+        console.log('[ChatForm] Auto-submit detectado en URL:', urlPrompt);
+        triggerTenshiSend(urlPrompt, urlAgent);
       }
     } catch (e) {
-      console.warn('[ChatForm] Error verificando query params en mount:', e);
+      console.warn('[ChatForm] Error verificando query params:', e);
     }
-  }, [methods, submitMessage, textAreaRef]);
+  }, [triggerTenshiSend]);
 
   const isMoreThanThreeRows = visualRowCount > 3;
 

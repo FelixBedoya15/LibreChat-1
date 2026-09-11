@@ -76,5 +76,6 @@ module.exports = {
     investigacionProfunda,
     automatizaciones: require('./automatizaciones'),
     subusers: require('./subusers'),
+    estudioPuestoTrabajo: require('./estudioPuestoTrabajo'),
 };
 
