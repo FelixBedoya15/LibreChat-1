@@ -224,6 +224,11 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
   // Listener para auto-envío de consultas delegadas por Tenshi
   useEffect(() => {
     const handleTenshiSubmit = async (e: any) => {
+      if (window.location.search.includes('submit=true')) {
+        console.log('[ChatForm] useQueryParams manejará el auto-envío desde los parámetros URL');
+        return;
+      }
+
       const { agentId, prompt } = e.detail || {};
       console.log('[ChatForm] tenshi-submit-agent-prompt recibido:', { agentId, prompt });
 

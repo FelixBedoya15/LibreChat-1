@@ -305,6 +305,7 @@ export default function TenshiChat() {
   const [inactivitySeconds, setInactivitySeconds] = useState(0);
   const [voiceStatusText, setVoiceStatusText] = useState('');
   const lastActivityRef = useRef<number>(Date.now());
+  const lastUserTranscriptionRef = useRef<string>('');
   const inactivityIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const disconnectVoiceRef = useRef<() => void>(() => {});
 
@@ -453,6 +454,7 @@ export default function TenshiChat() {
       onTextReceived: (text: string, isUserTranscription?: boolean) => {
         lastActivityRef.current = Date.now();
         if (isUserTranscription) {
+          lastUserTranscriptionRef.current = text;
           setMessages((prev) => {
             const last = prev[prev.length - 1];
             if (last && last.role === 'user' && (last as any).isLiveVoice) {
@@ -650,7 +652,10 @@ export default function TenshiChat() {
             resultMsg = `Navegación exitosa a ${targetRoute}`;
           } else if (action.name === 'wappy_abrir_chat_agente') {
             const rawAgente = (action.args?.agente || '').trim();
-            const pregunta = (action.args?.pregunta || '').trim();
+            let pregunta = (action.args?.pregunta || '').trim();
+            if (!pregunta && lastUserTranscriptionRef.current) {
+              pregunta = lastUserTranscriptionRef.current.trim();
+            }
             const matchedAgent = findMatchingAgent(rawAgente, agentsRef.current);
             const agentName = matchedAgent ? matchedAgent.name : rawAgente;
 
@@ -666,6 +671,11 @@ export default function TenshiChat() {
             const params = new URLSearchParams();
             if (matchedAgent?.id) {
               params.set('agent_id', matchedAgent.id);
+            }
+            params.set('endpoint', 'agents');
+            if (pregunta) {
+              params.set('prompt', pregunta);
+              params.set('submit', 'true');
             }
 
             const targetRoute = `/c/new${params.toString() ? `?${params.toString()}` : ''}`;
@@ -710,17 +720,19 @@ export default function TenshiChat() {
         setTenshiStatus('');
       },
       onStatusChange: (newStatus: string) => {
-        if (newStatus === 'turn_complete') {
-          setMessages((prev) => prev.map((m) => ({ ...m, isLiveVoice: false })));
+        if (newStatus === 'ready' || newStatus === 'connected' || newStatus === 'listening' || newStatus === 'turn_complete') {
+          if (newStatus === 'turn_complete') {
+            setMessages((prev) => prev.map((m) => ({ ...m, isLiveVoice: false })));
+          }
           setVoiceStatusText('Tenshi te escucha...');
-        } else if (newStatus === 'listening') {
-          setVoiceStatusText('Escuchando tu voz...');
         } else if (newStatus === 'speaking') {
           setVoiceStatusText('Tenshi respondiendo...');
         } else if (newStatus === 'interrupted') {
           clearAudioQueue();
-          setVoiceStatusText('Interrumpido. Escuchando...');
+          setVoiceStatusText('Tenshi te escucha...');
           setMessages((prev) => prev.map((m) => ({ ...m, isLiveVoice: false })));
+        } else if (newStatus === 'idle') {
+          setVoiceStatusText('');
         }
       },
       onError: (err: string) => {

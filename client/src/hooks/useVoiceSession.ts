@@ -367,6 +367,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 setIsConnected(true);
                 setIsConnecting(false);
                 setStatus('ready');
+                optionsRef.current.onStatusChange?.('ready');
 
                 if (!disableAudio) {
                     await startAudioCapture();
@@ -386,6 +387,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 console.error('[VoiceSession] WebSocket error:', error);
                 options.onError?.('WebSocket connection error');
                 setStatus('idle');
+                optionsRef.current.onStatusChange?.('idle');
             };
 
             ws.onclose = (event) => {
@@ -393,6 +395,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 setIsConnected(false);
                 setIsConnecting(false);
                 setStatus('idle');
+                optionsRef.current.onStatusChange?.('idle');
                 stopAudioCapture();
                 wsRef.current = null;
             };
