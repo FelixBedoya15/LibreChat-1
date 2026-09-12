@@ -51,6 +51,41 @@ function calculateCompanyRecommendations(workerCount, riskLevelRaw) {
 }
 
 /**
+ * Safely parse dates formatted as YYYY-MM-DD, YYYY/MM/DD, DD/MM/YYYY, or DD-MM-YYYY.
+ */
+function parseDateFlexible(rawDate) {
+  if (!rawDate) return null;
+  if (rawDate instanceof Date && !isNaN(rawDate.getTime())) return rawDate;
+  if (typeof rawDate !== 'string') return null;
+
+  const trimmed = rawDate.trim();
+  if (!trimmed) return null;
+
+  // Match YYYY-MM-DD or YYYY/MM/DD
+  const isoMatch = trimmed.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if (isoMatch) {
+    const year = parseInt(isoMatch[1], 10);
+    const month = parseInt(isoMatch[2], 10) - 1;
+    const day = parseInt(isoMatch[3], 10);
+    const d = new Date(year, month, day);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  // Match DD-MM-YYYY or DD/MM/YYYY
+  const latinMatch = trimmed.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (latinMatch) {
+    const day = parseInt(latinMatch[1], 10);
+    const month = parseInt(latinMatch[2], 10) - 1;
+    const year = parseInt(latinMatch[3], 10);
+    const d = new Date(year, month, day);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  const d = new Date(trimmed);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+/**
  * Strict 1-to-1 mapping between real saved SGSST report tags in WAPPY and standard requirements.
  * A requirement is ONLY satisfied if an actual saved report exists with verifiable content.
  * NO inferences or assumptions are made.
@@ -221,7 +256,7 @@ const SGSST_REPORT_MODULES = [
     moduleTitle: 'Hito 5: Programa de Capacitaciones',
     codes: ['1.2.1', '1.2.2'],
     auditIds: ['aud_1_2_1', 'aud_1_2_2'],
-    art3Ids: ['art3_3'],
+    art3Ids: [],
     art9Ids: ['art9_8', 'art9_9'],
   },
   {
@@ -432,6 +467,49 @@ async function scanComplianceForUser(userId, user = {}) {
       // Auditoría ID
       for (const id of mod.auditIds) {
         evidenceMap[id] = itemPayload;
+      }
+    }
+  }
+
+  // 6. Verify company.courseStatus for Curso 50H / Actualización 20H (Standard 1.2.3 / art3_3)
+  if (company.courseStatus) {
+    const courseDate = parseDateFlexible(company.courseStatus);
+    if (courseDate) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const threeYearsMs = 3 * 365.25 * 24 * 60 * 60 * 1000;
+      // Vigente if expiration date is in the future/today OR course was completed within the last 3 years
+      const isVigente =
+        courseDate >= today ||
+        (today.getTime() - courseDate.getTime() >= 0 &&
+          today.getTime() - courseDate.getTime() <= threeYearsMs);
+
+      if (isVigente) {
+        const dayStr = String(courseDate.getDate()).padStart(2, '0');
+        const monthStr = String(courseDate.getMonth() + 1).padStart(2, '0');
+        const yearStr = courseDate.getFullYear();
+        const dateFormatted = `${dayStr}/${monthStr}/${yearStr}`;
+        const responsibleName = company.responsibleSST
+          ? company.responsibleSST.trim()
+          : 'el Responsable del SG-SST';
+
+        const coursePayload = {
+          status: 'cumple',
+          evidence: `Curso virtual de 50 horas / Actualización de 20 horas registrado y vigente (${dateFormatted}) para ${responsibleName} según la Información de la Empresa (Res. 4927/16 y Circ. 0047/25).`,
+          source: 'Información de la Empresa',
+        };
+
+        // Standard 1.2.3 across Resolution 0312 articles and Audit
+        evidenceMap['code_1.2.3'] = coursePayload;
+        evidenceMap['art16_11'] = coursePayload;
+        evidenceMap['art9_10'] = coursePayload;
+        evidenceMap['aud_1_2_3'] = coursePayload;
+        // In Article 3 (≤10 workers, risk I-III), standard 3 is code 1.2.1 worth 40 points
+        evidenceMap['art3_3'] = coursePayload;
+
+        if (!modulesWithData.includes('Información de la Empresa')) {
+          modulesWithData.push('Información de la Empresa');
+        }
       }
     }
   }
