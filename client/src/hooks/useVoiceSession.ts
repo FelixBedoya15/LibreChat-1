@@ -51,6 +51,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     const serverFinishedRef = useRef(false);
     const autoMuteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const inputAnalyserRef = useRef<AnalyserNode | null>(null);
+    const isStartingAudioRef = useRef(false);
     const statusRef = useRef(status);
     useEffect(() => {
         statusRef.current = status;
@@ -60,6 +61,11 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
      * Start Audio Capture
      */
     const startAudioCapture = async () => {
+        if (isStartingAudioRef.current || streamRef.current) {
+            console.log('[VoiceSession] startAudioCapture ya en progreso o stream activo, ignorando llamada duplicada.');
+            return;
+        }
+        isStartingAudioRef.current = true;
         try {
             console.log('[VoiceSession] Starting audio capture...');
             isAutoMutedRef.current = false;
@@ -115,7 +121,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             // 3. Helper: enviar PCM int16 a 16kHz al servidor via WebSocket
             let sendCount = 0;
             const sendPCMChunk = (float32Array: Float32Array) => {
-                if (isHardwareMutedRef.current || isAutoMutedRef.current || isPlayingAudioRef.current || statusRef.current === 'speaking') return;
+                if (isHardwareMutedRef.current || isPlayingAudioRef.current) return;
                 if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
                 // Re-muestreo dinámico a 16000 Hz (crítico para Safari en macOS/iOS que opera a 44.1kHz o 48kHz)
@@ -248,6 +254,8 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             if (error.name === 'OverconstrainedError') errorMessage = 'Microphone constraints not satisfied';
 
             options.onError?.(`${errorMessage}: ${error.message}`);
+        } finally {
+            isStartingAudioRef.current = false;
         }
     };
 
@@ -277,6 +285,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
      * Stop Audio Capture
      */
     const stopAudioCapture = () => {
+        isStartingAudioRef.current = false;
         // Detener tracks del micrófono
         if (streamRef.current) {
             streamRef.current.getTracks().forEach(track => track.stop());

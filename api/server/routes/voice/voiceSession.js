@@ -2360,6 +2360,9 @@ ${workerSubHeaderHtml}
     /**
      * Tenshi Voice Failsafe: Intercepta intenciones de abrir agentes o navegar
      * en caso de que Gemini Live haya respondido por voz pero omitido el toolCall.
+     * CRÍTICO: Se evalúa EXCLUSIVAMENTE el texto hablado por el usuario (currentUserText),
+     * NUNCA el texto generado por la IA (currentAiText), para evitar falsos positivos
+     * que abran chats espurios o naveguen cuando Tenshi simplemente habla o saluda.
      */
     handleTenshiVoiceFailsafe(currentUserText = '', currentAiText = '') {
         if (this.config.mode !== 'tenshi_voice') return;
@@ -2369,73 +2372,75 @@ ${workerSubHeaderHtml}
         }
 
         const userText = (currentUserText || '').trim();
-        const aiText = (currentAiText || '').trim();
-        const combinedText = `${userText} ${aiText}`.toLowerCase();
+        if (!userText) return;
+        const userLower = userText.toLowerCase();
 
-        // 1. Detección de intención de consultar / abrir chat con un agente especialista
-        const agentIntentRegex = /(chat|agente|especialista|preg[uú]ntale|consulta|habla con|vamos a preguntarle|p[ií]dele|dile a|abrí el chat|abriendo el chat|le pasé tu pregunta|le pas[eé]|abrir chat|nuevo chat)/i;
-        if (agentIntentRegex.test(combinedText)) {
+        // 1. Detección de intención EXPLÍCITA del usuario para abrir chat o consultar un agente especialista
+        const explicitAgentCommand = /(abre|abrir|abreme|inicia|iniciar|crea|crear|p[aá]same|cambia|cambiar|ll[eé]vame)\s+(un\s+)?(chat|conversaci[oó]n)?\s*(con|al|a)\s+/i;
+        const consultCommand = /(preg[uú]ntale|p[ií]dele|dile|consulta)\s+(a|al|con)?\s*(el|la)?\s*/i;
+
+        if (explicitAgentCommand.test(userLower) || consultCommand.test(userLower)) {
             let matchedAgent = null;
 
-            if (/fisioterap|biomec|ergonom|owas|rula|rosa|postur|puesto.*trabajo|dme|músculo|musculo/i.test(combinedText)) {
+            if (/fisioterap|biomec|ergonom|owas|rula|rosa|postur|puesto.*trabajo|dme|músculo|musculo/i.test(userLower)) {
                 matchedAgent = 'fisioterapeuta_laboral';
-            } else if (/abogado.*rit|reglamento interno.*rit/i.test(combinedText)) {
+            } else if (/abogado.*rit|reglamento interno.*rit/i.test(userLower)) {
                 matchedAgent = 'abogado_rit';
-            } else if (/debido proceso|proceso disciplinario|descargo/i.test(combinedText)) {
+            } else if (/debido proceso|proceso disciplinario|descargo/i.test(userLower)) {
                 matchedAgent = 'abogado_procesos_disciplinarios';
-            } else if (/acoso sexual|ley 2365/i.test(combinedText)) {
+            } else if (/acoso sexual|ley 2365/i.test(userLower)) {
                 matchedAgent = 'abogado_acoso_sexual';
-            } else if (/abogad|jur[ií]dic|disciplinar|ley 1010|contrato|despido|rit|legal/i.test(combinedText)) {
+            } else if (/abogad|jur[ií]dic|disciplinar|ley 1010|contrato|despido|rit|legal/i.test(userLower)) {
                 matchedAgent = 'abogado_laboral';
-            } else if (/m[eé]dic|doctor|salud ocupacional|restricci[oó]n|ausentism|epidemiol/i.test(combinedText)) {
+            } else if (/m[eé]dic|doctor|salud ocupacional|restricci[oó]n|ausentism|epidemiol/i.test(userLower)) {
                 matchedAgent = 'medico_laboral';
-            } else if (/qu[ií]mic|sga|fds|hds|sustancia|derrame|hoja.*seguridad/i.test(combinedText)) {
+            } else if (/qu[ií]mic|sga|fds|hds|sustancia|derrame|hoja.*seguridad/i.test(userLower)) {
                 matchedAgent = 'ingeniero_quimico_sst';
-            } else if (/seguridad vial|vial|pesv|tr[aá]nsito|conductor|veh[ií]cul/i.test(combinedText)) {
+            } else if (/seguridad vial|vial|pesv|tr[aá]nsito|conductor|veh[ií]cul/i.test(userLower)) {
                 matchedAgent = 'coordinador_seguridad_vial';
-            } else if (/psic[oó]log|psicosocial|bater[ií]a|acoso|clima/i.test(combinedText)) {
+            } else if (/psic[oó]log|psicosocial|bater[ií]a|acoso|clima/i.test(userLower)) {
                 matchedAgent = 'psicologo_sst';
-            } else if (/salud mental|burnout|emocional|terapeuta/i.test(combinedText)) {
+            } else if (/salud mental|burnout|emocional|terapeuta/i.test(userLower)) {
                 matchedAgent = 'terapeuta_salud_mental';
-            } else if (/nutrici[oó]n|dieta|aliment|cardiovascular/i.test(combinedText)) {
+            } else if (/nutrici[oó]n|dieta|aliment|cardiovascular/i.test(userLower)) {
                 matchedAgent = 'nutricionista_laboral';
-            } else if (/primer respondiente|primeros auxilios|rcp|botiqu[ií]n|hemorragia/i.test(combinedText)) {
+            } else if (/primer respondiente|primeros auxilios|rcp|botiqu[ií]n|hemorragia/i.test(userLower)) {
                 matchedAgent = 'primer_respondiente';
-            } else if (/emergencia|brigada|simulacro|pae|evacuaci[oó]n/i.test(combinedText)) {
+            } else if (/emergencia|brigada|simulacro|pae|evacuaci[oó]n/i.test(userLower)) {
                 matchedAgent = 'coordinador_emergencias';
-            } else if (/bioseguridad|biol[oó]gic|vacun|pgirh/i.test(combinedText)) {
+            } else if (/bioseguridad|biol[oó]gic|vacun|pgirh/i.test(userLower)) {
                 matchedAgent = 'especialista_bioseguridad';
-            } else if (/el[eé]ctric|retie|loto|arco el[eé]ctrico/i.test(combinedText)) {
+            } else if (/el[eé]ctric|retie|loto|arco el[eé]ctrico/i.test(userLower)) {
                 matchedAgent = 'ingeniero_electricista_sst';
-            } else if (/\bats\b|an[aá]lisis de trabajo seguro/i.test(combinedText)) {
+            } else if (/\bats\b|an[aá]lisis de trabajo seguro/i.test(userLower)) {
                 matchedAgent = 'asistente_ats';
-            } else if (/permiso.*tsa|permiso.*alturas|permiso de trabajo/i.test(combinedText)) {
+            } else if (/permiso.*tsa|permiso.*alturas|permiso de trabajo/i.test(userLower)) {
                 matchedAgent = 'asistente_permiso_tsa';
-            } else if (/tareas cr[ií]ticas|alturas|espacios confinados|caliente|excavaci[oó]n/i.test(combinedText)) {
+            } else if (/tareas cr[ií]ticas|alturas|espacios confinados|caliente|excavaci[oó]n/i.test(userLower)) {
                 matchedAgent = 'coordinador_tareas_criticas';
-            } else if (/minas|miner[ií]a|subterr[aá]nea|t[uú]nel/i.test(combinedText)) {
+            } else if (/minas|miner[ií]a|subterr[aá]nea|t[uú]nel/i.test(userLower)) {
                 matchedAgent = 'ingeniero_minas_sst';
-            } else if (/ipevar|gtc.*45|matriz de peligro/i.test(combinedText)) {
+            } else if (/ipevar|gtc.*45|matriz de peligro/i.test(userLower)) {
                 matchedAgent = 'coordinador_ipevar';
-            } else if (/creador.*formato|formatos sst|plantilla sst/i.test(combinedText)) {
+            } else if (/creador.*formato|formatos sst|plantilla sst/i.test(userLower)) {
                 matchedAgent = 'creador_formatos';
-            } else if (/\baci\b|or[aá]culo.*aci|predictivo aci/i.test(combinedText)) {
+            } else if (/\baci\b|or[aá]culo.*aci|predictivo aci/i.test(userLower)) {
                 matchedAgent = 'asistente_de_aci';
-            } else if (/auditor|0312|est[aá]ndares|phva/i.test(combinedText)) {
+            } else if (/auditor|0312|est[aá]ndares|phva/i.test(userLower)) {
                 matchedAgent = 'auditor_sg_sst';
-            } else if (/ambiental|residuos|vertimiento|ecol[oó]g/i.test(combinedText)) {
+            } else if (/ambiental|residuos|vertimiento|ecol[oó]g/i.test(userLower)) {
                 matchedAgent = 'ingeniero_ambiental';
-            } else if (/clim[aá]tic|estr[eé]s t[eé]rmico|radiaci[oó]n|uv/i.test(combinedText)) {
+            } else if (/clim[aá]tic|estr[eé]s t[eé]rmico|radiaci[oó]n|uv/i.test(userLower)) {
                 matchedAgent = 'especialista_riesgo_climatico';
-            } else if (/redactor|blog|art[ií]culo/i.test(combinedText)) {
+            } else if (/redactor|blog|art[ií]culo/i.test(userLower)) {
                 matchedAgent = 'redactor_creativo';
-            } else if (/simulador|siniestro|accidente|causa ra[ií]z/i.test(combinedText)) {
+            } else if (/simulador|siniestro|accidente|causa ra[ií]z/i.test(userLower)) {
                 matchedAgent = 'simulador_accidentes';
-            } else if (/capacitaci[oó]n|pac|inducci[oó]n/i.test(combinedText)) {
+            } else if (/capacitaci[oó]n|pac|inducci[oó]n/i.test(userLower)) {
                 matchedAgent = 'coordinador_capacitaciones';
-            } else if (/profesional sst/i.test(combinedText)) {
+            } else if (/profesional sst/i.test(userLower)) {
                 matchedAgent = 'profesional_sst';
-            } else if (/consultor sst|asesor sst/i.test(combinedText)) {
+            } else if (/consultor sst|asesor sst/i.test(userLower)) {
                 matchedAgent = 'agente_sst';
             }
 
@@ -2465,151 +2470,151 @@ ${workerSubHeaderHtml}
             }
         }
 
-        // 2. Detección de intención de navegación
-        const navIntentRegex = /(ll[eé]vame|vamos|abre|abrir|ir a|mu[eé]strame|ver|consultar|quiero ver)/i;
-        if (navIntentRegex.test(userText) || /vamos a|te llevo a|abriendo/i.test(aiText)) {
+        // 2. Detección de intención EXPLÍCITA de navegación del usuario
+        const explicitNavRegex = /^(ll[eé]vame|vamos|abre|abrir|ir a|ir al|mu[eé]strame|ver|consultar|quiero ver)\s+/i;
+        if (explicitNavRegex.test(userLower)) {
             let targetModulo = null;
             let targetRuta = null;
 
-            if (/admin.*curso|gesti[oó]n.*curso|administrar curso/i.test(combinedText)) {
+            if (/admin.*curso|gesti[oó]n.*curso|administrar curso/i.test(userLower)) {
                 targetModulo = 'training_admin';
                 targetRuta = '/training/admin';
-            } else if (/admin.*ruta|administrar ruta/i.test(combinedText)) {
+            } else if (/admin.*ruta|administrar ruta/i.test(userLower)) {
                 targetModulo = 'ruta_admin';
                 targetRuta = '/ruta-aprendizaje/admin';
-            } else if (/admin.*evento|admin.*meet/i.test(combinedText)) {
+            } else if (/admin.*evento|admin.*meet/i.test(userLower)) {
                 targetModulo = 'events_meet_admin';
                 targetRuta = '/events-meet/admin';
-            } else if (/evento|clase en vivo|meet/i.test(combinedText)) {
+            } else if (/evento|clase en vivo|meet/i.test(userLower)) {
                 targetModulo = 'events_meet';
                 targetRuta = '/events-meet';
-            } else if (/admin.*blog|crear art[ií]culo|nuevo art[ií]culo/i.test(combinedText)) {
+            } else if (/admin.*blog|crear art[ií]culo|nuevo art[ií]culo/i.test(userLower)) {
                 targetModulo = 'blog_admin';
                 targetRuta = '/blog/admin';
-            } else if (/admin.*tenshi|panel tenshi/i.test(combinedText)) {
+            } else if (/admin.*tenshi|panel tenshi/i.test(userLower)) {
                 targetModulo = 'tenshi_admin';
                 targetRuta = '/tenshi/admin';
-            } else if (/chat.*sst|chat sst/i.test(combinedText)) {
+            } else if (/chat.*sst|chat sst/i.test(userLower)) {
                 targetModulo = 'chat_sst';
                 targetRuta = '/chat-sst';
-            } else if (/dashboard.*[aá]nimo|anal[ií]tica.*[aá]nimo/i.test(combinedText)) {
+            } else if (/dashboard.*[aá]nimo|anal[ií]tica.*[aá]nimo/i.test(userLower)) {
                 targetModulo = 'animo_dashboard';
                 targetRuta = '/sgsst/animo';
-            } else if (/hoja de ruta|roadmap/i.test(combinedText)) {
+            } else if (/hoja de ruta|roadmap/i.test(userLower)) {
                 targetModulo = 'roadmap';
                 targetRuta = '/hoja-de-ruta';
-            } else if (/cont[aá]ctanos|contacto|soporte/i.test(combinedText)) {
-                targetModulo = 'contactanos';
+            } else if (/cont[aá]ctanos|contacto|soporte/i.test(userLower)) {
+                targetModulo = 'contacto';
                 targetRuta = '/contactanos';
-            } else if (/comunidad/i.test(combinedText)) {
+            } else if (/comunidad/i.test(userLower)) {
                 targetModulo = 'comunidad';
                 targetRuta = '/comunidad';
-            } else if (/embajador/i.test(combinedText)) {
+            } else if (/embajador/i.test(userLower)) {
                 targetModulo = 'embajadores';
                 targetRuta = '/embajadores';
-            } else if (/matriz\b/i.test(combinedText)) {
+            } else if (/matriz\b/i.test(userLower)) {
                 targetModulo = 'matriz';
                 targetRuta = '/matriz';
-            } else if (/academia|curso/i.test(combinedText)) {
+            } else if (/academia|curso/i.test(userLower)) {
                 targetModulo = 'academia';
                 targetRuta = '/academia?tab=cursos';
-            } else if (/blog/i.test(combinedText)) {
+            } else if (/blog/i.test(userLower)) {
                 targetModulo = 'blog';
                 targetRuta = '/blog';
-            } else if (/planes|precios|suscripci[oó]n|tarifas/i.test(combinedText)) {
+            } else if (/planes|precios|suscripci[oó]n|tarifas/i.test(userLower)) {
                 targetModulo = 'planes';
                 targetRuta = '/planes';
-            } else if (/pesv|seguridad vial|veh[ií]culos/i.test(combinedText)) {
+            } else if (/pesv|seguridad vial|veh[ií]culos/i.test(userLower)) {
                 targetModulo = 'vehicles_pesv';
                 targetRuta = '/sgsst?hito=hito4&module=vehicles_pesv';
-            } else if (/qu[ií]mica|sga|compatibilidad/i.test(combinedText)) {
+            } else if (/qu[ií]mica|sga|compatibilidad/i.test(userLower)) {
                 targetModulo = 'chemical_registry';
                 targetRuta = '/sgsst?hito=hito4&module=chemical_registry';
-            } else if (/diagn[oó]stico|evaluaci[oó]n inicial|0312/i.test(combinedText)) {
+            } else if (/diagn[oó]stico|evaluaci[oó]n inicial|0312/i.test(userLower)) {
                 targetModulo = 'diagnostico';
                 targetRuta = '/sgsst?hito=hito1&module=diagnostico';
-            } else if (/responsable sst|asignaci[oó]n responsable/i.test(combinedText)) {
+            } else if (/responsable sst|asignaci[oó]n responsable/i.test(userLower)) {
                 targetModulo = 'responsable';
                 targetRuta = '/sgsst?hito=hito1&module=responsable';
-            } else if (/pol[ií]tica sst|objetivos sst/i.test(combinedText)) {
+            } else if (/pol[ií]tica sst|objetivos sst/i.test(userLower)) {
                 targetModulo = 'politica';
                 targetRuta = '/sgsst?hito=hito1&module=politica';
-            } else if (/matriz legal|requisitos legales/i.test(combinedText)) {
+            } else if (/matriz legal|requisitos legales/i.test(userLower)) {
                 targetModulo = 'legal';
                 targetRuta = '/sgsst?hito=hito1&module=legal';
-            } else if (/reglamento|rhs|higiene/i.test(combinedText)) {
+            } else if (/reglamento|rhs|higiene/i.test(userLower)) {
                 targetModulo = 'rhs';
                 targetRuta = '/sgsst?hito=hito1&module=rhs';
-            } else if (/vulnerabilidad|plan.*emergencia/i.test(combinedText)) {
+            } else if (/vulnerabilidad|plan.*emergencia/i.test(userLower)) {
                 targetModulo = 'vulnerabilidad';
                 targetRuta = '/sgsst?hito=hito1&module=vulnerabilidad';
-            } else if (/perfil.*cargo|profesigrama/i.test(combinedText)) {
+            } else if (/perfil.*cargo|profesigrama/i.test(userLower)) {
                 targetModulo = 'perfil_cargo';
                 targetRuta = '/sgsst?hito=hito2&module=perfil_cargo';
-            } else if (/sociodemogr[aá]fico|perfil socio/i.test(combinedText)) {
+            } else if (/sociodemogr[aá]fico|perfil socio/i.test(userLower)) {
                 targetModulo = 'perfil_socio';
                 targetRuta = '/sgsst?hito=hito2&module=perfil_socio';
-            } else if (/condiciones de salud|ex[aá]menes m[eé]dicos/i.test(combinedText)) {
+            } else if (/condiciones de salud|ex[aá]menes m[eé]dicos/i.test(userLower)) {
                 targetModulo = 'condiciones_salud';
                 targetRuta = '/sgsst?hito=hito2&module=condiciones_salud';
-            } else if (/participaci[oó]n ipevar|reportar peligro/i.test(combinedText)) {
+            } else if (/participaci[oó]n ipevar|reportar peligro/i.test(userLower)) {
                 targetModulo = 'participacion_ipevar';
                 targetRuta = '/sgsst?hito=hito3&module=participacion_ipevar';
-            } else if (/peligro|gtc.*45|ipevar/i.test(combinedText)) {
+            } else if (/peligro|gtc.*45|ipevar/i.test(userLower)) {
                 targetModulo = 'peligros';
                 targetRuta = '/sgsst?hito=hito3&module=peligros';
-            } else if (/permiso.*alturas|permiso.*tsa/i.test(combinedText)) {
+            } else if (/permiso.*alturas|permiso.*tsa/i.test(userLower)) {
                 targetModulo = 'permiso_alturas';
                 targetRuta = '/sgsst?hito=hito4&module=permiso_alturas';
-            } else if (/\bats\b|an[aá]lisis de trabajo seguro/i.test(combinedText)) {
+            } else if (/\bats\b|an[aá]lisis de trabajo seguro/i.test(userLower)) {
                 targetModulo = 'analisis_trabajo_seguro';
                 targetRuta = '/sgsst?hito=hito4&module=analisis_trabajo_seguro';
-            } else if (/m[eé]todo owas|owas|ergonom[ií]a laboral/i.test(combinedText)) {
+            } else if (/m[eé]todo owas|owas|ergonom[ií]a laboral/i.test(userLower)) {
                 targetModulo = 'metodo_owas';
                 targetRuta = '/sgsst?hito=hito4&module=metodo_owas';
-            } else if (/epp|entrega.*epp|dotaci[oó]n/i.test(combinedText)) {
+            } else if (/epp|entrega.*epp|dotaci[oó]n/i.test(userLower)) {
                 targetModulo = 'epp_delivery';
                 targetRuta = '/sgsst?hito=hito4&module=epp_delivery';
-            } else if (/l[ií]nea de vida|ciclo.*altura|arn[eé]s/i.test(combinedText)) {
+            } else if (/l[ií]nea de vida|ciclo.*altura|arn[eé]s/i.test(userLower)) {
                 targetModulo = 'heights_lifecycle';
                 targetRuta = '/sgsst?hito=hito4&module=heights_lifecycle';
-            } else if (/capacitaci[oó]n|pac|programa capacitaci[oó]n/i.test(combinedText)) {
+            } else if (/capacitaci[oó]n|pac|programa capacitaci[oó]n/i.test(userLower)) {
                 targetModulo = 'capacitaciones';
                 targetRuta = '/sgsst?hito=hito5&module=capacitaciones';
-            } else if (/ruta.*aprendizaje|lms/i.test(combinedText)) {
+            } else if (/ruta.*aprendizaje|lms/i.test(userLower)) {
                 targetModulo = 'ruta_aprendizaje';
                 targetRuta = '/sgsst?hito=hito5&module=ruta_aprendizaje';
-            } else if (/reporte de actos|condiciones inseguras/i.test(combinedText)) {
+            } else if (/reporte de actos|condiciones inseguras/i.test(userLower)) {
                 targetModulo = 'reporte_actos';
                 targetRuta = '/sgsst?hito=hito5&module=reporte_actos';
-            } else if (/app.*builder|constructor.*app|micro.*app/i.test(combinedText)) {
+            } else if (/app.*builder|constructor.*app|micro.*app/i.test(userLower)) {
                 targetModulo = 'app_builder';
                 targetRuta = '/sgsst?hito=hito5&module=app_builder';
-            } else if (/estad[ií]sticas|indicadores atel/i.test(combinedText)) {
+            } else if (/estad[ií]sticas|indicadores atel/i.test(userLower)) {
                 targetModulo = 'estadisticas';
                 targetRuta = '/sgsst?hito=hito6&module=estadisticas';
-            } else if (/investigaci[oó]n.*accidente|[aá]rbol de causas/i.test(combinedText)) {
+            } else if (/investigaci[oó]n.*accidente|[aá]rbol de causas/i.test(userLower)) {
                 targetModulo = 'investigacion_atel';
                 targetRuta = '/sgsst?hito=hito6&module=investigacion_atel';
-            } else if (/alta direcci[oó]n|revisi[oó]n gerencial/i.test(combinedText)) {
+            } else if (/alta direcci[oó]n|revisi[oó]n gerencial/i.test(userLower)) {
                 targetModulo = 'alta_direccion';
                 targetRuta = '/sgsst?hito=hito6&module=alta_direccion';
-            } else if (/investigaci[oó]n profunda/i.test(combinedText)) {
+            } else if (/investigaci[oó]n profunda/i.test(userLower)) {
                 targetModulo = 'investigacion_profunda';
                 targetRuta = '/sgsst?hito=hito6&module=investigacion_profunda';
-            } else if (/auditor[ií]a/i.test(combinedText)) {
+            } else if (/auditor[ií]a/i.test(userLower)) {
                 targetModulo = 'auditoria';
                 targetRuta = '/auditoria';
-            } else if (/predictivo|or[aá]culo/i.test(combinedText)) {
+            } else if (/predictivo|or[aá]culo/i.test(userLower)) {
                 targetModulo = 'predictivo';
                 targetRuta = '/sgsst?hito=hito7&module=predictivo';
-            } else if (/videollamada|c[aá]mara|en vivo/i.test(combinedText)) {
+            } else if (/videollamada|c[aá]mara|en vivo/i.test(userLower)) {
                 targetModulo = 'live';
                 targetRuta = '/live';
-            } else if (/agentes|mercado|cat[aá]logo/i.test(combinedText)) {
+            } else if (/agentes|mercado|cat[aá]logo/i.test(userLower)) {
                 targetModulo = 'agents';
                 targetRuta = '/agents';
-            } else if (/control|kanban|acpm/i.test(combinedText)) {
+            } else if (/control|kanban|acpm/i.test(userLower)) {
                 targetModulo = 'control_acpm';
                 targetRuta = '/sgsst/control';
             }
@@ -2650,10 +2655,34 @@ ${workerSubHeaderHtml}
         }
 
         // MODO TENSHI: Copiloto oficial en ventana flotante/widget.
-        // NUNCA guardar turnos en MongoDB ni crear conversaciones en el sidebar de LibreChat.
+        // NUNCA crear conversaciones en LibreChat sidebar (Conversation collection).
+        // Pero SÍ persistir en el modelo TenshiMessage para que el widget mantenga su historial sincronizado.
         if (this.config.mode === 'tenshi_voice') {
             logger.info(`[VoiceSession] [Tenshi Voice] Turn completed (${source}). User: "${currentUserText}", AI: "${currentAiText}"`);
             this.handleTenshiVoiceFailsafe(currentUserText, currentAiText);
+
+            try {
+                const TenshiMessage = require('~/models/TenshiMessage');
+                if (this.userId) {
+                    if (currentUserText && currentUserText.trim()) {
+                        TenshiMessage.create({
+                            user: this.userId,
+                            role: 'user',
+                            content: currentUserText.trim(),
+                        }).catch(err => logger.error('[VoiceSession] Error saving Tenshi user message:', err));
+                    }
+                    if (currentAiText && currentAiText.trim()) {
+                        TenshiMessage.create({
+                            user: this.userId,
+                            role: 'assistant',
+                            content: currentAiText.trim(),
+                        }).catch(err => logger.error('[VoiceSession] Error saving Tenshi assistant message:', err));
+                    }
+                }
+            } catch (err) {
+                logger.error('[VoiceSession] Failed to persist Tenshi voice turn to TenshiMessage:', err);
+            }
+
             this.userTranscriptionText = '';
             this.aiResponseText = '';
             this.aiTranscriptionBuffer = '';

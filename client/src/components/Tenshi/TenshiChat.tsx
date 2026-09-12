@@ -669,8 +669,8 @@ export default function TenshiChat() {
             setTimeout(emitPromptEvent, 350);
             setTimeout(emitPromptEvent, 800);
 
-            // Ocultar drawer si estaba abierto para dar paso a la vista del chat del especialista
-            setIsOpen(false);
+            // Mantener drawer de Tenshi abierto para que el usuario conserve a Tenshi
+            // setIsOpen(false);
 
             resultMsg = matchedAgent
               ? `Chat abierto con ${matchedAgent.name}${pregunta ? ` y consulta formulada: "${pregunta}"` : ''}`
@@ -1127,7 +1127,7 @@ export default function TenshiChat() {
     },
     {
       enabled: isAuthenticated,
-      staleTime: Infinity,
+      staleTime: 10 * 1000,
     },
   );
 
