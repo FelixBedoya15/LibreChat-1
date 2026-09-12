@@ -113,10 +113,10 @@ function setupVoiceWebSocket(server) {
 
             logger.info(`[WebSocket] Voice session created for user: ${user.id}`);
 
-            // Send ready message
+            // Send listening status now that the session is active and ready
             ws.send(JSON.stringify({
                 type: 'status',
-                data: { status: 'connecting' },
+                data: { status: 'listening' },
             }));
 
         } catch (error) {

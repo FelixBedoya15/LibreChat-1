@@ -30,6 +30,12 @@ interface UseVoiceSessionOptions {
 export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     const { token } = useAuthContext();
     const { conversationId, disableAudio } = options;
+
+    const optionsRef = useRef(options);
+    useEffect(() => {
+        optionsRef.current = options;
+    }, [options]);
+
     const [isConnected, setIsConnected] = useState(false);
     const [isConnecting, setIsConnecting] = useState(false);
     const [status, setStatus] = useState<'idle' | 'connecting' | 'ready' | 'listening' | 'thinking' | 'speaking'>('idle');
@@ -56,6 +62,8 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     const startAudioCapture = async () => {
         try {
             console.log('[VoiceSession] Starting audio capture...');
+            isAutoMutedRef.current = false;
+            isPlayingAudioRef.current = false;
 
             // 1. Get Microphone Stream
             const stream = await navigator.mediaDevices.getUserMedia({
@@ -226,10 +234,10 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 (workletNodeRef as any).current = scriptProcessor;
             }
 
-            // Only set status to listening if we are already connected/ready
-            if (status === 'ready' || status === 'speaking') {
-                setStatus('listening');
-            }
+            // Audio capture successfully setup and streaming
+            statusRef.current = 'listening';
+            setStatus('listening');
+            optionsRef.current.onStatusChange?.('listening');
 
         } catch (error: any) {
             console.error('[VoiceSession] Error starting audio capture:', error);
@@ -336,6 +344,14 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
 
         setIsConnecting(true);
         setStatus('connecting');
+        optionsRef.current.onStatusChange?.('connecting');
+
+        // Pre-warm audio capture immediately during user gesture to avoid Safari/iOS delays
+        if (!disableAudio && !streamRef.current) {
+            startAudioCapture().catch((err) => {
+                console.warn('[VoiceSession] Pre-warm audio capture failed, will retry on open:', err);
+            });
+        }
 
         try {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -366,10 +382,11 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 console.log('[VoiceSession] Connected');
                 setIsConnected(true);
                 setIsConnecting(false);
-                setStatus('ready');
-                optionsRef.current.onStatusChange?.('ready');
+                statusRef.current = 'listening';
+                setStatus('listening');
+                optionsRef.current.onStatusChange?.('listening');
 
-                if (!disableAudio) {
+                if (!disableAudio && !streamRef.current) {
                     await startAudioCapture();
                 }
             };
@@ -406,13 +423,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             setStatus('idle');
             options.onError?.('Failed to connect');
         }
-    }, [isConnected, isConnecting, token, conversationId, disableAudio, options]); // Added deps
-
-    // FIX: Use ref to access latest options without reconnecting WebSocket
-    const optionsRef = useRef(options);
-    useEffect(() => {
-        optionsRef.current = options;
-    }, [options]);
+    }, [isConnected, isConnecting, token, conversationId, disableAudio, options]);
 
     /**
      * Handle incoming messages from WebSocket
@@ -433,8 +444,12 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                     autoMuteTimeoutRef.current = setTimeout(() => {
                         console.log('[VoiceSession] Safety auto-unmute timeout');
                         isAutoMutedRef.current = false;
+                        isPlayingAudioRef.current = false;
+                        statusRef.current = 'listening';
+                        setStatus('listening');
+                        optionsRef.current.onStatusChange?.('listening');
                         autoMuteTimeoutRef.current = null;
-                    }, 15000);
+                    }, 4000);
                 }
                 break;
 
@@ -621,8 +636,8 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     const setIsPlayingAudio = useCallback((isPlaying: boolean) => {
         isPlayingAudioRef.current = isPlaying;
         console.log('[VoiceSession] setIsPlayingAudio:', isPlaying, 'serverFinished:', serverFinishedRef.current);
-        if (!isPlaying && serverFinishedRef.current) {
-            console.log('[VoiceSession] Playback finished and server is done - unmuting microphone');
+        if (!isPlaying) {
+            console.log('[VoiceSession] Playback finished - unmuting microphone immediately');
             isAutoMutedRef.current = false;
             statusRef.current = 'listening';
             setStatus('listening');

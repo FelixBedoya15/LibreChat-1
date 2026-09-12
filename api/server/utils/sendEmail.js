@@ -155,7 +155,7 @@ const sendEmail = async ({ email, subject, payload, template, from, throwError =
         rejectUnauthorized: isEnabled(process.env.EMAIL_REJECT_UNAUTHORIZED),
       },
       auth: {
-        user: smtpUser,
+        user: (smtpUser || '').replace(/wappy-ia\.com/g, 'wappy.club'),
         pass: smtpPass,
       },
       connectionTimeout: 10000,
@@ -165,18 +165,18 @@ const sendEmail = async ({ email, subject, payload, template, from, throwError =
 
     if (process.env.EMAIL_ENCRYPTION_HOSTNAME) {
       // Check the certificate against this name explicitly
-      transporterOptions.tls.servername = process.env.EMAIL_ENCRYPTION_HOSTNAME;
+      transporterOptions.tls.servername = process.env.EMAIL_ENCRYPTION_HOSTNAME.replace(/wappy-ia\.com/g, 'wappy.club');
     }
 
     // Mailer service definition has precedence
     if (process.env.EMAIL_SERVICE) {
       transporterOptions.service = process.env.EMAIL_SERVICE;
     } else {
-      transporterOptions.host = process.env.EMAIL_HOST;
+      transporterOptions.host = (process.env.EMAIL_HOST || 'mail.wappy.club').replace(/wappy-ia\.com/g, 'wappy.club');
       transporterOptions.port = smtpPort;
     }
 
-    logger.info(`[sendEmail] Sending email to "${email}" with subject "${subject}" (from: ${fromEmail}, secure: ${isSecureConnection}, port: ${smtpPort})`);
+    logger.info(`[sendEmail] Sending email to "${email}" with subject "${subject}" (host: ${transporterOptions.host}, from: ${fromEmail}, secure: ${isSecureConnection}, port: ${smtpPort})`);
 
     const mailOptions = {
       // Header address should contain name-addr

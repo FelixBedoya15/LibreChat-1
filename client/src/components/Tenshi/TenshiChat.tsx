@@ -328,7 +328,7 @@ export default function TenshiChat() {
   const outputAnalyserRef = useRef<AnalyserNode | null>(null);
   const activeSourcesRef = useRef<AudioBufferSourceNode[]>([]);
   const nextStartTimeRef = useRef<number>(0);
-  const [, setIsPlayingAudio] = useState(false);
+  const setIsPlayingAudioRef = useRef<((isPlaying: boolean) => void) | null>(null);
 
   const clearAudioQueue = useCallback(() => {
     activeSourcesRef.current.forEach((source) => {
@@ -338,7 +338,7 @@ export default function TenshiChat() {
     });
     activeSourcesRef.current = [];
     nextStartTimeRef.current = 0;
-    setIsPlayingAudio(false);
+    setIsPlayingAudioRef.current?.(false);
   }, []);
 
   const playChime = useCallback(() => {
@@ -403,14 +403,14 @@ export default function TenshiChat() {
       source.onended = () => {
         activeSourcesRef.current = activeSourcesRef.current.filter((s) => s !== source);
         if (activeSourcesRef.current.length === 0) {
-          setIsPlayingAudio(false);
+          setIsPlayingAudioRef.current?.(false);
           setVoiceStatusText('Tenshi te escucha...');
         }
       };
 
       source.start(nextStartTimeRef.current);
       nextStartTimeRef.current += audioBuffer.duration;
-      setIsPlayingAudio(true);
+      setIsPlayingAudioRef.current?.(true);
       setVoiceStatusText('Tenshi hablando...');
       lastActivityRef.current = Date.now();
     } catch (err) {
@@ -738,8 +738,10 @@ export default function TenshiChat() {
     getInputVolume,
     sendTextMessage,
     sendWappyActionResult,
+    setIsPlayingAudio: setVoiceIsPlayingAudio,
   } = useVoiceSession(sessionOptions);
   disconnectVoiceRef.current = disconnectVoice;
+  setIsPlayingAudioRef.current = setVoiceIsPlayingAudio;
 
   const stopVoiceMode = useCallback(() => {
     setIsVoiceActive(false);
@@ -779,7 +781,7 @@ export default function TenshiChat() {
     }
 
     lastActivityRef.current = Date.now();
-    setVoiceStatusText('Conectando a Tenshi en vivo...');
+    setVoiceStatusText('Tenshi te escucha...');
     connectVoice();
   }, [connectVoice]);
 

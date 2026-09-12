@@ -381,11 +381,15 @@ const registerUser = async (user, additionalData = {}) => {
     }
 
     if (emailEnabled && !newUser.emailVerified) {
-      await sendVerificationEmail({
-        _id: newUserId,
-        email,
-        name,
-      });
+      try {
+        await sendVerificationEmail({
+          _id: newUserId,
+          email,
+          name,
+        });
+      } catch (emailErr) {
+        logger.error('[registerUser] Verification email failed to send, user preserved:', emailErr);
+      }
     } else {
       await updateUser(newUserId, { emailVerified: true });
     }
