@@ -67,10 +67,18 @@ const SGSST_REPORT_MODULES = [
   {
     tags: ['sgsst-perfil-cargo'],
     moduleTitle: 'Hito 2: Perfiles de Cargo',
-    codes: ['1.1.2', '3.1.3'],
-    auditIds: ['aud_1_1_2', 'aud_3_1_3'],
+    codes: ['3.1.3'],
+    auditIds: ['aud_3_1_3'],
     art3Ids: [],
-    art9Ids: ['art9_2', 'art9_17'],
+    art9Ids: ['art9_17'],
+  },
+  {
+    tags: ['sgsst-responsabilidades', 'sgsst-carta-responsabilidades'],
+    moduleTitle: 'Hito 1: Responsabilidades en SST',
+    codes: ['1.1.2'],
+    auditIds: ['aud_1_1_2'],
+    art3Ids: [],
+    art9Ids: ['art9_2'],
   },
   {
     tags: ['sgsst-politica'],
@@ -123,8 +131,8 @@ const SGSST_REPORT_MODULES = [
   {
     tags: ['sgsst-vulnerabilidad'],
     moduleTitle: 'Hito 1: Análisis de Vulnerabilidad / Emergencias',
-    codes: ['5.1.1', '5.1.2'],
-    auditIds: ['aud_5_1_1', 'aud_5_1_2'],
+    codes: ['5.1.1'],
+    auditIds: ['aud_5_1_1'],
     art3Ids: [],
     art9Ids: [],
   },
